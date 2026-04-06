@@ -4,6 +4,8 @@ import (
 	"encoding/json"
 	"log"
 	"net/http"
+
+	"backend/internal/config"
 )
 
 func healthHandler(w http.ResponseWriter, r *http.Request) {
@@ -11,6 +13,7 @@ func healthHandler(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "method not allowed", http.StatusMethodNotAllowed)
 		return
 	}
+	w.Header().Set("Access-Control-Allow-Origin", "*")
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(http.StatusOK)
 	response := map[string]string{
@@ -22,9 +25,10 @@ func healthHandler(w http.ResponseWriter, r *http.Request) {
 }
 
 func main() {
+	cfg := config.MustLoad()
 	mux := http.NewServeMux()
 	mux.HandleFunc("/health", healthHandler)
-	addr := ":8080"
+	addr := ":" + cfg.Port
 	log.Println("server starting on", addr)
 	if err := http.ListenAndServe(addr, mux); err != nil {
 		log.Fatal(err)
