@@ -1,3 +1,13 @@
+Installations:
+
+go install github.com/pressly/goose/v3/cmd/goose@latest
+
+psql -U postgres -d postgres -h localhost -W
+
+CREATE DATABASE photoshare
+
+then setup env variables in home/.bashrc file
+
 Backend terminal:
 
 cd backend

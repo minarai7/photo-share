@@ -1,11 +1,14 @@
 package main
 
 import (
+	"context"
 	"encoding/json"
 	"log"
 	"net/http"
 
 	"backend/internal/config"
+	dbpkg "backend/internal/db"
+	"backend/internal/repository"
 )
 
 func healthHandler(w http.ResponseWriter, r *http.Request) {
@@ -26,11 +29,41 @@ func healthHandler(w http.ResponseWriter, r *http.Request) {
 
 func main() {
 	cfg := config.MustLoad()
+	database, err := dbpkg.Open(cfg.DatabaseURL)
+	if err != nil {
+		log.Fatalf("connect database: %v", err)
+	}
+	defer database.Close()
+	log.Println("database connection successful")
+
+	ctx := context.Background()
+
+	userRepo := repository.NewUserRepository(database)
+	users, err := userRepo.ListUsers(ctx)
+	if err != nil {
+		log.Fatalf("list users failed: %v", err)
+	}
+	log.Printf("users query worked, found %d users", len(users))
+
+	postRepo := repository.NewPostRepository(database)
+	created, err := postRepo.CreatePost(ctx, repository.CreatePostParams{
+		UserID:     1,
+		ImagePath:  "/demo/test.jpg",
+		Caption:    "first test post",
+		Location:   "Tokyo",
+		CameraBody: "Sony A7C",
+		Lens:       "FE 40mm F2.5 G",
+	})
+	if err != nil {
+		log.Fatalf("create post failed: %v", err)
+	}
+	log.Printf("post insert worked, new post id=%d", created.ID)
+
 	mux := http.NewServeMux()
 	mux.HandleFunc("/health", healthHandler)
 	addr := ":" + cfg.Port
 	log.Println("server starting on", addr)
 	if err := http.ListenAndServe(addr, mux); err != nil {
-		log.Fatal(err)
+		log.Fatalf("server error: %v", err)
 	}
 }
