@@ -8,6 +8,7 @@ import (
 	"backend/internal/config"
 	dbpkg "backend/internal/db"
 	"backend/internal/handler"
+	"backend/internal/middleware"
 	"backend/internal/repository"
 	"backend/internal/service"
 )
@@ -77,9 +78,11 @@ func main() {
 	mux.HandleFunc("POST /posts", postHandler.CreatePost)
 	mux.HandleFunc("GET /posts", postHandler.ListPosts)
 
+	loggedMux := middleware.Logging(mux)
+
 	addr := ":" + cfg.Port
 	log.Println("server starting on", addr)
-	if err := http.ListenAndServe(addr, mux); err != nil {
+	if err := http.ListenAndServe(addr, loggedMux); err != nil {
 		log.Fatalf("server error: %v", err)
 	}
 }

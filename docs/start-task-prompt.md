@@ -20,5 +20,3 @@ Please do the following:
 * At the end, give me a short checklist I can use to confirm Task 1.1 is complete.  
 
 Please format the answer like a guided tutorial with sections, code blocks, and explanations directly below each code block. Make the explanation practical and concrete rather than abstract.
-
-
