@@ -1,14 +1,15 @@
 package main
 
 import (
-	"context"
 	"encoding/json"
 	"log"
 	"net/http"
 
 	"backend/internal/config"
 	dbpkg "backend/internal/db"
+	"backend/internal/handler"
 	"backend/internal/repository"
+	"backend/internal/service"
 )
 
 func healthHandler(w http.ResponseWriter, r *http.Request) {
@@ -36,31 +37,46 @@ func main() {
 	defer database.Close()
 	log.Println("database connection successful")
 
-	ctx := context.Background()
-
 	userRepo := repository.NewUserRepository(database)
-	users, err := userRepo.ListUsers(ctx)
-	if err != nil {
-		log.Fatalf("list users failed: %v", err)
-	}
-	log.Printf("users query worked, found %d users", len(users))
-
 	postRepo := repository.NewPostRepository(database)
-	created, err := postRepo.CreatePost(ctx, repository.CreatePostParams{
-		UserID:     1,
-		ImagePath:  "/demo/test.jpg",
-		Caption:    "first test post",
-		Location:   "Tokyo",
-		CameraBody: "Sony A7C",
-		Lens:       "FE 40mm F2.5 G",
-	})
-	if err != nil {
-		log.Fatalf("create post failed: %v", err)
-	}
-	log.Printf("post insert worked, new post id=%d", created.ID)
+
+	authService := service.NewAuthService(userRepo)
+	postService := service.NewPostService(postRepo)
+
+	authHandler := handler.NewAuthHandler(authService)
+	postHandler := handler.NewPostHandler(postService)
+
+	/*
+		ctx := context.Background()
+
+		userRepo := repository.NewUserRepository(database)
+		users, err := userRepo.ListUsers(ctx)
+		if err != nil {
+			log.Fatalf("list users failed: %v", err)
+		}
+		log.Printf("users query worked, found %d users", len(users))
+
+		postRepo := repository.NewPostRepository(database)
+		created, err := postRepo.CreatePost(ctx, repository.CreatePostParams{
+			UserID:     1,
+			ImagePath:  "/demo/test.jpg",
+			Caption:    "first test post",
+			Location:   "Tokyo",
+			CameraBody: "Sony A7C",
+			Lens:       "FE 40mm F2.5 G",
+		})
+		if err != nil {
+			log.Fatalf("create post failed: %v", err)
+		}
+		log.Printf("post insert worked, new post id=%d", created.ID)
+	*/
 
 	mux := http.NewServeMux()
 	mux.HandleFunc("/health", healthHandler)
+	mux.HandleFunc("POST /auth/signup", authHandler.Signup)
+	mux.HandleFunc("POST /posts", postHandler.CreatePost)
+	mux.HandleFunc("GET /posts", postHandler.ListPosts)
+
 	addr := ":" + cfg.Port
 	log.Println("server starting on", addr)
 	if err := http.ListenAndServe(addr, mux); err != nil {

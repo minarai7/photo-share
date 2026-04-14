@@ -4,6 +4,7 @@ import (
 	"context"
 	"database/sql"
 
+	model "backend/internal/db/gen/photoshare/public/model"
 	table "backend/internal/db/gen/photoshare/public/table"
 
 	postgres "github.com/go-jet/jet/v2/postgres"
@@ -28,6 +29,10 @@ type CreatePostParams struct {
 
 type CreatePostResult struct {
 	ID int64
+}
+
+func (r *PostRepository) ListPosts(ctx context.Context) ([]model.Posts, error) {
+	return nil, nil
 }
 
 func (r *PostRepository) CreatePost(ctx context.Context, p CreatePostParams) (CreatePostResult, error) {

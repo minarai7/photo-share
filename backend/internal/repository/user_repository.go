@@ -36,3 +36,7 @@ func (r *UserRepository) ListUsers(ctx context.Context) ([]model.Users, error) {
 
 	return users, nil
 }
+
+func (r *UserRepository) Create(ctx context.Context, user *model.Users) error {
+	return nil
+}
