@@ -29,6 +29,12 @@ func healthHandler(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
+/*
+func panicHandler(w http.ResponseWriter, r *http.Request) {
+	panic("test panic")
+}
+*/
+
 func main() {
 	cfg := config.MustLoad()
 	database, err := dbpkg.Open(cfg.DatabaseURL)
@@ -74,11 +80,14 @@ func main() {
 
 	mux := http.NewServeMux()
 	mux.HandleFunc("/health", healthHandler)
+	// mux.HandleFunc("/panic", panicHandler)
 	mux.HandleFunc("POST /auth/signup", authHandler.Signup)
 	mux.HandleFunc("POST /posts", postHandler.CreatePost)
 	mux.HandleFunc("GET /posts", postHandler.ListPosts)
 
-	loggedMux := middleware.Logging(mux)
+	loggedMux := middleware.Recovery(
+		middleware.Logging(mux),
+	)
 
 	addr := ":" + cfg.Port
 	log.Println("server starting on", addr)
