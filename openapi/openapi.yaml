@@ -1,0 +1,340 @@
+openapi: 3.0.3
+
+info:
+  title: Photo Share API
+  version: 0.1.0
+  description: Initial API contract for the Photo Share MVP.
+
+servers:
+  - url: https://localhost:8080
+    description: Local backend server
+
+tags:
+  - name: auth
+    description: Authentication endpoints
+  - name: posts
+    description: Post-related endpoints
+
+paths:
+  /auth/signup:
+    post:
+      tags:
+        - auth
+      summary: Create a new user account
+      operationId: signupUser
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/SignupRequest'
+      responses:
+        '201':
+          description: User created successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AuthResponse'
+        '400':
+          description: Invalid input
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '409':
+          description: Username or email already exists
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /auth/login:
+    post:
+      tags:
+        - auth
+      summary: Log in an existing user
+      operationId: loginUser
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/LoginRequest'
+      responses:
+        '200':
+          description: Login successful
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AuthResponse'
+        '400':
+          description: Invalid input
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '401':
+          description: Invalid credentials
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /posts:
+    get:
+      tags:
+        - posts
+      summary: Get all posts
+      operationId: listPosts
+      responses:
+        '200':
+          description: A list of posts
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Post'
+
+    post:
+      tags:
+        - posts
+      summary: Create a new post
+      operationId: createPost
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreatePostRequest'
+      responses:
+        '201':
+          description: Post created successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Post'
+        '400':
+          description: Invalid input
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '401':
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+  
+  /posts/{id}:
+    get:
+      tags:
+        - posts
+      summary: Get one post by ID
+      operationId: getPostById
+      parameters:
+        - name: id
+          in: path
+          required: true
+          description: Post ID
+          schema:
+            type: integer
+            format: int64
+      responses:
+        '200':
+          description: One post
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Post'
+        '404':
+          description: Post not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+  
+  schemas:
+    SignupRequest:
+      type: object
+      required:
+        - username
+        - email
+        - password
+      properties:
+        username:
+          type: string
+          example: yamato
+        email:
+          type: string
+          format: email
+          example: yamato@example.com
+        password:
+          type: string
+          format: password
+          example: secret123
+    
+    LoginRequest:
+      type: object
+      required:
+        - email
+        - password
+      properties:
+        email:
+          type: string
+          format: email
+          example: yamato@example.com
+        password:
+          type: string
+          format: password
+          example: secret123
+    
+    User:
+      type: object
+      required:
+        - id
+        - username
+        - email
+        - created_at
+      properties:
+        id:
+          type: integer
+          format: int64
+          example: 1
+        username:
+          type: string
+          example: yamato
+        email:
+          type: string
+          format: email
+          example: yamato@example.com
+        created_at:
+          type: string
+          format: date-time
+          example: 2026-04-14T12:00:00Z
+      
+    AuthResponse:
+      type: object
+      required:
+        - token
+        - user
+      properties:
+        token:
+          type: string
+          example: your-jwt-token-here
+        user:
+          $ref: '#/components/schemas/User'
+    
+    CreatePostRequest:
+      type: object
+      required:
+        - image_path
+        - caption
+      properties:
+        image_path:
+          type: string
+          example: /demo/test.jpg
+        caption:
+          type: string
+          example: Sunset at the beach
+        location:
+          type: string
+          nullable: true
+          example: Kamakura
+        camera_body:
+          type: string
+          nullable: true
+          example: Sony A7 IV
+        lens:
+          type: string
+          nullable: true
+          example: FE 24-70mm F2.8 GM
+    
+    Author:
+      type: object
+      required:
+        - id
+        - username
+      properties:
+        id:
+          type: integer
+          format: int64
+          example: 1
+        username:
+          type: string
+          example: yamato
+
+    Post:
+      type: object
+      required:
+        - id
+        - image_path
+        - caption
+        - created_at
+        - updated_at
+        - author
+      properties:
+        id:
+          type: integer
+          format: int64
+          example: 100
+        image_path:
+          type: string
+          example: /demo/test.jpg
+        caption:
+          type: string
+          example: Sunset at the beach
+        location:
+          type: string
+          nullable: true
+          example: Kamakura
+        camera_body:
+          type: string
+          nullable: true
+          example: Sony A7 IV
+        lens:
+          type: string
+          nullable: true
+          example: FE 24-70mm F2.8 GM
+        created_at:
+          type: string
+          format: date-time
+          example: 2026-04-14T12:00:00Z
+        updated_at:
+          type: string
+          format: date-time
+          example: 2026-04-14T12:00:00Z
+        author:
+          $ref: '#/components/schemas/Author'
+
+    ErrorDetail:
+      type: object
+      required:
+        - code
+        - message
+      properties:
+        code:
+          type: string
+          example: invalid_input
+        message:
+          type: string
+          example: Caption is required
+
+    ErrorResponse:
+      type: object
+      required:
+        - error
+      properties:
+        error:
+          $ref: '#/components/schemas/ErrorDetail'
+          
