@@ -3,8 +3,10 @@ package repository
 import (
 	"context"
 	"database/sql"
+	"errors"
 
 	postgres "github.com/go-jet/jet/v2/postgres"
+	"github.com/go-jet/jet/v2/qrm"
 
 	model "backend/internal/db/gen/photoshare/public/model"
 	table "backend/internal/db/gen/photoshare/public/table"
@@ -16,6 +18,12 @@ type UserRepository struct {
 
 func NewUserRepository(db *sql.DB) *UserRepository {
 	return &UserRepository{db: db}
+}
+
+type CreateUserParams struct {
+	Username     string
+	Email        string
+	PasswordHash string
 }
 
 func (r *UserRepository) ListUsers(ctx context.Context) ([]model.Users, error) {
@@ -37,6 +45,56 @@ func (r *UserRepository) ListUsers(ctx context.Context) ([]model.Users, error) {
 	return users, nil
 }
 
-func (r *UserRepository) Create(ctx context.Context, user *model.Users) error {
-	return nil
+func (r *UserRepository) GetByEmail(ctx context.Context, email string) (*model.Users, error) {
+	stmt := postgres.SELECT(table.Users.AllColumns).
+		FROM(table.Users).
+		WHERE(table.Users.Email.EQ(postgres.String(email)))
+
+	var user model.Users
+	err := stmt.QueryContext(ctx, r.db, &user)
+
+	if errors.Is(err, qrm.ErrNoRows) {
+		return nil, nil
+	}
+	if err != nil {
+		return nil, err
+	}
+
+	return &user, nil
+}
+
+func (r *UserRepository) GetByUsername(ctx context.Context, username string) (*model.Users, error) {
+	stmt := postgres.SELECT(table.Users.AllColumns).
+		FROM(table.Users).
+		WHERE(table.Users.Username.EQ(postgres.String(username)))
+
+	var user model.Users
+	err := stmt.QueryContext(ctx, r.db, &user)
+
+	if errors.Is(err, qrm.ErrNoRows) {
+		return nil, nil
+	}
+	if err != nil {
+		return nil, err
+	}
+
+	return &user, nil
+}
+
+func (r *UserRepository) Create(ctx context.Context, p CreateUserParams) (*model.Users, error) {
+	stmt := table.Users.
+		INSERT(
+			table.Users.Username,
+			table.Users.Email,
+			table.Users.PasswordHash).
+		MODEL(p).
+		RETURNING(table.Users.AllColumns)
+
+	var user model.Users
+	err := stmt.QueryContext(ctx, r.db, &user)
+	if err != nil {
+		return nil, err
+	}
+
+	return &user, nil
 }

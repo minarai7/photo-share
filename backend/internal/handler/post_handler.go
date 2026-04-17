@@ -16,30 +16,30 @@ func NewPostHandler(postService *service.PostService) *PostHandler {
 	return &PostHandler{postService: postService}
 }
 
-type CreatePostRequest struct {
-	ImagePath  string `json:"image_path"`
-	Caption    string `json:"caption"`
-	Location   string `json:"location"`
-	CameraBody string `json:"camera_body"`
-	Lens       string `json:"lens"`
-}
-
-func stringPtrOrNil(s string) *string {
-	if s == "" {
-		return nil
+func stringValue(s *string) string {
+	if s == nil {
+		return ""
 	}
-	return &s
+	return *s
 }
 
 func (h *PostHandler) CreatePost(w http.ResponseWriter, r *http.Request) {
 	var req CreatePostRequest
 
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-		http.Error(w, "invalid request body", http.StatusBadRequest)
+		_ = writeJSON(w, http.StatusBadRequest, ErrorResponse{
+			Error: ErrorDetail{
+				Code:    "invalid_json",
+				Message: "request body is invalid",
+			},
+		})
 		return
 	}
 
+	currentUserID := int64(1)
+
 	post := repository.CreatePostParams{
+		UserID:     currentUserID,
 		ImagePath:  req.ImagePath,
 		Caption:    req.Caption,
 		Location:   req.Location,
@@ -47,19 +47,29 @@ func (h *PostHandler) CreatePost(w http.ResponseWriter, r *http.Request) {
 		Lens:       req.Lens,
 	}
 
-	if _, err := h.postService.CreatePost(r.Context(), post); err != nil {
-		http.Error(w, "failed to create post", http.StatusInternalServerError)
+	resp, err := h.postService.CreatePost(r.Context(), post)
+	if err != nil {
+		_ = writeJSON(w, http.StatusBadRequest, ErrorResponse{
+			Error: ErrorDetail{
+				Code:    "create_post_failed",
+				Message: err.Error(),
+			},
+		})
 		return
 	}
 
-	w.WriteHeader(http.StatusCreated)
-	w.Write([]byte(`{"message":"post created"}`))
+	_ = writeJSON(w, http.StatusCreated, resp)
 }
 
 func (h *PostHandler) ListPosts(w http.ResponseWriter, r *http.Request) {
 	posts, err := h.postService.ListPosts(r.Context())
 	if err != nil {
-		http.Error(w, "failed to list posts", http.StatusInternalServerError)
+		_ = writeJSON(w, http.StatusInternalServerError, ErrorResponse{
+			Error: ErrorDetail{
+				Code:    "list_posts_failed",
+				Message: err.Error(),
+			},
+		})
 		return
 	}
 

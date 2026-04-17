@@ -2,9 +2,9 @@ package handler
 
 import (
 	"encoding/json"
+	"errors"
 	"net/http"
 
-	"backend/internal/db/gen/photoshare/public/model"
 	"backend/internal/service"
 )
 
@@ -16,30 +16,78 @@ func NewAuthHandler(authService *service.AuthService) *AuthHandler {
 	return &AuthHandler{authService: authService}
 }
 
-type SignupRequest struct {
-	Username string `json:"username"`
-	Email    string `json:"email"`
-	Password string `json:"password"`
-}
-
 func (h *AuthHandler) Signup(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodPost {
+		writeJSON(w, http.StatusMethodNotAllowed, ErrorResponse{
+			Error: ErrorDetail{
+				Code:    "invalid_method",
+				Message: "method is not post",
+			},
+		})
+		return
+	}
+
 	var req SignupRequest
 
-	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-		http.Error(w, "invalid request body", http.StatusBadRequest)
+	dec := json.NewDecoder(r.Body)
+	dec.DisallowUnknownFields()
+
+	if err := dec.Decode(&req); err != nil {
+		writeJSON(w, http.StatusBadRequest, ErrorResponse{
+			Error: ErrorDetail{
+				Code:    "invalid_json",
+				Message: "request body is invalid",
+			},
+		})
 		return
 	}
 
-	user := &model.Users{
+	user, err := h.authService.Signup(r.Context(), service.SignupParams{
 		Username: req.Username,
 		Email:    req.Email,
+		Password: req.Password,
+	})
+
+	if err != nil {
+		switch {
+		case errors.Is(err, service.ErrInvalidSignupInput),
+			errors.Is(err, service.ErrPasswordTooLong):
+			writeJSON(w, http.StatusBadRequest, ErrorResponse{
+				Error: ErrorDetail{
+					Code:    "signup_failed",
+					Message: err.Error(),
+				},
+			})
+			return
+
+		case errors.Is(err, service.ErrEmailAlreadyExists),
+			errors.Is(err, service.ErrUsernameAlreadyExists):
+			writeJSON(w, http.StatusConflict, ErrorResponse{
+				Error: ErrorDetail{
+					Code:    "signup_failed",
+					Message: err.Error(),
+				},
+			})
+			return
+
+		default:
+			writeJSON(w, http.StatusInternalServerError, ErrorResponse{
+				Error: ErrorDetail{
+					Code:    "signup_failed",
+					Message: err.Error(),
+				},
+			})
+			return
+		}
 	}
 
-	if err := h.authService.Signup(r.Context(), user); err != nil {
-		http.Error(w, "failed to sign up", http.StatusInternalServerError)
-		return
-	}
-
-	w.WriteHeader(http.StatusCreated)
-	w.Write([]byte(`{"message":"signup ok"}`))
+	writeJSON(w, http.StatusCreated, LoginResponse{
+		Token: "placeholder",
+		User: User{
+			ID:        user.ID,
+			Username:  user.Username,
+			Email:     user.Email,
+			CreatedAt: user.CreatedAt,
+		},
+	})
 }

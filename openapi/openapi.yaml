@@ -34,7 +34,7 @@ paths:
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/AuthResponse'
+                $ref: '#/components/schemas/LoginResponse'
         '400':
           description: Invalid input
           content:
@@ -66,7 +66,7 @@ paths:
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/AuthResponse'
+                $ref: '#/components/schemas/LoginResponse'
         '400':
           description: Invalid input
           content:
@@ -223,7 +223,7 @@ components:
           format: date-time
           example: 2026-04-14T12:00:00Z
       
-    AuthResponse:
+    LoginResponse:
       type: object
       required:
         - token
@@ -259,25 +259,12 @@ components:
           type: string
           nullable: true
           example: FE 24-70mm F2.8 GM
-    
-    Author:
-      type: object
-      required:
-        - id
-        - username
-      properties:
-        id:
-          type: integer
-          format: int64
-          example: 1
-        username:
-          type: string
-          example: yamato
 
     Post:
       type: object
       required:
         - id
+        - user_id
         - image_path
         - caption
         - created_at
@@ -288,6 +275,10 @@ components:
           type: integer
           format: int64
           example: 100
+        user_id:
+          type: integer
+          format: int64
+          example: 1
         image_path:
           type: string
           example: /demo/test.jpg
@@ -314,8 +305,6 @@ components:
           type: string
           format: date-time
           example: 2026-04-14T12:00:00Z
-        author:
-          $ref: '#/components/schemas/Author'
 
     ErrorDetail:
       type: object
