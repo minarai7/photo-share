@@ -81,8 +81,19 @@ func (h *AuthHandler) Signup(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 
+	resp, err := h.authService.IssueAuth(*user)
+	if err != nil {
+		writeJSON(w, http.StatusInternalServerError, ErrorResponse{
+			Error: ErrorDetail{
+				Code:    "internal_error",
+				Message: "failed to create auth token",
+			},
+		})
+		return
+	}
+
 	writeJSON(w, http.StatusCreated, LoginResponse{
-		Token: "placeholder",
+		Token: resp.Token,
 		User: User{
 			ID:        user.ID,
 			Username:  user.Username,
@@ -90,4 +101,62 @@ func (h *AuthHandler) Signup(w http.ResponseWriter, r *http.Request) {
 			CreatedAt: user.CreatedAt,
 		},
 	})
+}
+
+func (h *AuthHandler) Login(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodPost {
+		writeJSON(w, http.StatusMethodNotAllowed, ErrorResponse{
+			Error: ErrorDetail{
+				Code:    "invalid_method",
+				Message: "method is not post",
+			},
+		})
+		return
+	}
+
+	var req LoginRequest
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		writeJSON(w, http.StatusBadRequest, ErrorResponse{
+			Error: ErrorDetail{
+				Code:    "invalid_json",
+				Message: "Request body is invalid",
+			},
+		})
+		return
+	}
+
+	result, err := h.authService.Login(r.Context(), service.LoginParams{
+		Email:    req.Email,
+		Password: req.Password,
+	})
+	if err != nil {
+		if errors.Is(err, service.ErrInvalidCredentials) {
+			writeJSON(w, http.StatusUnauthorized, ErrorResponse{
+				Error: ErrorDetail{
+					Code:    "invalid_credentials",
+					Message: "invalid login or password",
+				},
+			})
+			return
+		}
+
+		writeJSON(w, http.StatusInternalServerError, ErrorResponse{
+			Error: ErrorDetail{
+				Code:    "internal_error",
+				Message: "login failed",
+			},
+		})
+		return
+	}
+
+	writeJSON(w, http.StatusOK, LoginResponse{
+		Token: result.Token,
+		User: User{
+			ID:        result.User.ID,
+			Username:  result.User.Username,
+			Email:     result.User.Email,
+			CreatedAt: result.User.CreatedAt,
+		},
+	})
+
 }

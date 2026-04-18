@@ -47,7 +47,7 @@ func main() {
 	userRepo := repository.NewUserRepository(database)
 	postRepo := repository.NewPostRepository(database)
 
-	authService := service.NewAuthService(userRepo)
+	authService := service.NewAuthService(userRepo, cfg.JWTSecret)
 	postService := service.NewPostService(postRepo)
 
 	authHandler := handler.NewAuthHandler(authService)
@@ -81,7 +81,8 @@ func main() {
 	mux := http.NewServeMux()
 	mux.HandleFunc("/health", healthHandler)
 	// mux.HandleFunc("/panic", panicHandler)
-	mux.HandleFunc("POST /auth/signup", authHandler.Signup)
+	mux.HandleFunc("/auth/signup", authHandler.Signup)
+	mux.HandleFunc("/auth/login", authHandler.Login)
 	mux.HandleFunc("POST /posts", postHandler.CreatePost)
 	mux.HandleFunc("GET /posts", postHandler.ListPosts)
 

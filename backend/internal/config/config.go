@@ -11,6 +11,7 @@ type Config struct {
 	Port           string
 	DatabaseURL    string
 	FrontendOrigin string
+	JWTSecret      string
 }
 
 func getEnv(key string, fallback string) string {
@@ -30,6 +31,7 @@ func MustLoad() Config {
 		Port:           getEnv("PORT", "8080"),
 		DatabaseURL:    os.Getenv("DATABASE_URL"),
 		FrontendOrigin: getEnv("FRONTEND_ORIGIN", "http://localhost:5173"),
+		JWTSecret:      os.Getenv("JWT_SECRET"),
 	}
 	if cfg.DatabaseURL == "" {
 		log.Fatal("DATABASE_URL is required")
