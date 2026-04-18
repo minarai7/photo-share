@@ -11,6 +11,8 @@ import (
 	"backend/internal/middleware"
 	"backend/internal/repository"
 	"backend/internal/service"
+
+	"github.com/rs/cors"
 )
 
 func healthHandler(w http.ResponseWriter, r *http.Request) {
@@ -18,7 +20,6 @@ func healthHandler(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "method not allowed", http.StatusMethodNotAllowed)
 		return
 	}
-	w.Header().Set("Access-Control-Allow-Origin", "*")
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(http.StatusOK)
 	response := map[string]string{
@@ -86,8 +87,17 @@ func main() {
 	mux.HandleFunc("POST /posts", postHandler.CreatePost)
 	mux.HandleFunc("GET /posts", postHandler.ListPosts)
 
+	corsMiddleware := cors.New(cors.Options{
+		AllowedOrigins:   []string{cfg.FrontendOrigin},
+		AllowedMethods:   []string{"GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"},
+		AllowedHeaders:   []string{"Content-Type", "Authorization"},
+		AllowCredentials: true,
+	})
+
+	handlerWithCORS := corsMiddleware.Handler(mux)
+
 	loggedMux := middleware.Recovery(
-		middleware.Logging(mux),
+		middleware.Logging(handlerWithCORS),
 	)
 
 	addr := ":" + cfg.Port
