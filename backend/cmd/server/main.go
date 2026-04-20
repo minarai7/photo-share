@@ -79,13 +79,19 @@ func main() {
 		log.Printf("post insert worked, new post id=%d", created.ID)
 	*/
 
+	authMiddleware := middleware.NewAuthMiddleware(authService)
+
 	mux := http.NewServeMux()
+
 	mux.HandleFunc("/health", healthHandler)
 	// mux.HandleFunc("/panic", panicHandler)
+
 	mux.HandleFunc("/auth/signup", authHandler.Signup)
 	mux.HandleFunc("/auth/login", authHandler.Login)
-	mux.HandleFunc("POST /posts", postHandler.CreatePost)
+
 	mux.HandleFunc("GET /posts", postHandler.ListPosts)
+
+	mux.Handle("POST /posts", authMiddleware.RequireAuth(http.HandlerFunc(postHandler.CreatePost)))
 
 	corsMiddleware := cors.New(cors.Options{
 		AllowedOrigins:   []string{cfg.FrontendOrigin},

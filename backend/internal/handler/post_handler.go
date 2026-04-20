@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"net/http"
 
+	"backend/internal/httpx"
 	"backend/internal/repository"
 	"backend/internal/service"
 )
@@ -26,9 +27,11 @@ func stringValue(s *string) string {
 func (h *PostHandler) CreatePost(w http.ResponseWriter, r *http.Request) {
 	var req CreatePostRequest
 
+	// LATER: FIX {"error":"internal server error"} SOMEWHERE AROUND HERE
+
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-		_ = writeJSON(w, http.StatusBadRequest, ErrorResponse{
-			Error: ErrorDetail{
+		_ = httpx.WriteJSON(w, http.StatusBadRequest, httpx.ErrorResponse{
+			Error: httpx.ErrorDetail{
 				Code:    "invalid_json",
 				Message: "request body is invalid",
 			},
@@ -49,8 +52,8 @@ func (h *PostHandler) CreatePost(w http.ResponseWriter, r *http.Request) {
 
 	resp, err := h.postService.CreatePost(r.Context(), post)
 	if err != nil {
-		_ = writeJSON(w, http.StatusBadRequest, ErrorResponse{
-			Error: ErrorDetail{
+		_ = httpx.WriteJSON(w, http.StatusBadRequest, httpx.ErrorResponse{
+			Error: httpx.ErrorDetail{
 				Code:    "create_post_failed",
 				Message: err.Error(),
 			},
@@ -58,14 +61,14 @@ func (h *PostHandler) CreatePost(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	_ = writeJSON(w, http.StatusCreated, resp)
+	_ = httpx.WriteJSON(w, http.StatusCreated, resp)
 }
 
 func (h *PostHandler) ListPosts(w http.ResponseWriter, r *http.Request) {
 	posts, err := h.postService.ListPosts(r.Context())
 	if err != nil {
-		_ = writeJSON(w, http.StatusInternalServerError, ErrorResponse{
-			Error: ErrorDetail{
+		_ = httpx.WriteJSON(w, http.StatusInternalServerError, httpx.ErrorResponse{
+			Error: httpx.ErrorDetail{
 				Code:    "list_posts_failed",
 				Message: err.Error(),
 			},

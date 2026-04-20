@@ -5,6 +5,7 @@ import (
 	"errors"
 	"net/http"
 
+	"backend/internal/httpx"
 	"backend/internal/service"
 )
 
@@ -18,8 +19,8 @@ func NewAuthHandler(authService *service.AuthService) *AuthHandler {
 
 func (h *AuthHandler) Signup(w http.ResponseWriter, r *http.Request) {
 	if r.Method != http.MethodPost {
-		writeJSON(w, http.StatusMethodNotAllowed, ErrorResponse{
-			Error: ErrorDetail{
+		httpx.WriteJSON(w, http.StatusMethodNotAllowed, httpx.ErrorResponse{
+			Error: httpx.ErrorDetail{
 				Code:    "invalid_method",
 				Message: "method is not post",
 			},
@@ -33,8 +34,8 @@ func (h *AuthHandler) Signup(w http.ResponseWriter, r *http.Request) {
 	dec.DisallowUnknownFields()
 
 	if err := dec.Decode(&req); err != nil {
-		writeJSON(w, http.StatusBadRequest, ErrorResponse{
-			Error: ErrorDetail{
+		httpx.WriteJSON(w, http.StatusBadRequest, httpx.ErrorResponse{
+			Error: httpx.ErrorDetail{
 				Code:    "invalid_json",
 				Message: "request body is invalid",
 			},
@@ -52,8 +53,8 @@ func (h *AuthHandler) Signup(w http.ResponseWriter, r *http.Request) {
 		switch {
 		case errors.Is(err, service.ErrInvalidSignupInput),
 			errors.Is(err, service.ErrPasswordTooLong):
-			writeJSON(w, http.StatusBadRequest, ErrorResponse{
-				Error: ErrorDetail{
+			httpx.WriteJSON(w, http.StatusBadRequest, httpx.ErrorResponse{
+				Error: httpx.ErrorDetail{
 					Code:    "signup_failed",
 					Message: err.Error(),
 				},
@@ -62,8 +63,8 @@ func (h *AuthHandler) Signup(w http.ResponseWriter, r *http.Request) {
 
 		case errors.Is(err, service.ErrEmailAlreadyExists),
 			errors.Is(err, service.ErrUsernameAlreadyExists):
-			writeJSON(w, http.StatusConflict, ErrorResponse{
-				Error: ErrorDetail{
+			httpx.WriteJSON(w, http.StatusConflict, httpx.ErrorResponse{
+				Error: httpx.ErrorDetail{
 					Code:    "signup_failed",
 					Message: err.Error(),
 				},
@@ -71,8 +72,8 @@ func (h *AuthHandler) Signup(w http.ResponseWriter, r *http.Request) {
 			return
 
 		default:
-			writeJSON(w, http.StatusInternalServerError, ErrorResponse{
-				Error: ErrorDetail{
+			httpx.WriteJSON(w, http.StatusInternalServerError, httpx.ErrorResponse{
+				Error: httpx.ErrorDetail{
 					Code:    "signup_failed",
 					Message: err.Error(),
 				},
@@ -83,8 +84,8 @@ func (h *AuthHandler) Signup(w http.ResponseWriter, r *http.Request) {
 
 	resp, err := h.authService.IssueAuth(*user)
 	if err != nil {
-		writeJSON(w, http.StatusInternalServerError, ErrorResponse{
-			Error: ErrorDetail{
+		httpx.WriteJSON(w, http.StatusInternalServerError, httpx.ErrorResponse{
+			Error: httpx.ErrorDetail{
 				Code:    "internal_error",
 				Message: "failed to create auth token",
 			},
@@ -92,7 +93,7 @@ func (h *AuthHandler) Signup(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	writeJSON(w, http.StatusCreated, LoginResponse{
+	httpx.WriteJSON(w, http.StatusCreated, LoginResponse{
 		Token: resp.Token,
 		User: User{
 			ID:        user.ID,
@@ -105,8 +106,8 @@ func (h *AuthHandler) Signup(w http.ResponseWriter, r *http.Request) {
 
 func (h *AuthHandler) Login(w http.ResponseWriter, r *http.Request) {
 	if r.Method != http.MethodPost {
-		writeJSON(w, http.StatusMethodNotAllowed, ErrorResponse{
-			Error: ErrorDetail{
+		httpx.WriteJSON(w, http.StatusMethodNotAllowed, httpx.ErrorResponse{
+			Error: httpx.ErrorDetail{
 				Code:    "invalid_method",
 				Message: "method is not post",
 			},
@@ -116,8 +117,8 @@ func (h *AuthHandler) Login(w http.ResponseWriter, r *http.Request) {
 
 	var req LoginRequest
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-		writeJSON(w, http.StatusBadRequest, ErrorResponse{
-			Error: ErrorDetail{
+		httpx.WriteJSON(w, http.StatusBadRequest, httpx.ErrorResponse{
+			Error: httpx.ErrorDetail{
 				Code:    "invalid_json",
 				Message: "Request body is invalid",
 			},
@@ -131,8 +132,8 @@ func (h *AuthHandler) Login(w http.ResponseWriter, r *http.Request) {
 	})
 	if err != nil {
 		if errors.Is(err, service.ErrInvalidCredentials) {
-			writeJSON(w, http.StatusUnauthorized, ErrorResponse{
-				Error: ErrorDetail{
+			httpx.WriteJSON(w, http.StatusUnauthorized, httpx.ErrorResponse{
+				Error: httpx.ErrorDetail{
 					Code:    "invalid_credentials",
 					Message: "invalid login or password",
 				},
@@ -140,8 +141,8 @@ func (h *AuthHandler) Login(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 
-		writeJSON(w, http.StatusInternalServerError, ErrorResponse{
-			Error: ErrorDetail{
+		httpx.WriteJSON(w, http.StatusInternalServerError, httpx.ErrorResponse{
+			Error: httpx.ErrorDetail{
 				Code:    "internal_error",
 				Message: "login failed",
 			},
@@ -149,7 +150,7 @@ func (h *AuthHandler) Login(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	writeJSON(w, http.StatusOK, LoginResponse{
+	httpx.WriteJSON(w, http.StatusOK, LoginResponse{
 		Token: result.Token,
 		User: User{
 			ID:        result.User.ID,

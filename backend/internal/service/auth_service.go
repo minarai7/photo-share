@@ -3,12 +3,14 @@ package service
 import (
 	"context"
 	"errors"
+	"fmt"
 	"strings"
+	"time"
 
-	"backend/internal/auth"
 	"backend/internal/db/gen/photoshare/public/model"
 	"backend/internal/repository"
 
+	"github.com/golang-jwt/jwt/v5"
 	"golang.org/x/crypto/bcrypt"
 )
 
@@ -22,13 +24,13 @@ var (
 
 type AuthService struct {
 	userRepo  *repository.UserRepository
-	jwtSecret string
+	jwtSecret []byte
 }
 
 func NewAuthService(userRepo *repository.UserRepository, jwtSecret string) *AuthService {
 	return &AuthService{
 		userRepo:  userRepo,
-		jwtSecret: jwtSecret,
+		jwtSecret: []byte(jwtSecret),
 	}
 }
 
@@ -111,8 +113,13 @@ func (s *AuthService) Login(ctx context.Context, params LoginParams) (LoginResul
 	return s.IssueAuth(*user)
 }
 
+type Claims struct {
+	jwt.RegisteredClaims
+	UserID int64 `json:"user_id"`
+}
+
 func (s *AuthService) IssueAuth(user model.Users) (LoginResult, error) {
-	token, err := auth.GenerateToken(s.jwtSecret, user.ID)
+	token, err := s.GenerateToken(user.ID)
 	if err != nil {
 		return LoginResult{}, err
 	}
@@ -121,4 +128,41 @@ func (s *AuthService) IssueAuth(user model.Users) (LoginResult, error) {
 		Token: token,
 		User:  user,
 	}, nil
+}
+
+func (s *AuthService) GenerateToken(userID int64) (string, error) {
+	claims := Claims{
+		UserID: userID,
+		RegisteredClaims: jwt.RegisteredClaims{
+			IssuedAt:  jwt.NewNumericDate(time.Now()),
+			ExpiresAt: jwt.NewNumericDate(time.Now().Add(24 * time.Hour)),
+		},
+	}
+
+	token := jwt.NewWithClaims(jwt.SigningMethodHS256, claims)
+
+	return token.SignedString(s.jwtSecret)
+}
+
+func (s *AuthService) ParseToken(tokenString string) (int64, error) {
+	token, err := jwt.ParseWithClaims(
+		tokenString,
+		&Claims{},
+		func(token *jwt.Token) (interface{}, error) {
+			if _, ok := token.Method.(*jwt.SigningMethodHMAC); !ok {
+				return nil, fmt.Errorf("unexpected signing method")
+			}
+			return s.jwtSecret, nil
+		},
+	)
+
+	if err != nil {
+		return 0, err
+	}
+
+	claims, ok := token.Claims.(*Claims)
+	if !ok || !token.Valid {
+		return 0, errors.New("invalid token")
+	}
+	return claims.UserID, nil
 }
