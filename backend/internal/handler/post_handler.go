@@ -5,6 +5,7 @@ import (
 	"net/http"
 
 	"backend/internal/httpx"
+	"backend/internal/middleware"
 	"backend/internal/repository"
 	"backend/internal/service"
 )
@@ -39,10 +40,19 @@ func (h *PostHandler) CreatePost(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	currentUserID := int64(1)
+	userID, err := middleware.GetUserID(r.Context())
+	if err != nil {
+		httpx.WriteJSON(w, http.StatusUnauthorized, httpx.ErrorResponse{
+			Error: httpx.ErrorDetail{
+				Code:    "unauthorized",
+				Message: err.Error(),
+			},
+		})
+		return
+	}
 
 	post := repository.CreatePostParams{
-		UserID:     currentUserID,
+		UserID:     userID,
 		ImagePath:  req.ImagePath,
 		Caption:    req.Caption,
 		Location:   req.Location,
@@ -61,7 +71,7 @@ func (h *PostHandler) CreatePost(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	_ = httpx.WriteJSON(w, http.StatusCreated, resp)
+	httpx.WriteJSON(w, http.StatusCreated, resp)
 }
 
 func (h *PostHandler) ListPosts(w http.ResponseWriter, r *http.Request) {

@@ -3,14 +3,9 @@ package middleware
 import (
 	"backend/internal/httpx"
 	"backend/internal/service"
-	"context"
 	"net/http"
 	"strings"
 )
-
-type contextKey string
-
-const UserIDContextKey contextKey = "UserID"
 
 type AuthMiddleware struct {
 	authService *service.AuthService
@@ -56,7 +51,7 @@ func (m *AuthMiddleware) RequireAuth(next http.Handler) http.Handler {
 			return
 		}
 
-		ctx := context.WithValue(r.Context(), UserIDContextKey, userID)
+		ctx := WithUserID(r.Context(), userID)
 		next.ServeHTTP(w, r.WithContext(ctx))
 	})
 }

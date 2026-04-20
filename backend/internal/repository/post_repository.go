@@ -35,9 +35,15 @@ func (r *PostRepository) ListPosts(ctx context.Context) ([]model.Posts, error) {
 
 func (r *PostRepository) CreatePost(ctx context.Context, p CreatePostParams) (CreatePostResult, error) {
 	stmt := table.Posts.
-		INSERT(table.Posts.MutableColumns).
+		INSERT(
+			table.Posts.UserID,
+			table.Posts.ImagePath,
+			table.Posts.Caption,
+			table.Posts.Location,
+			table.Posts.CameraBody,
+			table.Posts.Lens).
 		MODEL(p).
-		RETURNING(table.Posts.ID)
+		RETURNING(table.Posts.ID.AS("create_post_result.id"))
 
 	var dest CreatePostResult
 	err := stmt.QueryContext(ctx, r.db, &dest)
