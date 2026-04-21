@@ -6,7 +6,6 @@ import (
 
 	"backend/internal/httpx"
 	"backend/internal/middleware"
-	"backend/internal/repository"
 	"backend/internal/service"
 )
 
@@ -51,7 +50,7 @@ func (h *PostHandler) CreatePost(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	post := repository.CreatePostParams{
+	post := service.CreatePostParams{
 		UserID:     userID,
 		ImagePath:  req.ImagePath,
 		Caption:    req.Caption,

@@ -33,7 +33,7 @@ func (r *PostRepository) ListPosts(ctx context.Context) ([]model.Posts, error) {
 	return nil, nil
 }
 
-func (r *PostRepository) CreatePost(ctx context.Context, p CreatePostParams) (CreatePostResult, error) {
+func (r *PostRepository) CreatePost(ctx context.Context, p CreatePostParams) (*model.Posts, error) {
 	stmt := table.Posts.
 		INSERT(
 			table.Posts.UserID,
@@ -43,13 +43,13 @@ func (r *PostRepository) CreatePost(ctx context.Context, p CreatePostParams) (Cr
 			table.Posts.CameraBody,
 			table.Posts.Lens).
 		MODEL(p).
-		RETURNING(table.Posts.ID.AS("create_post_result.id"))
+		RETURNING(table.Posts.AllColumns)
 
-	var dest CreatePostResult
-	err := stmt.QueryContext(ctx, r.db, &dest)
+	var post model.Posts
+	err := stmt.QueryContext(ctx, r.db, &post)
 	if err != nil {
-		return CreatePostResult{}, err
+		return nil, err
 	}
 
-	return dest, nil
+	return &post, nil
 }
