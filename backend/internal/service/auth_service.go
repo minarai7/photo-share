@@ -47,7 +47,7 @@ type LoginParams struct {
 
 type LoginResult struct {
 	Token string
-	User  model.Users
+	User  *model.Users
 }
 
 func (s *AuthService) Signup(ctx context.Context, p SignupParams) (*model.Users, error) {
@@ -110,7 +110,7 @@ func (s *AuthService) Login(ctx context.Context, params LoginParams) (LoginResul
 		return LoginResult{}, ErrInvalidCredentials
 	}
 
-	return s.IssueAuth(*user)
+	return s.IssueAuth(user)
 }
 
 type Claims struct {
@@ -118,7 +118,7 @@ type Claims struct {
 	UserID int64 `json:"user_id"`
 }
 
-func (s *AuthService) IssueAuth(user model.Users) (LoginResult, error) {
+func (s *AuthService) IssueAuth(user *model.Users) (LoginResult, error) {
 	token, err := s.GenerateToken(user.ID)
 	if err != nil {
 		return LoginResult{}, err

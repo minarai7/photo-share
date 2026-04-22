@@ -13,7 +13,7 @@ type LoginRequest struct {
 	Password string `json:"password"`
 }
 
-type User struct {
+type UserResponse struct {
 	ID        int64     `json:"id"`
 	Username  string    `json:"username"`
 	Email     string    `json:"email"`
@@ -21,6 +21,6 @@ type User struct {
 }
 
 type LoginResponse struct {
-	Token string `json:"token"`
-	User  User   `json:"user"`
+	Token string       `json:"token"`
+	User  UserResponse `json:"user"`
 }

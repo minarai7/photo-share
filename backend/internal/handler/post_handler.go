@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"net/http"
 
+	"backend/internal/db/gen/photoshare/public/model"
 	"backend/internal/httpx"
 	"backend/internal/middleware"
 	"backend/internal/service"
@@ -17,17 +18,22 @@ func NewPostHandler(postService *service.PostService) *PostHandler {
 	return &PostHandler{postService: postService}
 }
 
-func stringValue(s *string) string {
-	if s == nil {
-		return ""
+func toPostResponse(post *model.Posts) PostResponse {
+	return PostResponse{
+		ID:         post.ID,
+		UserID:     post.UserID,
+		ImagePath:  post.ImagePath,
+		Caption:    post.Caption,
+		Location:   post.Location,
+		CameraBody: post.CameraBody,
+		Lens:       post.Lens,
+		CreatedAt:  post.CreatedAt,
+		UpdatedAt:  post.UpdatedAt,
 	}
-	return *s
 }
 
 func (h *PostHandler) CreatePost(w http.ResponseWriter, r *http.Request) {
 	var req CreatePostRequest
-
-	// LATER: FIX {"error":"internal server error"} SOMEWHERE AROUND HERE
 
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
 		_ = httpx.WriteJSON(w, http.StatusBadRequest, httpx.ErrorResponse{
@@ -70,21 +76,25 @@ func (h *PostHandler) CreatePost(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	httpx.WriteJSON(w, http.StatusCreated, resp)
+	httpx.WriteJSON(w, http.StatusCreated, toPostResponse(resp))
 }
 
 func (h *PostHandler) ListPosts(w http.ResponseWriter, r *http.Request) {
 	posts, err := h.postService.ListPosts(r.Context())
 	if err != nil {
-		_ = httpx.WriteJSON(w, http.StatusInternalServerError, httpx.ErrorResponse{
+		httpx.WriteJSON(w, http.StatusInternalServerError, httpx.ErrorResponse{
 			Error: httpx.ErrorDetail{
 				Code:    "list_posts_failed",
-				Message: err.Error(),
+				Message: "failed to list posts",
 			},
 		})
 		return
 	}
 
-	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(posts)
+	resp := make([]PostResponse, 0, len(posts))
+	for _, post := range posts {
+		resp = append(resp, toPostResponse(&post))
+	}
+
+	httpx.WriteJSON(w, http.StatusOK, resp)
 }

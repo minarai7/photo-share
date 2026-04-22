@@ -30,7 +30,21 @@ type CreatePostResult struct {
 }
 
 func (r *PostRepository) ListPosts(ctx context.Context) ([]model.Posts, error) {
-	return nil, nil
+	stmt := table.Posts.
+		SELECT(table.Posts.AllColumns).
+		FROM(table.Posts.Table).
+		ORDER_BY(
+			table.Posts.CreatedAt.DESC(), // Newest posts come first
+			table.Posts.ID.DESC(),
+		)
+
+	var posts []model.Posts
+	err := stmt.QueryContext(ctx, r.db, &posts)
+	if err != nil {
+		return nil, err
+	}
+
+	return posts, nil
 }
 
 func (r *PostRepository) CreatePost(ctx context.Context, p CreatePostParams) (*model.Posts, error) {

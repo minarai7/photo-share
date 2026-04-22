@@ -5,6 +5,7 @@ import (
 	"errors"
 	"net/http"
 
+	"backend/internal/db/gen/photoshare/public/model"
 	"backend/internal/httpx"
 	"backend/internal/service"
 )
@@ -17,17 +18,16 @@ func NewAuthHandler(authService *service.AuthService) *AuthHandler {
 	return &AuthHandler{authService: authService}
 }
 
-func (h *AuthHandler) Signup(w http.ResponseWriter, r *http.Request) {
-	if r.Method != http.MethodPost {
-		httpx.WriteJSON(w, http.StatusMethodNotAllowed, httpx.ErrorResponse{
-			Error: httpx.ErrorDetail{
-				Code:    "invalid_method",
-				Message: "method is not post",
-			},
-		})
-		return
+func toUserResponse(user *model.Users) UserResponse {
+	return UserResponse{
+		ID:        user.ID,
+		Username:  user.Username,
+		Email:     user.Email,
+		CreatedAt: user.CreatedAt,
 	}
+}
 
+func (h *AuthHandler) Signup(w http.ResponseWriter, r *http.Request) {
 	var req SignupRequest
 
 	dec := json.NewDecoder(r.Body)
@@ -82,7 +82,7 @@ func (h *AuthHandler) Signup(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 
-	resp, err := h.authService.IssueAuth(*user)
+	resp, err := h.authService.IssueAuth(user)
 	if err != nil {
 		httpx.WriteJSON(w, http.StatusInternalServerError, httpx.ErrorResponse{
 			Error: httpx.ErrorDetail{
@@ -95,26 +95,11 @@ func (h *AuthHandler) Signup(w http.ResponseWriter, r *http.Request) {
 
 	httpx.WriteJSON(w, http.StatusCreated, LoginResponse{
 		Token: resp.Token,
-		User: User{
-			ID:        user.ID,
-			Username:  user.Username,
-			Email:     user.Email,
-			CreatedAt: user.CreatedAt,
-		},
+		User:  toUserResponse(user),
 	})
 }
 
 func (h *AuthHandler) Login(w http.ResponseWriter, r *http.Request) {
-	if r.Method != http.MethodPost {
-		httpx.WriteJSON(w, http.StatusMethodNotAllowed, httpx.ErrorResponse{
-			Error: httpx.ErrorDetail{
-				Code:    "invalid_method",
-				Message: "method is not post",
-			},
-		})
-		return
-	}
-
 	var req LoginRequest
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
 		httpx.WriteJSON(w, http.StatusBadRequest, httpx.ErrorResponse{
@@ -152,12 +137,7 @@ func (h *AuthHandler) Login(w http.ResponseWriter, r *http.Request) {
 
 	httpx.WriteJSON(w, http.StatusOK, LoginResponse{
 		Token: result.Token,
-		User: User{
-			ID:        result.User.ID,
-			Username:  result.User.Username,
-			Email:     result.User.Email,
-			CreatedAt: result.User.CreatedAt,
-		},
+		User:  toUserResponse(result.User),
 	})
 
 }

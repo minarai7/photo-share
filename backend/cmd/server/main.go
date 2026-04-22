@@ -16,10 +16,6 @@ import (
 )
 
 func healthHandler(w http.ResponseWriter, r *http.Request) {
-	if r.Method != http.MethodGet {
-		http.Error(w, "method not allowed", http.StatusMethodNotAllowed)
-		return
-	}
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(http.StatusOK)
 	response := map[string]string{
@@ -83,11 +79,11 @@ func main() {
 
 	mux := http.NewServeMux()
 
-	mux.HandleFunc("/health", healthHandler)
+	mux.HandleFunc("GET /health", healthHandler)
 	// mux.HandleFunc("/panic", panicHandler)
 
-	mux.HandleFunc("/auth/signup", authHandler.Signup)
-	mux.HandleFunc("/auth/login", authHandler.Login)
+	mux.HandleFunc("POST /auth/signup", authHandler.Signup)
+	mux.HandleFunc("POST /auth/login", authHandler.Login)
 
 	mux.HandleFunc("GET /posts", postHandler.ListPosts)
 

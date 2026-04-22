@@ -10,10 +10,11 @@ type CreatePostRequest struct {
 	Lens       *string `json:"lens,omitempty"`
 }
 
-type Post struct {
+type PostResponse struct {
 	ID         int64     `json:"id"`
 	UserID     int64     `json:"user_id"`
 	ImagePath  string    `json:"image_path"`
+	Caption    string    `json:"caption"`
 	Location   *string   `json:"location,omitempty"`
 	CameraBody *string   `json:"camera_body,omitempty"`
 	Lens       *string   `json:"lens,omitempty"`
