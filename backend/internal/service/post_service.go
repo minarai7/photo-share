@@ -14,9 +14,9 @@ import (
 var (
 	ErrUserRequired      = errors.New("user is required")
 	ErrImagePathRequired = errors.New("image path is required")
+	ErrPostNotFound      = errors.New("post not found")
+	ErrForbidden         = errors.New("forbidden")
 )
-
-var ErrPostNotFound = errors.New("post not found")
 
 type PostService struct {
 	postRepo *repository.PostRepository
@@ -29,6 +29,15 @@ func NewPostService(postRepo *repository.PostRepository) *PostService {
 type CreatePostParams struct {
 	UserID     int64
 	ImagePath  string
+	Caption    string
+	Location   *string
+	CameraBody *string
+	Lens       *string
+}
+
+type UpdatePostParams struct {
+	PostID     int64
+	UserID     int64
 	Caption    string
 	Location   *string
 	CameraBody *string
@@ -72,4 +81,32 @@ func (s *PostService) CreatePost(ctx context.Context, p CreatePostParams) (*mode
 	}
 
 	return createdPost, nil
+}
+
+func (s *PostService) UpdatePost(ctx context.Context, p UpdatePostParams) (*model.Posts, error) {
+	existingPost, err := s.GetPostByID(ctx, p.PostID)
+	if err != nil {
+		return nil, err
+	}
+
+	if existingPost.UserID != p.UserID {
+		return nil, ErrForbidden
+	}
+
+	updatedPost, err := s.postRepo.UpdatePost(ctx, repository.UpdatePostParams{
+		ID:         p.PostID,
+		UserID:     p.UserID,
+		Caption:    p.Caption,
+		Location:   p.Location,
+		CameraBody: p.CameraBody,
+		Lens:       p.Lens,
+	})
+	if err != nil {
+		if errors.Is(err, qrm.ErrNoRows) {
+			return nil, ErrPostNotFound
+		}
+		return nil, err
+	}
+
+	return updatedPost, nil
 }

@@ -20,3 +20,14 @@ curl -i -X POST http://localhost:8080/posts \
 
 # Get Post
 curl -i http://localhost:8080/posts/{id}
+
+# Update Post
+curl -i -X PUT http://localhost:8080/posts/5 \
+-H "Authorization: Bearer YOUR_TOKEN_HERE" \
+-H "Content-Type: application/json" \
+-d '{
+  "caption": "Updated caption",
+  "location": "Tokyo",
+  "camera_body": "Sony A7 III",
+  "lens": "35mm F1.8"
+}'

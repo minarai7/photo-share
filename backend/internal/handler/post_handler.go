@@ -35,10 +35,13 @@ func toPostResponse(post *model.Posts) PostResponse {
 	}
 }
 
-func (h *PostHandler) GetPostByID(w http.ResponseWriter, r *http.Request) {
+func readPostID(r *http.Request) (int64, error) {
 	idStr := strings.TrimPrefix(r.URL.Path, "/posts/")
+	return strconv.ParseInt(idStr, 10, 64)
+}
 
-	id, err := strconv.ParseInt(idStr, 10, 64)
+func (h *PostHandler) GetPostByID(w http.ResponseWriter, r *http.Request) {
+	id, err := readPostID(r)
 	if err != nil {
 		httpx.WriteJSON(w, http.StatusBadRequest, httpx.ErrorResponse{
 			Error: httpx.ErrorDetail{
@@ -138,4 +141,76 @@ func (h *PostHandler) CreatePost(w http.ResponseWriter, r *http.Request) {
 	}
 
 	httpx.WriteJSON(w, http.StatusCreated, toPostResponse(resp))
+}
+
+func (h *PostHandler) UpdatePost(w http.ResponseWriter, r *http.Request) {
+	postID, err := readPostID(r)
+	if err != nil {
+		httpx.WriteJSON(w, http.StatusBadRequest, httpx.ErrorResponse{
+			Error: httpx.ErrorDetail{
+				Code:    "invalid_post_id",
+				Message: "post id must be a number",
+			},
+		})
+		return
+	}
+
+	userID, err := middleware.GetUserID(r.Context())
+	if err != nil {
+		httpx.WriteJSON(w, http.StatusUnauthorized, httpx.ErrorResponse{
+			Error: httpx.ErrorDetail{
+				Code:    "unauthorized",
+				Message: err.Error(),
+			},
+		})
+		return
+	}
+
+	var req UpdatePostRequest
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		_ = httpx.WriteJSON(w, http.StatusBadRequest, httpx.ErrorResponse{
+			Error: httpx.ErrorDetail{
+				Code:    "invalid_json",
+				Message: "request body is invalid",
+			},
+		})
+		return
+	}
+
+	updatedPost, err := h.postService.UpdatePost(r.Context(), service.UpdatePostParams{
+		PostID:     postID,
+		UserID:     userID,
+		Caption:    req.Caption,
+		Location:   req.Location,
+		CameraBody: req.CameraBody,
+		Lens:       req.Lens,
+	})
+	if err != nil {
+		switch {
+		case errors.Is(err, service.ErrPostNotFound):
+			httpx.WriteJSON(w, http.StatusNotFound, httpx.ErrorResponse{
+				Error: httpx.ErrorDetail{
+					Code:    "post_not_found",
+					Message: "post not found",
+				},
+			})
+		case errors.Is(err, service.ErrForbidden):
+			httpx.WriteJSON(w, http.StatusForbidden, httpx.ErrorResponse{
+				Error: httpx.ErrorDetail{
+					Code:    "forbidden",
+					Message: "you cannot edit this post",
+				},
+			})
+		default:
+			httpx.WriteJSON(w, http.StatusInternalServerError, httpx.ErrorResponse{
+				Error: httpx.ErrorDetail{
+					Code:    "internal_error",
+					Message: "failed to update post",
+				},
+			})
+		}
+		return
+	}
+
+	httpx.WriteJSON(w, http.StatusOK, toPostResponse(updatedPost))
 }

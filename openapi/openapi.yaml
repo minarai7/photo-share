@@ -156,6 +156,47 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/ErrorResponse'
+    
+    put:
+      tags:
+        - posts
+      summary: Update a post
+      operationId: updatePost
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          description: Post ID
+          schema:
+            type: integer
+            format: int64
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UpdatePostRequest'
+      responses:
+        '200':
+          description: One post
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Post'
+        '403':
+          description: Forbidden
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '404':
+          description: Post not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
 
 components:
   securitySchemes:
@@ -244,6 +285,27 @@ components:
         image_path:
           type: string
           example: /demo/test.jpg
+        caption:
+          type: string
+          example: Sunset at the beach
+        location:
+          type: string
+          nullable: true
+          example: Kamakura
+        camera_body:
+          type: string
+          nullable: true
+          example: Sony A7 IV
+        lens:
+          type: string
+          nullable: true
+          example: FE 24-70mm F2.8 GM
+    
+    UpdatePostRequest:
+      type: object
+      required:
+        - caption
+      properties:
         caption:
           type: string
           example: Sunset at the beach

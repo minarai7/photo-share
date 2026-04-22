@@ -3,6 +3,7 @@ package repository
 import (
 	"context"
 	"database/sql"
+	"time"
 
 	model "backend/internal/db/gen/photoshare/public/model"
 	table "backend/internal/db/gen/photoshare/public/table"
@@ -27,8 +28,13 @@ type CreatePostParams struct {
 	Lens       *string
 }
 
-type CreatePostResult struct {
-	ID int64
+type UpdatePostParams struct {
+	ID         int64
+	UserID     int64
+	Caption    string
+	Location   *string
+	CameraBody *string
+	Lens       *string
 }
 
 func (r *PostRepository) ListPosts(ctx context.Context) ([]model.Posts, error) {
@@ -83,4 +89,35 @@ func (r *PostRepository) CreatePost(ctx context.Context, p CreatePostParams) (*m
 	}
 
 	return &post, nil
+}
+
+func (r *PostRepository) UpdatePost(ctx context.Context, p UpdatePostParams) (*model.Posts, error) {
+	stmt := table.Posts.
+		UPDATE(
+			table.Posts.Caption,
+			table.Posts.Location,
+			table.Posts.CameraBody,
+			table.Posts.Lens,
+			table.Posts.UpdatedAt,
+		).
+		MODEL(model.Posts{
+			Caption:    p.Caption,
+			Location:   p.Location,
+			CameraBody: p.CameraBody,
+			Lens:       p.Lens,
+			UpdatedAt:  time.Now(),
+		}).
+		WHERE(
+			table.Posts.ID.EQ(postgres.Int64(p.ID)).
+				AND(table.Posts.UserID.EQ(postgres.Int64(p.UserID))),
+		).
+		RETURNING(table.Posts.AllColumns)
+
+	var updated model.Posts
+	err := stmt.QueryContext(ctx, r.db, &updated)
+	if err != nil {
+		return nil, err
+	}
+
+	return &updated, nil
 }
