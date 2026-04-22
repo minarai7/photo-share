@@ -17,3 +17,6 @@ curl -i -X POST http://localhost:8080/posts \
     "camera_body": "Sony A7 IV",
     "lens": "35mm F1.8"
   }'
+
+# Get Post
+curl -i http://localhost:8080/posts/{id}

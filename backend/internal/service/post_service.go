@@ -7,12 +7,16 @@ import (
 
 	"backend/internal/db/gen/photoshare/public/model"
 	"backend/internal/repository"
+
+	"github.com/go-jet/jet/v2/qrm"
 )
 
 var (
 	ErrUserRequired      = errors.New("user is required")
 	ErrImagePathRequired = errors.New("image path is required")
 )
+
+var ErrPostNotFound = errors.New("post not found")
 
 type PostService struct {
 	postRepo *repository.PostRepository
@@ -29,6 +33,22 @@ type CreatePostParams struct {
 	Location   *string
 	CameraBody *string
 	Lens       *string
+}
+
+func (s *PostService) ListPosts(ctx context.Context) ([]model.Posts, error) {
+	return s.postRepo.ListPosts(ctx)
+}
+
+func (s *PostService) GetPostByID(ctx context.Context, id int64) (*model.Posts, error) {
+	post, err := s.postRepo.GetPostByID(ctx, id)
+	if err != nil {
+		if errors.Is(err, qrm.ErrNoRows) {
+			return nil, ErrPostNotFound
+		}
+		return nil, err
+	}
+
+	return post, nil
 }
 
 func (s *PostService) CreatePost(ctx context.Context, p CreatePostParams) (*model.Posts, error) {
@@ -52,8 +72,4 @@ func (s *PostService) CreatePost(ctx context.Context, p CreatePostParams) (*mode
 	}
 
 	return createdPost, nil
-}
-
-func (s *PostService) ListPosts(ctx context.Context) ([]model.Posts, error) {
-	return s.postRepo.ListPosts(ctx)
 }

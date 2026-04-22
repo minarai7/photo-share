@@ -6,6 +6,8 @@ import (
 
 	model "backend/internal/db/gen/photoshare/public/model"
 	table "backend/internal/db/gen/photoshare/public/table"
+
+	"github.com/go-jet/jet/v2/postgres"
 )
 
 type PostRepository struct {
@@ -45,6 +47,21 @@ func (r *PostRepository) ListPosts(ctx context.Context) ([]model.Posts, error) {
 	}
 
 	return posts, nil
+}
+
+func (r *PostRepository) GetPostByID(ctx context.Context, id int64) (*model.Posts, error) {
+	stmt := table.Posts.
+		SELECT(table.Posts.AllColumns).
+		FROM(table.Posts.Table).
+		WHERE(table.Posts.ID.EQ(postgres.Int64(id)))
+
+	var post model.Posts
+	err := stmt.QueryContext(ctx, r.db, &post)
+	if err != nil {
+		return nil, err
+	}
+
+	return &post, nil
 }
 
 func (r *PostRepository) CreatePost(ctx context.Context, p CreatePostParams) (*model.Posts, error) {
