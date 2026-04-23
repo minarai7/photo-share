@@ -214,3 +214,60 @@ func (h *PostHandler) UpdatePost(w http.ResponseWriter, r *http.Request) {
 
 	httpx.WriteJSON(w, http.StatusOK, toPostResponse(updatedPost))
 }
+
+func (h *PostHandler) DeletePost(w http.ResponseWriter, r *http.Request) {
+	postID, err := readPostID(r)
+	if err != nil {
+		httpx.WriteJSON(w, http.StatusBadRequest, httpx.ErrorResponse{
+			Error: httpx.ErrorDetail{
+				Code:    "invalid_post_id",
+				Message: "post id must be a number",
+			},
+		})
+		return
+	}
+
+	userID, err := middleware.GetUserID(r.Context())
+	if err != nil {
+		httpx.WriteJSON(w, http.StatusUnauthorized, httpx.ErrorResponse{
+			Error: httpx.ErrorDetail{
+				Code:    "unauthorized",
+				Message: err.Error(),
+			},
+		})
+		return
+	}
+
+	err = h.postService.DeletePost(r.Context(), service.DeletePostParams{
+		PostID: postID,
+		UserID: userID,
+	})
+	if err != nil {
+		switch {
+		case errors.Is(err, service.ErrPostNotFound):
+			httpx.WriteJSON(w, http.StatusNotFound, httpx.ErrorResponse{
+				Error: httpx.ErrorDetail{
+					Code:    "post_not_found",
+					Message: "post not found",
+				},
+			})
+		case errors.Is(err, service.ErrForbidden):
+			httpx.WriteJSON(w, http.StatusForbidden, httpx.ErrorResponse{
+				Error: httpx.ErrorDetail{
+					Code:    "forbidden",
+					Message: "you cannot edit this post",
+				},
+			})
+		default:
+			httpx.WriteJSON(w, http.StatusInternalServerError, httpx.ErrorResponse{
+				Error: httpx.ErrorDetail{
+					Code:    "internal_error",
+					Message: "failed to update post",
+				},
+			})
+		}
+		return
+	}
+
+	w.WriteHeader(http.StatusNoContent)
+}

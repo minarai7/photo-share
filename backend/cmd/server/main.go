@@ -90,6 +90,7 @@ func main() {
 
 	mux.HandleFunc("GET /posts/", postHandler.GetPostByID)
 	mux.Handle("PUT /posts/", authMiddleware.RequireAuth(http.HandlerFunc(postHandler.UpdatePost)))
+	mux.Handle("DELETE /posts/", authMiddleware.RequireAuth(http.HandlerFunc(postHandler.DeletePost)))
 
 	corsMiddleware := cors.New(cors.Options{
 		AllowedOrigins:   []string{cfg.FrontendOrigin},

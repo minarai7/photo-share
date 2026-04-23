@@ -44,6 +44,11 @@ type UpdatePostParams struct {
 	Lens       *string
 }
 
+type DeletePostParams struct {
+	PostID int64
+	UserID int64
+}
+
 func (s *PostService) ListPosts(ctx context.Context) ([]model.Posts, error) {
 	return s.postRepo.ListPosts(ctx)
 }
@@ -109,4 +114,22 @@ func (s *PostService) UpdatePost(ctx context.Context, p UpdatePostParams) (*mode
 	}
 
 	return updatedPost, nil
+}
+
+func (s *PostService) DeletePost(ctx context.Context, p DeletePostParams) error {
+	existingPost, err := s.GetPostByID(ctx, p.PostID)
+	if err != nil {
+		return err
+	}
+
+	if existingPost.UserID != p.UserID {
+		return ErrForbidden
+	}
+
+	err = s.postRepo.DeletePostByID(ctx, p.PostID)
+	if err != nil {
+		return err
+	}
+
+	return nil
 }

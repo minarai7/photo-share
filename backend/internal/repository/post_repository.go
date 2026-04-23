@@ -3,6 +3,7 @@ package repository
 import (
 	"context"
 	"database/sql"
+	"errors"
 	"time"
 
 	model "backend/internal/db/gen/photoshare/public/model"
@@ -120,4 +121,25 @@ func (r *PostRepository) UpdatePost(ctx context.Context, p UpdatePostParams) (*m
 	}
 
 	return &updated, nil
+}
+
+func (r *PostRepository) DeletePostByID(ctx context.Context, id int64) error {
+	stmt := table.Posts.
+		DELETE().
+		WHERE(table.Posts.ID.EQ(postgres.Int64(id)))
+
+	result, err := stmt.ExecContext(ctx, r.db)
+	if err != nil {
+		return err
+	}
+
+	rowsAffected, err := result.RowsAffected()
+	if err != nil {
+		return err
+	}
+	if rowsAffected == 0 {
+		return errors.New("post not found")
+	}
+
+	return nil
 }

@@ -198,6 +198,37 @@ paths:
               schema:
                 $ref: '#/components/schemas/ErrorResponse'
 
+    delete:
+      tags:
+        - posts
+      summary: Delete a post
+      operationId: deletePost
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          description: Post ID
+          schema:
+            type: integer
+            format: int64
+      responses:
+        '204':
+          description: Post deleted successfully
+        '403':
+          description: Forbidden
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '404':
+          description: Post not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
 components:
   securitySchemes:
     bearerAuth:
