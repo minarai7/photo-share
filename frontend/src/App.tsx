@@ -1,35 +1,25 @@
-import { useEffect, useState } from "react"
-import { API_BASE_URL } from "./api/client"
+import { Navigate, Route, Routes } from "react-router"
+import { SignupPage } from "./pages/SignupPage"
+import { LoginPage } from "./pages/LoginPage"
+import { FeedPage } from "./pages/FeedPage"
+import { CreatePostPage } from "./pages/CreatePostPage"
+import { PostDetailPage } from "./pages/PostDetailPage"
+import { EditPostPage } from "./pages/EditPostPage"
+import { ProfilePage } from "./pages/ProfilePage"
+import { NotFoundPage } from "./pages/NotFoundPage"
 
-function App() {
-  const [message, setMessage] = useState("Loading...");
-  const [error, setError] = useState("");
-
-  useEffect (() => {
-    async function loadHealth() {
-      try {
-        const response = await fetch(`${API_BASE_URL}/health`);
-        if (!response.ok) {
-          throw new Error(`HTTP error: ${response.status}`);
-        }
-        const data = await response.json();
-        setMessage(`Frontend running. Backend status: ${data.status}`)
-      } catch (err) {
-        setError("Could not reach backend");
-        console.error(err)
-      }
-    }
-
-    loadHealth();
-  }, []);
-
+export default function App() {
   return (
-    <div>
-      <h1>Frontend running</h1>
-      <p>API base URL: {API_BASE_URL}</p>
-      {error ? <p>{error}</p> : <p>{message}</p>}
-    </div>
+    <Routes>
+      <Route path="/" element={<Navigate to="/posts" replace />} />
+      <Route path="/signup" element={<SignupPage />} />
+      <Route path="/login" element={<LoginPage />} />
+      <Route path="/posts" element={<FeedPage />} />
+      <Route path="/posts/new" element={<CreatePostPage />} />
+      <Route path="/posts/:postId" element={<PostDetailPage />} />
+      <Route path="/posts/:postId/edit" element={<EditPostPage />} />
+      <Route path="/users/:userId" element={<ProfilePage />} />
+      <Route path="*" element={<NotFoundPage />} />
+    </Routes>
   )
 }
-
-export default App
