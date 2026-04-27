@@ -31,3 +31,9 @@ curl -i -X PUT http://localhost:8080/posts/5 \
   "camera_body": "Sony A7 III",
   "lens": "35mm F1.8"
 }'
+
+# Upload Image
+curl -i -X POST http://localhost:8080/uploads/images   -F "image=@testfiles/building.jpg" -H "Authorization: Bearer YOUR_TOKEN_HERE"
+
+# Current Token
+eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJleHAiOjE3NzcxMTY1NzUsImlhdCI6MTc3NzAzMDE3NSwidXNlcl9pZCI6MX0.91BUH1UI0iSduPdxZ4iZruaMCHco4xtZVRrnGQuaZhw

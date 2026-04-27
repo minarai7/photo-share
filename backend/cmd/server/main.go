@@ -34,6 +34,7 @@ func panicHandler(w http.ResponseWriter, r *http.Request) {
 
 func main() {
 	cfg := config.MustLoad()
+
 	database, err := dbpkg.Open(cfg.DatabaseURL)
 	if err != nil {
 		log.Fatalf("connect database: %v", err)
@@ -49,6 +50,9 @@ func main() {
 
 	authHandler := handler.NewAuthHandler(authService)
 	postHandler := handler.NewPostHandler(postService)
+
+	uploadService := service.NewUploadService(cfg.UploadDir, cfg.MaxUploadBytes)
+	uploadHandler := handler.NewUploadHandler(uploadService, cfg.MaxUploadBytes)
 
 	/*
 		ctx := context.Background()
@@ -91,6 +95,11 @@ func main() {
 	mux.HandleFunc("GET /posts/", postHandler.GetPostByID)
 	mux.Handle("PUT /posts/", authMiddleware.RequireAuth(http.HandlerFunc(postHandler.UpdatePost)))
 	mux.Handle("DELETE /posts/", authMiddleware.RequireAuth(http.HandlerFunc(postHandler.DeletePost)))
+
+	mux.Handle("POST /uploads", authMiddleware.RequireAuth(http.HandlerFunc(uploadHandler.UploadImage)))
+
+	fileServer := http.FileServer(http.Dir(cfg.UploadDir))
+	mux.Handle("/uploads/", http.StripPrefix("/uploads/", fileServer))
 
 	corsMiddleware := cors.New(cors.Options{
 		AllowedOrigins:   []string{cfg.FrontendOrigin},

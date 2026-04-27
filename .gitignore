@@ -4,7 +4,12 @@ frontend/dist/
 
 # backend
 backend/bin/
+backend/storage/uploads/*
+!backend/storage/uploads/.gitkeep
 
 # general
 .env
 .DS_Store
+
+# testfiles
+testfiles/*
