@@ -1,12 +1,14 @@
-# Signup
+# Backend
+
+## Signup
 curl -i -X POST http://localhost:8080/auth/signup \
   -H "Content-Type: application/json" \
   -d '{"username":"alice","email":"alice@example.com","password":"password123"}'
 
-# Login
+## Login
 curl -i -X POST http://localhost:8080/auth/login   -H "Content-Type: application/json"   -d '{"email":"alice@example.com","password":"password123"}'
 
-# Create Post
+## Create Post
 curl -i -X POST http://localhost:8080/posts \
   -H "Content-Type: application/json" \
   -H "Authorization: Bearer YOUR_TOKEN_HERE" \
@@ -18,10 +20,10 @@ curl -i -X POST http://localhost:8080/posts \
     "lens": "35mm F1.8"
   }'
 
-# Get Post
+## Get Post
 curl -i http://localhost:8080/posts/{id}
 
-# Update Post
+## Update Post
 curl -i -X PUT http://localhost:8080/posts/5 \
 -H "Authorization: Bearer YOUR_TOKEN_HERE" \
 -H "Content-Type: application/json" \
@@ -32,8 +34,18 @@ curl -i -X PUT http://localhost:8080/posts/5 \
   "lens": "35mm F1.8"
 }'
 
-# Upload Image
+## Upload Image
 curl -i -X POST http://localhost:8080/uploads/images   -F "image=@testfiles/building.jpg" -H "Authorization: Bearer YOUR_TOKEN_HERE"
 
-# Current Token
+## Example Token
 eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJleHAiOjE3NzcxMTY1NzUsImlhdCI6MTc3NzAzMDE3NSwidXNlcl9pZCI6MX0.91BUH1UI0iSduPdxZ4iZruaMCHco4xtZVRrnGQuaZhw
+
+
+# Frontend
+## Login using dev console
+localStorage.setItem("auth_token", "test-token");
+localStorage.setItem(
+  "auth_user",
+  JSON.stringify({ id: 1, username: "alice", email: "alice@example.com" })
+);
+window.dispatchEvent(new Event("auth_changed"));
