@@ -38,6 +38,9 @@ button {
 }
 
 .navbar-links {
+    display: flex;
+    align-items: center;
+    gap: 16px;
     font-size: 15px;
     color: #555;
 }
@@ -47,17 +50,29 @@ button {
     color: #555;
 }
 
+.nav-link:hover {
+    text-decoration: underline;
+}
+
 .nav-link.active {
     color: #111;
     font-weight: 700;
+    text-decoration: none;
+    pointer-events: none;
+    cursor: default;
 }
 
 .logout-button {
+    border: none;
+    background: none;
+    color: inherit;
+    font: inherit;
     cursor: pointer;
+    padding: 0;
 }
 
 .logout-button:hover {
-    background: #f0f0f0;
+    text-decoration: underline;
 }
 
 .page-container {
@@ -135,4 +150,8 @@ button {
 .auth-link {
   margin: 20px 0 0;
   text-align: center;
+}
+
+.auth-link:hover {
+    text-decoration: underline;
 }

@@ -87,7 +87,7 @@ export function LoginPage() {
         </form>
 
         <p className="auth-link">
-          Do not have an account? <Link to="/signup">Create one</Link>
+          <Link to="/signup">Do not have an account? Create one</Link>
         </p>
       </section>
     </main>

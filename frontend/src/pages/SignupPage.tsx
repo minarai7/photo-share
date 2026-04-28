@@ -107,7 +107,7 @@ export function SignupPage() {
                 </form>
 
                 <p className="auth-link">
-                    Already have an account? <Link to="/login">Log in</Link>
+                    <Link to="/login">Already have an account? Log in</Link>
                 </p>
             </section>
         </main>
