@@ -1,33 +1,14 @@
-import { useEffect, useState } from "react";
 import { Link, NavLink, useNavigate } from "react-router";
-import { AUTH_CHANGED_EVENT, clearAuth, getStoredUser, getToken } from "../utils/authStorage";
-import type { AuthUser } from "../types/auth";
+import { useAuth } from "../auth/AuthContext";
 
 export function NavBar() {
+    const { user, isAuthenticated, logout } = useAuth();
     const navigate = useNavigate();
 
-    const [token, setToken] = useState<string | null>(() => getToken());
-    const [user, setUser] = useState<AuthUser | null>(() => getStoredUser());
-    
-    useEffect(() => {
-        function refreshAuthState() {
-            setToken(getToken());
-            setUser(getStoredUser());
-        }
-
-        window.addEventListener(AUTH_CHANGED_EVENT, refreshAuthState);
-
-        return () => {
-            window.removeEventListener(AUTH_CHANGED_EVENT, refreshAuthState);
-        }
-    }, []);
-
     function handleLogout() {
-        clearAuth();
+        logout();
         navigate("/login");
     }
-
-    const isLoggedIn = (token !== null && user !== null);
 
     return (
         <header className="navbar">
@@ -40,31 +21,31 @@ export function NavBar() {
                     Feed
                 </NavLink>
 
-                {isLoggedIn && (
+                {isAuthenticated && (
                     <NavLink  to="/posts/new" className="nav-link">
                         Create Post
                     </NavLink>
                 )}
 
-                {isLoggedIn && (
-                    <NavLink to={`/users/${user.id}`} className="nav-link">
-                        {`${user.username}'s Profile`}
+                {isAuthenticated && (
+                    <NavLink to={`/users/${user!.id}`} className="nav-link">
+                        {`${user!.username}'s Profile`}
                     </NavLink>
                 )}
 
-                {!isLoggedIn && (
+                {!isAuthenticated && (
                     <NavLink to="/login" className="nav-link">
                         Login
                     </NavLink>
                 )}
 
-                {!isLoggedIn && (
+                {!isAuthenticated && (
                     <NavLink to="/signup" className="nav-link">
                         Sign up
                     </NavLink>
                 )}
 
-                {isLoggedIn && (
+                {isAuthenticated && (
                     <button type="button" className="logout-button" onClick={handleLogout}>
                         Logout
                     </button>
