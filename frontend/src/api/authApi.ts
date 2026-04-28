@@ -1,5 +1,5 @@
 import { apiRequest } from "./client";
-import type { LoginRequest, LoginResponse, SignupRequest } from "./types";
+import type { LoginRequest, LoginResponse, SignupRequest } from "../types/auth";
 
 export function signup(data: SignupRequest) {
     return apiRequest<LoginResponse>("/auth/signup", {
@@ -8,7 +8,7 @@ export function signup(data: SignupRequest) {
     });
 }
 
-export function login(data: LoginRequest) {
+export function loginUser(data: LoginRequest) {
     return apiRequest<LoginResponse>("/auth/login", {
         method: "POST",
         body: data,

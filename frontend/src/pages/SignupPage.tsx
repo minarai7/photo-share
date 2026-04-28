@@ -1,6 +1,7 @@
 import { type SubmitEvent, useState } from "react";
 import { Link, useNavigate } from "react-router";
 import { signup } from "../api/authApi";
+import { FormField } from "../components/FormField";
 
 
 export function SignupPage() {
@@ -73,45 +74,39 @@ export function SignupPage() {
                 )}
 
                 <form onSubmit={handleSubmit}>
-                    <div className="form-field">
-                        <label htmlFor="username">Username</label>
-                        <input
-                            id="username"
-                            type="text"
-                            value={username}
-                            onChange={(event) => setUsername(event.target.value)}
-                            autoComplete="username"
-                        />
-                    </div>
+                    <FormField
+                        id="username"
+                        label="Username"
+                        type="text"
+                        value={username}
+                        setValue={setUsername}
+                        autoComplete="username"
+                    />
 
-                    <div className="form-field">
-                        <label htmlFor="email">Email</label>
-                        <input
-                            id="email"
-                            type="email"
-                            value={email}
-                            onChange={(event) => setEmail(event.target.value)}
-                            autoComplete="email"
-                        />
-                    </div>
+                    <FormField
+                        id="email"
+                        label="Email"
+                        type="email"
+                        value={email}
+                        setValue={setEmail}
+                        autoComplete="email"
+                    />
 
-                    <div className="form-field">
-                        <label htmlFor="password">Password</label>
-                        <input
-                            id="password"
-                            type="password"
-                            value={password}
-                            onChange={(event) => setPassword(event.target.value)}
-                            autoComplete="new-password"
-                        />
-                    </div>
+                    <FormField
+                        id="password"
+                        label="Password"
+                        type="password"
+                        value={password}
+                        setValue={setPassword}
+                        autoComplete="new-password"
+                    />
 
                     <button type="submit" disabled={isSubmitting}>
                         {isSubmitting ? "Creating account..." : "Sign up"}
                     </button>
                 </form>
 
-                <p>
+                <p className="auth-link">
                     Already have an account? <Link to="/login">Log in</Link>
                 </p>
             </section>

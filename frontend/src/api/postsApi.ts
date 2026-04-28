@@ -1,5 +1,5 @@
 import { apiRequest } from "./client";
-import { type Post, type CreatePostRequest, type GetPostResponse, type GetPostsResponse } from "./types";
+import { type Post, type CreatePostRequest, type GetPostResponse, type GetPostsResponse } from "../types/auth";
 
 export function getPosts() {
     return apiRequest<GetPostsResponse>("/posts");
