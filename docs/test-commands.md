@@ -42,6 +42,7 @@ eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJleHAiOjE3NzcxMTY1NzUsImlhdCI6MTc3NzAzMDE
 
 
 # Frontend
+
 ## Login using dev console
 localStorage.setItem("auth_token", "test-token");
 localStorage.setItem(
