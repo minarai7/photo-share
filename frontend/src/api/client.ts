@@ -1,6 +1,7 @@
+import { getToken } from "../auth/authStorage";
 import type { ApiErrorResponse } from "../types/auth";
 
-export const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || "http://localhost:8080"
+export const API_BASE_URL = import.meta.env.VITE_API_BASE_URL ?? "http://localhost:8080"
 
 type ApiRequestOptions = {
     method?: string;
@@ -20,9 +21,17 @@ export async function apiRequest<T>(
         credentials = "include",
     } = options;
 
+    const token = getToken();
+
     const finalHeaders = new Headers(headers);
 
-    if (body !== undefined && !finalHeaders.has("Content-Type")) {
+    if (token) {
+        finalHeaders.set("Authorization", `Bearer ${token}`)
+    }
+
+    const isFormData = body instanceof FormData;
+
+    if (body !== undefined && !isFormData && !finalHeaders.has("Content-Type")) {
         finalHeaders.set("Content-Type", "application/json");
     }
 
@@ -30,7 +39,12 @@ export async function apiRequest<T>(
         method,
         headers: finalHeaders,
         credentials,
-        body: body !== undefined ? JSON.stringify(body) : undefined,
+        body: 
+            body !== undefined
+                ? isFormData
+                    ? body
+                    : JSON.stringify(body)
+                : undefined,
     });
 
     if (!response.ok) {

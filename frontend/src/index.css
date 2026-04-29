@@ -81,13 +81,13 @@ button {
     padding: 32px 24px;
 }
 
-.auth-page {
+.form-page {
     display: flex;
     justify-content: center;
     padding: 48px 16px;
 }
 
-.auth-card {
+.form-card {
     width: 100%;
     max-width: 420px;
     border: 1px solid #ddd;
@@ -95,8 +95,9 @@ button {
     padding: 24px;
 }
 
-.auth-card h1 {
-    margin-top: 0;
+.form-card h1 {
+    margin: 0 0 24px;
+    font-size: 28px;
 }
 
 .form-field {
@@ -110,11 +111,22 @@ button {
     font-weight: 600;
 }
 
-.form-field input {
+.form-field input,
+.form-field textarea {
     padding: 10px 12px;
     border: 1px solid #ccc;
     border-radius: 8px;
     font-size: 16px;
+}
+
+.form-field textarea {
+    resize: vertical;
+}
+
+.form-field input:focus,
+.form-field textare:focus {
+    outline: none;
+    border-color: #333;
 }
 
 .form-error {
@@ -133,7 +145,7 @@ button {
     color: #1f6f2a;
 }
 
-.auth-card button {
+.form-card button {
     width: 100%;
     padding: 10px 12px;
     border: none;
@@ -142,16 +154,16 @@ button {
     cursor: pointer;
 }
 
-.auth-card button:disabled {
+.form-card button:disabled {
     cursor: not-allowed;
     opacity: 0.7;
 }
 
-.auth-link {
+.form-link {
   margin: 20px 0 0;
   text-align: center;
 }
 
-.auth-link:hover {
+.form-link:hover {
     text-decoration: underline;
 }

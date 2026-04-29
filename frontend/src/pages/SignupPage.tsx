@@ -65,8 +65,10 @@ export function SignupPage() {
     }
 
     return (
-        <main className="auth-page">
-            <section className="auth-card">
+        <main className="form-page">
+            <section className="form-card">
+                <h1>Signup</h1>
+                
                 {error && <div className="form-error">{error}</div>}
 
                 {successMessage && (
@@ -106,7 +108,7 @@ export function SignupPage() {
                     </button>
                 </form>
 
-                <p className="auth-link">
+                <p className="form-link">
                     <Link to="/login">Already have an account? Log in</Link>
                 </p>
             </section>

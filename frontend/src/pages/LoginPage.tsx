@@ -57,8 +57,10 @@ export function LoginPage() {
   }
 
   return (
-    <main className="auth-page">
-      <section className="auth-card">
+    <main className="form-page">
+      <section className="form-card">
+        <h1>Login</h1>
+        
         {error && <div className="form-error">{error}</div>}
 
         <form onSubmit={handleSubmit}>
@@ -77,7 +79,7 @@ export function LoginPage() {
               type="password"
               value={password}
               setValue={setPassword}
-              autoComplete="new-password"
+              autoComplete="current-password"
           />
 
           <button type="submit" disabled={isSubmitting}>
@@ -85,7 +87,7 @@ export function LoginPage() {
           </button>
         </form>
 
-        <p className="auth-link">
+        <p className="form-link">
           <Link to="/signup">Do not have an account? Sign up</Link>
         </p>
       </section>
