@@ -1,11 +1,14 @@
 import { useEffect, useState, type SubmitEvent } from "react";
-import { Link, useNavigate } from "react-router";
+import { Link, useLocation, useNavigate } from "react-router";
 import { loginUser } from "../api/authApi";
 import { useAuth } from "../auth/AuthContext";
 import { FormField } from "../components/FormField";
 
 export function LoginPage() {
   const navigate = useNavigate();
+  const location = useLocation();
+
+  const from = location.state?.from?.pathname ?? "/";
 
   const { login, isAuthenticated } = useAuth();
 
@@ -45,7 +48,7 @@ export function LoginPage() {
 
       login(response.token, response.user);
 
-      navigate("/", { replace: true});
+      navigate(from, { replace: true});
     } catch (error) {
       if (error instanceof Error) {
         setError(error.message);
@@ -87,7 +90,7 @@ export function LoginPage() {
         </form>
 
         <p className="auth-link">
-          <Link to="/signup">Do not have an account? Create one</Link>
+          <Link to="/signup">Do not have an account? Sign up</Link>
         </p>
       </section>
     </main>

@@ -8,17 +8,39 @@ import { EditPostPage } from "./pages/EditPostPage"
 import { ProfilePage } from "./pages/ProfilePage"
 import { NotFoundPage } from "./pages/NotFoundPage"
 import { Layout } from "./components/Layout"
+import { ProtectedRoute } from "./routes/ProtectedRoute"
+import { PublicOnlyRoute } from "./routes/PublicOnlyRoute"
 
 export default function App() {
   return (
     <Routes>
       <Route element={<Layout />}>
         <Route path="/" element={<FeedPage />} />
-        <Route path="/signup" element={<SignupPage />} />
-        <Route path="/login" element={<LoginPage />} />
-        <Route path="/posts/new" element={<CreatePostPage />} />
+        <Route path="/signup" element={
+          <PublicOnlyRoute>
+            <SignupPage />
+          </PublicOnlyRoute>
+          }
+        />
+        <Route path="/login" element={
+          <PublicOnlyRoute>
+            <LoginPage />
+          </PublicOnlyRoute>
+          }
+        />
+        <Route path="/posts/new" element={
+          <ProtectedRoute>
+            <CreatePostPage />
+          </ProtectedRoute>
+          } 
+        />
         <Route path="/posts/:postId" element={<PostDetailPage />} />
-        <Route path="/posts/:postId/edit" element={<EditPostPage />} />
+        <Route path="/posts/:postId/edit" element={
+          <ProtectedRoute>
+            <EditPostPage />
+          </ProtectedRoute>
+          } 
+        />
         <Route path="/users/:userId" element={<ProfilePage />} />
         <Route path="*" element={<NotFoundPage />} />
       </Route>
