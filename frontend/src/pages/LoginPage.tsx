@@ -1,4 +1,4 @@
-import { useEffect, useState, type SubmitEvent } from "react";
+import { useState, type SubmitEvent } from "react";
 import { Link, useLocation, useNavigate } from "react-router";
 import { loginUser } from "../api/authApi";
 import { useAuth } from "../auth/AuthContext";
@@ -10,19 +10,15 @@ export function LoginPage() {
 
   const from = location.state?.from?.pathname ?? "/";
 
-  const { login, isAuthenticated } = useAuth();
+  console.log("navigating to:", from);
+
+  const { login } = useAuth();
 
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
 
   const [error, setError] = useState<string | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
-
-  useEffect(() => {
-    if (isAuthenticated) {
-      navigate("/", {replace: true});
-    }
-  }, [isAuthenticated, navigate]);
 
   async function handleSubmit(event: SubmitEvent<HTMLFormElement>) {
     event.preventDefault();
