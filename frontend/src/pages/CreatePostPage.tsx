@@ -1,5 +1,5 @@
 import { useState, type ChangeEvent, type SubmitEvent } from "react";
-import { StaticRouterProvider, useNavigate } from "react-router";
+import { useNavigate } from "react-router";
 import { createPost } from "../api/postsApi";
 import { uploadImage } from "../api/uploadsApi";
 import type { CreatePostRequest } from "../types/post";
