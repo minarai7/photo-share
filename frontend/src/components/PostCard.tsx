@@ -2,16 +2,27 @@ import { Link } from "react-router";
 import type { Post } from "../types/post";
 import { getImageUrl } from "../utils/imageUrl";
 
-type PostCardProps = {
-    post: Post;
+type ReturnTo = {
+    pathname: string;
+    label: string;
 }
 
-export function PostCard({ post }: PostCardProps) {
+type PostCardProps = {
+    post: Post;
+    showAuthor?: boolean;
+    returnTo?: ReturnTo;
+}
+
+export function PostCard({ post, showAuthor = true, returnTo }: PostCardProps) {
     const createdAt = new Date(post.created_at).toLocaleString();
 
     return (
         <article className="post-card">
-            <Link to={`/posts/${post.id}`} className="post-card-image-link">
+            <Link
+                to={`/posts/${post.id}`}
+                className="post-card-image-link"
+                state={{ returnTo }}
+            >
                 <img
                     src={getImageUrl(post.image_path)}
                     alt={post.caption || "Post image"}
@@ -21,9 +32,11 @@ export function PostCard({ post }: PostCardProps) {
 
             <div className="post-card-body">
                 <div className="post-card-header">
-                    <span className="post-card-author">
-                        User #{post.user_id}
-                    </span>
+                    {showAuthor && (
+                        <span className="post-card-author">
+                            User #{post.user_id}
+                        </span>
+                    )}
                     <span className="post-card-date">{createdAt}</span>
                 </div>
 

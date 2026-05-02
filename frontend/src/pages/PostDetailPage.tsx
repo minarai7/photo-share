@@ -1,11 +1,17 @@
 import { useEffect, useState } from "react";
-import { Link, useParams } from "react-router";
+import { Link, useParams, useLocation } from "react-router";
 import { getImageUrl } from "../utils/imageUrl";
 import { getPostById } from "../api/postsApi";
 import type { Post } from "../types/post";
 
 export function PostDetailPage() {
     const { postId } = useParams<{postId: string}>();
+
+    const location = useLocation();
+    const returnTo = location.state?.returnTo ?? {
+        pathname: "/",
+        label: "Back to feed",
+    };
 
     const [post, setPost] = useState<Post | null>(null);
     const [isLoading, setIsLoading] = useState(true);
@@ -57,7 +63,7 @@ export function PostDetailPage() {
         return (
             <main className="page">
                 <p className="error-message">{error}</p>
-                <Link to="/">Back to feed</Link>
+                <Link to={returnTo.pathname}>{returnTo.label}</Link>
             </main>
         )
     }
@@ -66,7 +72,7 @@ export function PostDetailPage() {
         return (
         <main className="page">
             <p>Post not found.</p>
-            <Link to="/">Back to feed</Link>
+            <Link to={returnTo.pathname}>{returnTo.label}</Link>
         </main>
         );
     }
@@ -107,7 +113,7 @@ export function PostDetailPage() {
                 </div>
             </dl>
 
-            <Link to="/">Back to feed</Link>
+            <Link to={returnTo.pathname}>{returnTo.label}</Link>
             </div>
         </article>
         </main>

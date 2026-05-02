@@ -69,7 +69,14 @@ export function FeedPage() {
             ) : (
                 <div className="post-grid">
                     {posts.map((post) => (
-                        <PostCard key={post.id} post={post} />
+                        <PostCard
+                            key={post.id}
+                            post={post}
+                            returnTo={{
+                                pathname: "/",
+                                label: "Back to feed",
+                            }}
+                        />
                     ))}
                 </div>
             )}
