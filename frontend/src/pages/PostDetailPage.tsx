@@ -140,13 +140,6 @@ export function PostDetailPage() {
     }
 
     async function handleDeletePost() {
-        if (!isAuthenticated) {
-            navigate("/login", {
-                replace: true,
-                state: { from: location },
-            });
-            return
-        }
         if (!post) {
             return
         }
@@ -256,14 +249,22 @@ export function PostDetailPage() {
                                 type="button"
                                 className="text-button"
                                 onClick={cancelEditing}
-                                disabled={isSaving}
+                                disabled={isSaving || isDeleting}
                             >
                             Cancel
                             </button>
                             <button
+                                type="button"
+                                className="danger-button"
+                                onClick={handleDeletePost}
+                                disabled={isSaving || isDeleting}
+                            >
+                                {isDeleting ? "Deleting..." : "Delete"}
+                            </button>
+                            <button
                                 type="submit"
                                 className="text-button"
-                                disabled={isSaving}>
+                                disabled={isSaving || isDeleting}>
                                 {isSaving ? "Saving..." : "Save"}
                             </button>
                         </div>
@@ -307,17 +308,6 @@ export function PostDetailPage() {
                             disabled={isDeleting}
                         >
                             Edit
-                        </button>
-                    )}
-
-                    {isOwner && (
-                        <button
-                            type="button"
-                            className="danger-button"
-                            onClick={handleDeletePost}
-                            disabled={isDeleting}
-                        >
-                            {isDeleting ? "Deleting..." : "Delete"}
                         </button>
                     )}
                 </div>
