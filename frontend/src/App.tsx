@@ -4,7 +4,6 @@ import { LoginPage } from "./pages/LoginPage"
 import { FeedPage } from "./pages/FeedPage"
 import { CreatePostPage } from "./pages/CreatePostPage"
 import { PostDetailPage } from "./pages/PostDetailPage"
-import { EditPostPage } from "./pages/EditPostPage"
 import { ProfilePage } from "./pages/ProfilePage"
 import { NotFoundPage } from "./pages/NotFoundPage"
 import { Layout } from "./components/Layout"
@@ -35,12 +34,6 @@ export default function App() {
           } 
         />
         <Route path="/posts/:postId" element={<PostDetailPage />} />
-        <Route path="/posts/:postId/edit" element={
-          <ProtectedRoute>
-            <EditPostPage />
-          </ProtectedRoute>
-          } 
-        />
         <Route path="/users/:userId" element={<ProfilePage />} />
         <Route path="*" element={<NotFoundPage />} />
       </Route>

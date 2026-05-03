@@ -33,3 +33,27 @@ export function clearAuth(): void {
     localStorage.removeItem(USER_KEY);
     window.dispatchEvent(new Event(AUTH_CHANGED_EVENT));
 }
+
+export function isTokenExpired(token: string): boolean {
+    try {
+        const payloadBase64 = token.split(".")[1];
+
+        if (!payloadBase64) {
+            return true;
+        }
+
+        const payloadJson = atob(payloadBase64);
+        const payload = JSON.parse(payloadJson);
+
+        if (!payload.exp) {
+            return true;
+        }
+
+        const expiredAtMs = payload.exp * 1000;
+        const nowMs = Date.now();
+
+        return nowMs >= expiredAtMs;
+    } catch {
+        return true
+    }
+}

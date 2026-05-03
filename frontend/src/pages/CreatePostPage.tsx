@@ -86,17 +86,13 @@ export function CreatePostPage() {
             />
           </div>
 
-          <div className="form-field">
-            <label htmlFor="caption">Caption</label>
-            <textarea
+          <FormField
               id="caption"
-              name="caption"
+              label="Title"
+              type="text"
               value={caption}
-              onChange={(event) => setCaption(event.target.value)}
-              placeholder="Write something about this photo..."
-              rows={4}
-            />
-          </div>
+              setValue={setCaption}
+          />
 
           <FormField
               id="location"

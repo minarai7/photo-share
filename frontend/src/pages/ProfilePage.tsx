@@ -16,7 +16,7 @@ export function ProfilePage() {
 
   useEffect(() => {
     if (!userId) {
-      setError("Post ID is missing.");
+      setError("User ID is missing.");
       setIsLoading(false);
       return
     }

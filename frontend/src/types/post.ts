@@ -21,3 +21,10 @@ export type CreatePostRequest = {
     camera_body?: string | null;
     lens?: string | null;
 };
+
+export type UpdatePostRequest = {
+  caption: string;
+  location?: string | null;
+  camera_body?: string | null;
+  lens?: string | null;
+};

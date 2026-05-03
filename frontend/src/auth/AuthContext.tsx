@@ -13,6 +13,7 @@ import {
     getStoredUser,
     getToken,
     saveAuth,
+    isTokenExpired,
 } from "./authStorage";
 
 type AuthContextValue = {
@@ -59,7 +60,7 @@ export function AuthProvider({ children }: {children: ReactNode}) {
         return {
             token,
             user,
-            isAuthenticated: token !== null && user !== null,
+            isAuthenticated: token !== null && user !== null && !isTokenExpired(token),
             login,
             logout,
             refreshAuthState,
