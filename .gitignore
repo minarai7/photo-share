@@ -13,3 +13,6 @@ backend/storage/uploads/*
 
 # testfiles
 testfiles/*
+
+# docs
+docs/
