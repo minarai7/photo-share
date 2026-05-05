@@ -14,6 +14,8 @@ tags:
     description: Authentication endpoints
   - name: posts
     description: Post-related endpoints
+  - name: ai
+    description: Endpoints that use ai
 
 paths:
   /auth/signup:
@@ -265,6 +267,45 @@ paths:
         '500':
           description: Upload failed
 
+  /ai/gear-link:
+    post:
+      tags:
+        - ai
+      summary: Find AI-suggested product links for camera or lens gear
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/GearLinkRequest'
+            examples:
+              camera:
+                summary: Camera body search
+                value:
+                  kind: camera
+                  name: Sony A7 III
+              lens:
+                summary: Lens search
+                value:
+                  kind: lens
+                  name: Tamron 28-75mm f/2.8
+      responses:
+        '200':
+          description: Gear link suggestions found successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/GearLinkResponse'
+        '400':
+          description: Invalid request body
+        '401':
+          description: Authentication required
+        '500':
+          description: Internal server error
+
+
 
 components:
   securitySchemes:
@@ -435,6 +476,77 @@ components:
           type: string
           format: date-time
           example: 2026-04-14T12:00:00Z
+    
+    GearKind:
+      type: string
+      enum:
+        - camera
+        - lens
+      example: camera
+    
+    GearLinkConfidence:
+      type: string
+      enum:
+        - high
+        - medium
+        - low
+      example: high
+    
+    GearLinkRequest:
+      type: object
+      required:
+        - kind
+        - name
+      properties:
+        kind:
+          $ref: '#/components/schemas/GearKind'
+        name:
+          type: string
+          minLength: 1
+          maxLength: 120
+          example: Sony A7 III
+    
+    GearLinkSuggestion:
+      type: object
+      required:
+        - title
+        - url
+        - reason
+        - confidence
+      properties:
+        title:
+          type: string
+          example: Sony α7 III official product page
+        url:
+          type: string
+          format: uri
+          example: https://example.com
+        reason:
+          type: string
+          example: Likely official product page for this camera body.
+        confidence:
+          $ref: '#/components/schemas/GearLinkConfidence'
+    
+    GearLinkResponse:
+      type: object
+      required:
+        - kind
+        - name
+        - summary
+        - suggestions
+      properties:
+        kind:
+          $ref: '#/components/schemas/GearKind'
+        name:
+          type: string
+          example: Sony A7 III
+        summary:
+          type: string
+          example: Likely a Sony Alpha full-frame mirrorless camera body.
+        suggestions:
+          type: array
+          items:
+            $ref: '#/components/schemas/GearLinkSuggestion'
 
     ErrorDetail:
       type: object
