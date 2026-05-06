@@ -1,20 +1,20 @@
-package handler
+package dto
 
-type gearLinkRequest struct {
+type GearLinkRequest struct {
 	Kind string `json:"kind"`
 	Name string `json:"name"`
 }
 
-type gearLinkSuggestion struct {
+type GearLinkSuggestion struct {
 	Title      string `json:"title"`
 	URL        string `json:"url"`
 	Reason     string `json:"reason"`
 	Confidence string `json:"confidence"`
 }
 
-type gearLinkResponse struct {
+type GearLinkResponse struct {
 	Kind        string               `json:"kind"`
 	Name        string               `json:"name"`
 	Summary     string               `json:"summary"`
-	Suggestions []gearLinkSuggestion `json:"suggestions"`
+	Suggestions []GearLinkSuggestion `json:"suggestions"`
 }

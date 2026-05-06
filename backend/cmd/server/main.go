@@ -54,7 +54,14 @@ func main() {
 	uploadService := service.NewUploadService(cfg.UploadDir, cfg.MaxUploadBytes)
 	uploadHandler := handler.NewUploadHandler(uploadService, cfg.MaxUploadBytes)
 
-	AIHandler := handler.NewAIHandler()
+	aiService := service.NewAIService(service.AIConfig{
+		APIKey:   cfg.OpenRouterAPIKey,
+		BaseURL:  cfg.OpenRouterBaseURL,
+		Model:    cfg.OpenRouterModel,
+		AppURL:   cfg.FrontendOrigin,
+		AppTitle: cfg.OpenRouterAppTitle,
+	})
+	aiHandler := handler.NewAIHandler(aiService)
 
 	/*
 		ctx := context.Background()
@@ -103,7 +110,7 @@ func main() {
 	fileServer := http.FileServer(http.Dir(cfg.UploadDir))
 	mux.Handle("/uploads/", http.StripPrefix("/uploads/", fileServer))
 
-	mux.Handle("POST /ai/gear-link", authMiddleware.RequireAuth(http.HandlerFunc(AIHandler.GearLink)))
+	mux.Handle("POST /ai/gear-link", authMiddleware.RequireAuth(http.HandlerFunc(aiHandler.GearLink)))
 
 	corsMiddleware := cors.New(cors.Options{
 		AllowedOrigins:   []string{cfg.FrontendOrigin},

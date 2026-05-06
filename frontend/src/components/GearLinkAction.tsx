@@ -136,6 +136,16 @@ export function GearLinkAction({kind, name}: GearLinkActionProps) {
                                 </p>
                             </div>
                         )}
+
+                        {!result && (
+                            <button
+                                type="button"
+                                className="text-button"
+                                onClick={closeModal}
+                            >
+                                Close
+                            </button>
+                        )}
                     </div>
                 </div>
             )}
