@@ -5,6 +5,7 @@ import { deletePostById, getPostById, updatePostById } from "../api/postsApi";
 import type { Post, UpdatePostRequest } from "../types/post";
 import { useAuth } from "../auth/AuthContext";
 import { FormField } from "../components/FormField";
+import { GearLinkAction } from "../components/GearLinkAction";
 
 export function PostDetailPage() {
     const { postId } = useParams<{postId: string}>();
@@ -160,7 +161,7 @@ export function PostDetailPage() {
 
             navigate(returnTo.pathname, { replace: true });
         } catch (err) {
-            setEditError(
+            setDeleteError(
                 err instanceof Error ? err.message : "Failed to delete post."
             );
         } finally {
@@ -284,12 +285,16 @@ export function PostDetailPage() {
 
                     <div>
                     <dt>Camera body</dt>
-                    <dd>{post.camera_body || "Not specified"}</dd>
+                    <dd>
+                        {post.camera_body ? <GearLinkAction kind="camera" name={post.camera_body}/> : "Not specified"}
+                    </dd>
                     </div>
 
                     <div>
                     <dt>Lens</dt>
-                    <dd>{post.lens || "Not specified"}</dd>
+                    <dd>
+                        {post.lens ? <GearLinkAction kind="lens" name={post.lens}/> : "Not specified"}
+                    </dd>
                     </div>
 
                     <div>

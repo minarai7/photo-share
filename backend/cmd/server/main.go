@@ -54,6 +54,8 @@ func main() {
 	uploadService := service.NewUploadService(cfg.UploadDir, cfg.MaxUploadBytes)
 	uploadHandler := handler.NewUploadHandler(uploadService, cfg.MaxUploadBytes)
 
+	AIHandler := handler.NewAIHandler()
+
 	/*
 		ctx := context.Background()
 
@@ -100,6 +102,8 @@ func main() {
 
 	fileServer := http.FileServer(http.Dir(cfg.UploadDir))
 	mux.Handle("/uploads/", http.StripPrefix("/uploads/", fileServer))
+
+	mux.Handle("POST /ai/gear-link", authMiddleware.RequireAuth(http.HandlerFunc(AIHandler.GearLink)))
 
 	corsMiddleware := cors.New(cors.Options{
 		AllowedOrigins:   []string{cfg.FrontendOrigin},
