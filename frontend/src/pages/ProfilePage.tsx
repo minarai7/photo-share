@@ -4,6 +4,7 @@ import { getPostsByUserId } from "../api/postsApi";
 import { PostCard } from "../components/PostCard";
 import { useAuth } from "../auth/AuthContext";
 import type { GetPostsResponse } from "../types/post";
+import { getUserById } from "../api";
 
 export function ProfilePage() {
   const { userId } = useParams<{userId: string}>();
@@ -12,6 +13,7 @@ export function ProfilePage() {
   const [posts, setPosts] = useState<GetPostsResponse>([]);
   const [isOwnProfile, setIsOwnProfile] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
+  const [username, setUsername] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
@@ -39,6 +41,13 @@ export function ProfilePage() {
         setError(null);
 
         const profilePosts = await getPostsByUserId(numericUserId);
+
+        if (isOwnProfile) {
+          setUsername(user!.username)
+        } else {
+          const currentlyViewingUser = await getUserById(numericUserId);
+          setUsername(currentlyViewingUser.username)
+        }
 
         if (isMounted) {
             setPosts(profilePosts);
@@ -83,7 +92,7 @@ export function ProfilePage() {
   return (
     <main className="feed-page">
       <header className="feed-header">
-        <h1>{isOwnProfile ? `${user!.username}'s posts` : `User #${userId}`}</h1>
+        <h1>{`${username}'s posts`}</h1>
         <p>{posts.length === 1
             ? "1 post"
             : `${posts.length} posts`}</p>

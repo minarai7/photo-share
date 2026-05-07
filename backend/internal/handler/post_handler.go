@@ -7,7 +7,6 @@ import (
 	"strconv"
 	"strings"
 
-	"backend/internal/db/gen/photoshare/public/model"
 	"backend/internal/httpx"
 	"backend/internal/middleware"
 	"backend/internal/service"
@@ -19,20 +18,6 @@ type PostHandler struct {
 
 func NewPostHandler(postService *service.PostService) *PostHandler {
 	return &PostHandler{postService: postService}
-}
-
-func toPostResponse(post *model.Posts) PostResponse {
-	return PostResponse{
-		ID:         post.ID,
-		UserID:     post.UserID,
-		ImagePath:  post.ImagePath,
-		Caption:    post.Caption,
-		Location:   post.Location,
-		CameraBody: post.CameraBody,
-		Lens:       post.Lens,
-		CreatedAt:  post.CreatedAt,
-		UpdatedAt:  post.UpdatedAt,
-	}
 }
 
 func readPostID(r *http.Request) (int64, error) {
@@ -73,7 +58,7 @@ func (h *PostHandler) GetPostByID(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	httpx.WriteJSON(w, http.StatusOK, toPostResponse(post))
+	httpx.WriteJSON(w, http.StatusOK, post)
 }
 
 func (h *PostHandler) ListPosts(w http.ResponseWriter, r *http.Request) {
@@ -88,12 +73,7 @@ func (h *PostHandler) ListPosts(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	resp := make([]PostResponse, 0, len(posts))
-	for _, post := range posts {
-		resp = append(resp, toPostResponse(&post))
-	}
-
-	httpx.WriteJSON(w, http.StatusOK, resp)
+	httpx.WriteJSON(w, http.StatusOK, posts)
 }
 
 func (h *PostHandler) CreatePost(w http.ResponseWriter, r *http.Request) {
@@ -140,7 +120,7 @@ func (h *PostHandler) CreatePost(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	httpx.WriteJSON(w, http.StatusCreated, toPostResponse(resp))
+	httpx.WriteJSON(w, http.StatusCreated, resp)
 }
 
 func (h *PostHandler) UpdatePost(w http.ResponseWriter, r *http.Request) {
@@ -212,7 +192,7 @@ func (h *PostHandler) UpdatePost(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	httpx.WriteJSON(w, http.StatusOK, toPostResponse(updatedPost))
+	httpx.WriteJSON(w, http.StatusOK, updatedPost)
 }
 
 func (h *PostHandler) DeletePost(w http.ResponseWriter, r *http.Request) {

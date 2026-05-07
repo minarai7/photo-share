@@ -26,23 +26,22 @@ type CreateUserParams struct {
 	PasswordHash string
 }
 
-func (r *UserRepository) ListUsers(ctx context.Context) ([]model.Users, error) {
-	stmt := postgres.SELECT(
-		table.Users.AllColumns,
-	).FROM(
-		table.Users,
-	).ORDER_BY(
-		table.Users.ID.ASC(),
-	)
+func (r *UserRepository) GetByID(ctx context.Context, id int64) (*model.Users, error) {
+	stmt := postgres.SELECT(table.Users.AllColumns).
+		FROM(table.Users).
+		WHERE(table.Users.ID.EQ(postgres.Int64(id)))
 
-	var users []model.Users
-	err := stmt.QueryContext(ctx, r.db, &users)
+	var user model.Users
+	err := stmt.QueryContext(ctx, r.db, &user)
 
+	if errors.Is(err, qrm.ErrNoRows) {
+		return nil, nil
+	}
 	if err != nil {
 		return nil, err
 	}
 
-	return users, nil
+	return &user, nil
 }
 
 func (r *UserRepository) GetByEmail(ctx context.Context, email string) (*model.Users, error) {

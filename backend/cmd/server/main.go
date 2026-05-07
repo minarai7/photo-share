@@ -98,6 +98,8 @@ func main() {
 	mux.HandleFunc("POST /auth/signup", authHandler.Signup)
 	mux.HandleFunc("POST /auth/login", authHandler.Login)
 
+	mux.HandleFunc("GET /users/", authHandler.GetUserByID)
+
 	mux.HandleFunc("GET /posts", postHandler.ListPosts)
 	mux.Handle("POST /posts", authMiddleware.RequireAuth(http.HandlerFunc(postHandler.CreatePost)))
 

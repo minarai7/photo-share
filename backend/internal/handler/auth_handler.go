@@ -4,6 +4,8 @@ import (
 	"encoding/json"
 	"errors"
 	"net/http"
+	"strconv"
+	"strings"
 
 	"backend/internal/db/gen/photoshare/public/model"
 	"backend/internal/httpx"
@@ -25,6 +27,47 @@ func toUserResponse(user *model.Users) UserResponse {
 		Email:     user.Email,
 		CreatedAt: user.CreatedAt,
 	}
+}
+
+func readUserID(r *http.Request) (int64, error) {
+	idStr := strings.TrimPrefix(r.URL.Path, "/users/")
+	return strconv.ParseInt(idStr, 10, 64)
+}
+
+func (h *AuthHandler) GetUserByID(w http.ResponseWriter, r *http.Request) {
+	id, err := readUserID(r)
+	if err != nil {
+		httpx.WriteJSON(w, http.StatusBadRequest, httpx.ErrorResponse{
+			Error: httpx.ErrorDetail{
+				Code:    "invalid_user_id",
+				Message: "user id must be a number",
+			},
+		})
+		return
+	}
+
+	user, err := h.authService.GetUserByID(r.Context(), id)
+	if err != nil {
+		if errors.Is(err, service.ErrUserNotFound) {
+			httpx.WriteJSON(w, http.StatusNotFound, httpx.ErrorResponse{
+				Error: httpx.ErrorDetail{
+					Code:    "user_not_found",
+					Message: "user not found",
+				},
+			})
+			return
+		}
+
+		httpx.WriteJSON(w, http.StatusInternalServerError, httpx.ErrorResponse{
+			Error: httpx.ErrorDetail{
+				Code:    "internal_error",
+				Message: "failed to get user",
+			},
+		})
+		return
+	}
+
+	httpx.WriteJSON(w, http.StatusOK, toUserResponse(user))
 }
 
 func (h *AuthHandler) Signup(w http.ResponseWriter, r *http.Request) {

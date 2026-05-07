@@ -13,6 +13,8 @@ import (
 	"github.com/go-jet/jet/v2/postgres"
 )
 
+var ErrorPostNotFound = errors.New("post not found")
+
 type PostRepository struct {
 	db *sql.DB
 }
@@ -42,8 +44,17 @@ type UpdatePostParams struct {
 func (r *PostRepository) ListPosts(ctx context.Context) ([]dto.PostResponse, error) {
 	stmt := table.Posts.
 		SELECT(
-			table.Posts.AllColumns,
-			table.Users.Username).
+			table.Posts.ID.AS("post_response.id"),
+			table.Posts.UserID.AS("post_response.user_id"),
+			table.Users.Username.AS("post_response.username"),
+			table.Posts.ImagePath.AS("post_response.image_path"),
+			table.Posts.Caption.AS("post_response.caption"),
+			table.Posts.Location.AS("post_response.location"),
+			table.Posts.CameraBody.AS("post_response.camera_body"),
+			table.Posts.Lens.AS("post_response.lens"),
+			table.Posts.CreatedAt.AS("post_response.created_at"),
+			table.Posts.UpdatedAt.AS("post_response.updated_at"),
+		).
 		FROM(
 			table.Posts.Table.
 				INNER_JOIN(table.Users.Table, table.Posts.UserID.EQ(table.Users.ID))).
@@ -52,7 +63,7 @@ func (r *PostRepository) ListPosts(ctx context.Context) ([]dto.PostResponse, err
 			table.Posts.ID.DESC(),
 		)
 
-	var posts []dto.PostResponse
+	posts := make([]dto.PostResponse, 0)
 	err := stmt.QueryContext(ctx, r.db, &posts)
 	if err != nil {
 		return nil, err
@@ -61,13 +72,26 @@ func (r *PostRepository) ListPosts(ctx context.Context) ([]dto.PostResponse, err
 	return posts, nil
 }
 
-func (r *PostRepository) GetPostByID(ctx context.Context, id int64) (*model.Posts, error) {
+func (r *PostRepository) GetPostByID(ctx context.Context, id int64) (*dto.PostResponse, error) {
 	stmt := table.Posts.
-		SELECT(table.Posts.AllColumns).
-		FROM(table.Posts.Table).
+		SELECT(
+			table.Posts.ID.AS("post_response.id"),
+			table.Posts.UserID.AS("post_response.user_id"),
+			table.Users.Username.AS("post_response.username"),
+			table.Posts.ImagePath.AS("post_response.image_path"),
+			table.Posts.Caption.AS("post_response.caption"),
+			table.Posts.Location.AS("post_response.location"),
+			table.Posts.CameraBody.AS("post_response.camera_body"),
+			table.Posts.Lens.AS("post_response.lens"),
+			table.Posts.CreatedAt.AS("post_response.created_at"),
+			table.Posts.UpdatedAt.AS("post_response.updated_at"),
+		).
+		FROM(
+			table.Posts.Table.
+				INNER_JOIN(table.Users.Table, table.Posts.UserID.EQ(table.Users.ID))).
 		WHERE(table.Posts.ID.EQ(postgres.Int64(id)))
 
-	var post model.Posts
+	var post dto.PostResponse
 	err := stmt.QueryContext(ctx, r.db, &post)
 	if err != nil {
 		return nil, err
@@ -76,7 +100,7 @@ func (r *PostRepository) GetPostByID(ctx context.Context, id int64) (*model.Post
 	return &post, nil
 }
 
-func (r *PostRepository) CreatePost(ctx context.Context, p CreatePostParams) (*model.Posts, error) {
+func (r *PostRepository) CreatePost(ctx context.Context, p CreatePostParams) (int64, error) {
 	stmt := table.Posts.
 		INSERT(
 			table.Posts.UserID,
@@ -91,13 +115,13 @@ func (r *PostRepository) CreatePost(ctx context.Context, p CreatePostParams) (*m
 	var post model.Posts
 	err := stmt.QueryContext(ctx, r.db, &post)
 	if err != nil {
-		return nil, err
+		return 0, err
 	}
 
-	return &post, nil
+	return post.ID, nil
 }
 
-func (r *PostRepository) UpdatePost(ctx context.Context, p UpdatePostParams) (*model.Posts, error) {
+func (r *PostRepository) UpdatePost(ctx context.Context, p UpdatePostParams) error {
 	stmt := table.Posts.
 		UPDATE(
 			table.Posts.Caption,
@@ -116,16 +140,22 @@ func (r *PostRepository) UpdatePost(ctx context.Context, p UpdatePostParams) (*m
 		WHERE(
 			table.Posts.ID.EQ(postgres.Int64(p.ID)).
 				AND(table.Posts.UserID.EQ(postgres.Int64(p.UserID))),
-		).
-		RETURNING(table.Posts.AllColumns)
+		)
 
-	var updated model.Posts
-	err := stmt.QueryContext(ctx, r.db, &updated)
+	result, err := stmt.ExecContext(ctx, r.db)
 	if err != nil {
-		return nil, err
+		return err
 	}
 
-	return &updated, nil
+	rowsAffected, err := result.RowsAffected()
+	if err != nil {
+		return err
+	}
+	if rowsAffected == 0 {
+		return ErrorPostNotFound
+	}
+
+	return nil
 }
 
 func (r *PostRepository) DeletePostByID(ctx context.Context, id int64) error {
@@ -143,7 +173,7 @@ func (r *PostRepository) DeletePostByID(ctx context.Context, id int64) error {
 		return err
 	}
 	if rowsAffected == 0 {
-		return errors.New("post not found")
+		return ErrorPostNotFound
 	}
 
 	return nil

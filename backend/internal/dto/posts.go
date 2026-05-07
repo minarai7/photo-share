@@ -3,7 +3,7 @@ package dto
 import "time"
 
 type PostResponse struct {
-	ID         int64     `json:"id"`
+	ID         int64     `json:"id" sql:"primary_key"`
 	UserID     int64     `json:"user_id"`
 	Username   string    `json:"username"`
 	ImagePath  string    `json:"image_path"`

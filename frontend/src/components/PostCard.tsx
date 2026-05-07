@@ -34,7 +34,7 @@ export function PostCard({ post, showAuthor = true, returnTo }: PostCardProps) {
                 <div className="post-card-header">
                     {showAuthor && (
                         <span className="post-card-author">
-                            User #{post.user_id}
+                            {post.username}
                         </span>
                     )}
                     <span className="post-card-date">{createdAt}</span>

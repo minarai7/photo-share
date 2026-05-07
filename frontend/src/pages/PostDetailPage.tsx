@@ -207,7 +207,7 @@ export function PostDetailPage() {
             />
 
             <div className="post-detail-content">
-            <p className="post-detail-author">User #{post.user_id}</p>
+            <p className="post-detail-author">{post.username}</p>
             {isEditing ? (
                 <>
                     {editError && <div className="form-error">{editError}</div>}

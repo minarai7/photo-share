@@ -20,6 +20,7 @@ var (
 	ErrEmailAlreadyExists    = errors.New("email already exists")
 	ErrUsernameAlreadyExists = errors.New("username already exists")
 	ErrInvalidCredentials    = errors.New("invalid credentials")
+	ErrUserNotFound          = errors.New("user does not exist")
 )
 
 type AuthService struct {
@@ -48,6 +49,18 @@ type LoginParams struct {
 type LoginResult struct {
 	Token string
 	User  *model.Users
+}
+
+func (s *AuthService) GetUserByID(ctx context.Context, id int64) (*model.Users, error) {
+	user, err := s.userRepo.GetByID(ctx, id)
+	if err != nil {
+		return nil, err
+	}
+	if user == nil {
+		return nil, ErrUserNotFound
+	}
+
+	return user, nil
 }
 
 func (s *AuthService) Signup(ctx context.Context, p SignupParams) (*model.Users, error) {

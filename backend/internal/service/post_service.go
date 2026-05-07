@@ -5,7 +5,7 @@ import (
 	"errors"
 	"strings"
 
-	"backend/internal/db/gen/photoshare/public/model"
+	"backend/internal/dto"
 	"backend/internal/repository"
 
 	"github.com/go-jet/jet/v2/qrm"
@@ -49,11 +49,11 @@ type DeletePostParams struct {
 	UserID int64
 }
 
-func (s *PostService) ListPosts(ctx context.Context) ([]model.Posts, error) {
+func (s *PostService) ListPosts(ctx context.Context) ([]dto.PostResponse, error) {
 	return s.postRepo.ListPosts(ctx)
 }
 
-func (s *PostService) GetPostByID(ctx context.Context, id int64) (*model.Posts, error) {
+func (s *PostService) GetPostByID(ctx context.Context, id int64) (*dto.PostResponse, error) {
 	post, err := s.postRepo.GetPostByID(ctx, id)
 	if err != nil {
 		if errors.Is(err, qrm.ErrNoRows) {
@@ -65,7 +65,7 @@ func (s *PostService) GetPostByID(ctx context.Context, id int64) (*model.Posts, 
 	return post, nil
 }
 
-func (s *PostService) CreatePost(ctx context.Context, p CreatePostParams) (*model.Posts, error) {
+func (s *PostService) CreatePost(ctx context.Context, p CreatePostParams) (*dto.PostResponse, error) {
 	if p.UserID == 0 {
 		return nil, ErrUserRequired
 	}
@@ -73,7 +73,7 @@ func (s *PostService) CreatePost(ctx context.Context, p CreatePostParams) (*mode
 		return nil, ErrImagePathRequired
 	}
 
-	createdPost, err := s.postRepo.CreatePost(ctx, repository.CreatePostParams{
+	createdPostID, err := s.postRepo.CreatePost(ctx, repository.CreatePostParams{
 		UserID:     p.UserID,
 		ImagePath:  p.ImagePath,
 		Caption:    p.Caption,
@@ -85,10 +85,10 @@ func (s *PostService) CreatePost(ctx context.Context, p CreatePostParams) (*mode
 		return nil, err
 	}
 
-	return createdPost, nil
+	return s.postRepo.GetPostByID(ctx, createdPostID)
 }
 
-func (s *PostService) UpdatePost(ctx context.Context, p UpdatePostParams) (*model.Posts, error) {
+func (s *PostService) UpdatePost(ctx context.Context, p UpdatePostParams) (*dto.PostResponse, error) {
 	existingPost, err := s.GetPostByID(ctx, p.PostID)
 	if err != nil {
 		return nil, err
@@ -98,7 +98,7 @@ func (s *PostService) UpdatePost(ctx context.Context, p UpdatePostParams) (*mode
 		return nil, ErrForbidden
 	}
 
-	updatedPost, err := s.postRepo.UpdatePost(ctx, repository.UpdatePostParams{
+	err = s.postRepo.UpdatePost(ctx, repository.UpdatePostParams{
 		ID:         p.PostID,
 		UserID:     p.UserID,
 		Caption:    p.Caption,
@@ -113,7 +113,7 @@ func (s *PostService) UpdatePost(ctx context.Context, p UpdatePostParams) (*mode
 		return nil, err
 	}
 
-	return updatedPost, nil
+	return s.postRepo.GetPostByID(ctx, p.PostID)
 }
 
 func (s *PostService) DeletePost(ctx context.Context, p DeletePostParams) error {

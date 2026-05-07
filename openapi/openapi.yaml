@@ -81,6 +81,34 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/ErrorResponse'
+  
+  /users/{id}:
+    get:
+      tags:
+        - auth
+      summary: Get one user by ID
+      operationId: getUserById
+      parameters:
+        - name: id
+          in: path
+          required: true
+          description: User ID
+          schema:
+            type: integer
+            format: int64
+      responses:
+        '200':
+          description: One user
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/User'
+        '404':
+          description: User not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
 
   /posts:
     get:
@@ -436,6 +464,7 @@ components:
       required:
         - id
         - user_id
+        - username
         - image_path
         - caption
         - created_at
@@ -450,6 +479,9 @@ components:
           type: integer
           format: int64
           example: 1
+        username:
+          type: string
+          example: yamato
         image_path:
           type: string
           example: /demo/test.jpg
