@@ -3,6 +3,7 @@ import { useLocation, useNavigate } from "react-router";
 import { findGearLinks } from "../api/aiApi";
 import { useAuth } from "../auth/AuthContext";
 import type { GearKind, GearLinkResponse } from "../types/ai";
+import { createPortal } from "react-dom";
 
 type GearLinkActionProps = {
     kind: GearKind;
@@ -69,12 +70,12 @@ export function GearLinkAction({kind, name}: GearLinkActionProps) {
                 type="button"
                 className="text-button gear-link-button"
                 onClick={handleFindProduct}
-                disabled={isLoading}
+                disabled={isLoading || isModalOpen}
             >
                 {isLoading ? "Finding..." : "Find product"}
             </button>
 
-            {isModalOpen && (
+            {isModalOpen && createPortal(
                 <div className="gear-link-modal-backdrop">
                     <div className="gear-link-modal" role="dialog" aria-modal="true">
                         <div className="gear-link-modal-header">
@@ -113,7 +114,7 @@ export function GearLinkAction({kind, name}: GearLinkActionProps) {
                                                     </a>
 
                                                     <span className="gear-link-confidence">
-                                                        {suggestion.confidence}
+                                                        {`Confidence: ${suggestion.confidence}`}
                                                     </span>
                                                 </div>
 
@@ -147,7 +148,8 @@ export function GearLinkAction({kind, name}: GearLinkActionProps) {
                             </button>
                         )}
                     </div>
-                </div>
+                </div>,
+                document.body
             )}
         </>
     )

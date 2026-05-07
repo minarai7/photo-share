@@ -4,9 +4,13 @@ import (
 	"backend/internal/dto"
 	"backend/internal/httpx"
 	"backend/internal/service"
+	"context"
 	"encoding/json"
+	"errors"
+	"log"
 	"net/http"
 	"strings"
+	"time"
 )
 
 type AIHandler struct {
@@ -53,53 +57,35 @@ func (h *AIHandler) GearLink(w http.ResponseWriter, r *http.Request) {
 		})
 		return
 	}
-	/*
-		ctx, cancel := context.WithTimeout(r.Context(), 35*time.Second)
-		defer cancel()
 
-		result, err := h.aiService.FindGearLinks(ctx, dto.GearLinkRequest{
-			Kind: req.Kind,
-			Name: req.Name,
-		})
+	ctx, cancel := context.WithTimeout(r.Context(), 35*time.Second)
+	defer cancel()
 
-		if err != nil {
-			if errors.Is(err, service.ErrAIConfigMissing) {
-				httpx.WriteJSON(w, http.StatusInternalServerError, httpx.ErrorResponse{
-					Error: httpx.ErrorDetail{
-						Code:    "ai_config_missing",
-						Message: "AI service is not configured",
-					},
-				})
-				return
-			}
+	result, err := h.aiService.FindGearLinks(ctx, dto.GearLinkRequest{
+		Kind: req.Kind,
+		Name: req.Name,
+	})
 
-			log.Printf("Error: %v", err)
-			httpx.WriteJSON(w, http.StatusBadGateway, httpx.ErrorResponse{
+	if err != nil {
+		if errors.Is(err, service.ErrAIConfigMissing) {
+			httpx.WriteJSON(w, http.StatusInternalServerError, httpx.ErrorResponse{
 				Error: httpx.ErrorDetail{
-					Code:    "ai_request_failed",
-					Message: "Could not get AI gear suggestions",
+					Code:    "ai_config_missing",
+					Message: "AI service is not configured",
 				},
 			})
 			return
 		}
-	*/
 
-	result := dto.GearLinkResponse{
-		Kind:    "camera",
-		Name:    "Sony A7 III",
-		Summary: "The Sony A7 III is a full-frame mirrorless camera with a 24.2MP back-illuminated Exmor R CMOS sensor, offering 10 fps continuous shooting and 4K video recording.",
-		Suggestions: []dto.GearLinkSuggestion{
-			dto.GearLinkSuggestion{
-				Title:      "ILCE-7M3 Specifications | Sony USA",
-				URL:        "https://www.sony.com/electronics/support/e-mount-body-ilce-7-series/ilce-7m3/specifications",
-				Reason:     "This is the official Sony product specifications page, providing detailed technical information about the camera.",
-				Confidence: "high"},
-			dto.GearLinkSuggestion{Title: "Sony Alpha 7 III - Full-frame Interchangeable Lens Camera 24.2MP, 10FPS, 4K/30p |ILCE7M3",
-				URL:        "https://electronics.sony.com/imaging/interchangeable-lens-cameras/full-frame/p/ilce7m3-b",
-				Reason:     "This is the official Sony product page for the camera body only, offering an overview, features, and purchase options.",
-				Confidence: "high"},
-			dto.GearLinkSuggestion{Title: "Sony Alpha 7 III - Full-frame Interchangeable Lens Camera \u0026 Lens Kit 24.2MP, 10FPS, 4K/30p |ILCE7M3K", URL: "https://electronics.sony.com/c/p/ilce7m3k-b", Reason: "This is the official Sony product page for the camera kit including the 28-70mm lens, providing product details and purchase information.", Confidence: "high"},
-		},
+		log.Printf("Error: %v", err)
+		httpx.WriteJSON(w, http.StatusBadGateway, httpx.ErrorResponse{
+			Error: httpx.ErrorDetail{
+				Code:    "ai_request_failed",
+				Message: "Could not get AI gear suggestions",
+			},
+		})
+		return
 	}
+
 	httpx.WriteJSON(w, http.StatusOK, result)
 }

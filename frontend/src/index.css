@@ -472,15 +472,14 @@ button {
 .gear-link-modal-header {
   display: flex;
   align-items: flex-start;
-  justify-content: space-between;
-  gap: 16px;
+  flex-direction: column;
+  gap: 6px;
 }
 
 .gear-link-modal-kicker {
   margin: 0 0 4px;
-  color: #777;
-  font-size: 13px;
-  font-weight: 700;
+  color: #666;
+  font-size: 12px;
 }
 
 .gear-link-modal-header h2 {

@@ -8,6 +8,7 @@ import (
 
 	model "backend/internal/db/gen/photoshare/public/model"
 	table "backend/internal/db/gen/photoshare/public/table"
+	"backend/internal/dto"
 
 	"github.com/go-jet/jet/v2/postgres"
 )
@@ -38,16 +39,20 @@ type UpdatePostParams struct {
 	Lens       *string
 }
 
-func (r *PostRepository) ListPosts(ctx context.Context) ([]model.Posts, error) {
+func (r *PostRepository) ListPosts(ctx context.Context) ([]dto.PostResponse, error) {
 	stmt := table.Posts.
-		SELECT(table.Posts.AllColumns).
-		FROM(table.Posts.Table).
+		SELECT(
+			table.Posts.AllColumns,
+			table.Users.Username).
+		FROM(
+			table.Posts.Table.
+				INNER_JOIN(table.Users.Table, table.Posts.UserID.EQ(table.Users.ID))).
 		ORDER_BY(
 			table.Posts.CreatedAt.DESC(), // Newest posts come first
 			table.Posts.ID.DESC(),
 		)
 
-	var posts []model.Posts
+	var posts []dto.PostResponse
 	err := stmt.QueryContext(ctx, r.db, &posts)
 	if err != nil {
 		return nil, err
