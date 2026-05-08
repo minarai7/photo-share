@@ -134,6 +134,10 @@ openapi/openapi.yaml
 
 ## Screenshots
 
+### Login
+
+![Login page](docs/screenshots/login.png)
+
 ### Feed
 
 ![Feed page](docs/screenshots/feed.png)
