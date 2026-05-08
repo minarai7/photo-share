@@ -14,6 +14,8 @@ tags:
     description: Authentication endpoints
   - name: posts
     description: Post-related endpoints
+  - name: uploads
+    description: Upload-related endpoints
   - name: ai
     description: Endpoints that use ai
 
@@ -262,7 +264,7 @@ paths:
   /uploads:
     post:
       tags:
-        - posts
+        - uploads
       summary: Upload a post image
       operationId: uploadImage
       requestBody:

@@ -50,24 +50,130 @@ The project also includes an AI-powered gear link assistant that helps users fin
 - VS Code
 - curl for API testing
 
+## Architecture
+
+The project is split into a frontend, backend, database, and OpenAPI contract.
+
+```text
+photo-share/
+  backend/
+    cmd/server/              # Go server entry point
+    internal/handler/        # HTTP handlers
+    internal/service/        # Business logic
+    internal/repository/     # Database queries
+    internal/middleware/     # Auth, CORS, logging, recovery
+    internal/db/             # Database generated models
+    internal/dto/            # Shared data transfer objects
+    internal/config/         # Environment/config loading
+    internal/httpx/          # Shared response writer utility
+    internal/storage/        # Local storage for uploaded images
+    migrations/              # goose migration files
+
+  frontend/
+    src/
+      api/                   # API client functions
+      auth/                  # Global auth state
+      components/            # Reusable UI components
+      pages/                 # Route-level page components
+      routes/                # Route protection wrappers
+      types/                 # TypeScript types
+      utils/                 # Helper functions
+
+  openapi/
+    openapi.yaml             # API contract
+
+  docs/
+    screenshots/             # README screenshots
+```
+
+## Environment Variables
+
+Create environment files in ```backend/.env``` based on the examples in ```backend/.env.example```
+
+## Local Setup
+
+This section is a stub.
+
+## API Notes
+
+The backend API is documented with OpenAPI.
+
+Main endpoint groups:
+
+```text
+auth:
+  POST /auth/signup
+  POST /auth/login
+  GET  /users/{id}
+
+posts:
+  GET    /posts
+  GET    /posts/{id}
+  POST   /posts
+  PUT    /posts/{id}
+  DELETE /posts/{id}
+
+uploads:
+  POST /uploads
+
+ai:
+  POST /ai/gear-link
+```
+
+Protected endpoints require a Bearer token:
+
+```http
+Authorization: Bearer <token>
+```
+
+The OpenAPI spec is located at:
+
+```text
+openapi/openapi.yaml
+```
+
 ## Screenshots
 
 ### Feed
 
-![Feed page](screenshots/feed.png)
+![Feed page](docs/screenshots/feed.png)
 
 ### Post Detail
 
-![Post detail page](screenshots/post-detail.png)
+![Post detail page](docs/screenshots/post-detail.png)
 
 ### Edit Post
 
-![Edit post](screenshots/edit-post.png)
+![Edit post](docs/screenshots/edit-post.png)
 
 ### Profile
 
-![Profile page](screenshots/profile.png)
+![Profile page](docs/screenshots/profile.png)
 
 ### AI Gear Link Assistant
 
-![AI gear link modal](screenshots/ai-gear-link.png)
+![AI gear link modal](docs/screenshots/ai-gear-link.png)
+
+## Future Improvements
+
+- Improve create post ui
+- Deploy the frontend and backend
+- Store uploaded images in cloud storage such as S3
+- Add comments and likes
+- Add follow/follower relationships
+- Add post search and filtering
+- Add pagination or infinite scrolling to the feed
+- Improve AI gear link accuracy with caching and stricter source validation
+- Add automated backend and frontend tests
+- Add refresh tokens or cookie-based authentication
+
+## Development Notes
+
+This project uses a layered backend architecture:
+
+- Handlers parse HTTP requests and return HTTP responses.
+- Services contain business logic.
+- Repositories handle database access.
+- Middleware handles cross-cutting concerns such as authentication, CORS, logging, and panic recovery.
+
+The frontend uses a dedicated API layer so page components do not directly hardcode fetch logic everywhere.

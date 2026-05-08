@@ -14,5 +14,5 @@ backend/storage/uploads/*
 # testfiles
 testfiles/*
 
-# docs
-docs/
+# dev notes
+dev-notes/
