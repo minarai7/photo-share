@@ -86,13 +86,114 @@ photo-share/
     screenshots/             # README screenshots
 ```
 
-## Environment Variables
-
-Create environment files in ```backend/.env``` based on the examples in ```backend/.env.example```
-
 ## Local Setup
 
-This section is a stub.
+### Prerequisites
+
+Install the following first:
+
+- Go
+- Node.js and npm
+- PostgreSQL
+- goose
+- Git
+
+### 1. Clone the repository
+
+```bash
+git clone https://github.com/minarai7/photo-share
+cd photo-share
+```
+
+### 2. Set up the backend environment
+
+```bash
+cd backend
+cp .env.example .env
+```
+
+Edit `backend/.env` and set your local database URL, JWT secret, upload directory, and AI API key.
+
+### 3. Create the PostgreSQL database
+
+Create the database named in `DATABASE_URL`. Example using `psql`:
+
+```bash
+createdb -U <your-postgres-username> <your-database-name>
+```
+
+### 4. Run database migrations
+
+From the `backend` folder:
+
+```bash
+goose -dir migrations postgres <your-database-url> up
+```
+
+### 5. Install backend dependencies
+
+```bash
+go mod download
+```
+
+### 6. Start the backend server
+
+```bash
+go run ./cmd/server
+```
+
+The backend should start on:
+
+```text
+http://localhost:8080
+```
+
+You can test it with:
+
+```bash
+curl http://localhost:8080/health
+```
+
+Expected response:
+
+```json
+{
+  "status": "ok"
+}
+```
+
+### 7. Set up the frontend environment
+
+Open a new terminal.
+
+```bash
+cd frontend
+cp .env.example .env
+```
+
+Make sure `frontend/.env` contains:
+
+```env
+VITE_API_BASE_URL=http://localhost:8080
+```
+
+### 8. Install frontend dependencies
+
+```bash
+npm install
+```
+
+### 9. Start the frontend dev server
+
+```bash
+npm run dev
+```
+
+The frontend should start on a local Vite URL, usually:
+
+```text
+http://localhost:5173
+```
 
 ## API Notes
 
