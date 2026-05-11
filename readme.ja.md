@@ -1,4 +1,4 @@
-[English](./README.md) | 日本語
+[English](./readme.md) | 日本語
 
 # Photo Share
 
