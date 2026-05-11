@@ -1,3 +1,5 @@
+English | [日本語](./readme.ja.md)
+
 # Photo Share
 
 Photo Share is a full-stack photo-sharing web application built with Go, React, TypeScript, and PostgreSQL.

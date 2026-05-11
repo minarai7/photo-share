@@ -126,8 +126,7 @@ button {
     font-weight: 600;
 }
 
-.form-field input,
-.form-field textarea {
+.form-field input {
     padding: 10px 12px;
     border: 1px solid #ccc;
     border-radius: 8px;
@@ -138,8 +137,7 @@ button {
     resize: vertical;
 }
 
-.form-field input:focus,
-.form-field textare:focus {
+.form-field input:focus {
     outline: none;
     border-color: #333;
 }
