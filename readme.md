@@ -265,7 +265,7 @@ openapi/openapi.yaml
 
 A short demo video showing feed browsing, signup, login, profile page, post creation, post edit, AI gear link suggestions, and post delete is available here:
 
-[Watch the demo](docs/demo/photo-share-demo.mp4)
+[Watch the demo](https://minarai7.github.io/photo-share/)
 
 ## Future Improvements
 
