@@ -261,6 +261,13 @@ openapi/openapi.yaml
 
 ![AI 機材リンクモーダル](docs/screenshots/ai-gear-link.png)
 
+## デモ動画
+
+フィード閲覧、サインアップ、ログイン、プロフィールページ、投稿作成、投稿編集、AIによる機材リンク候補の提案、投稿削除を紹介する短いデモ動画は、こちらからご覧いただけます。
+
+[デモを見る](docs/demo/photo-share-demo.mp4)
+
+
 ## 今後の改善
 
 * 投稿作成 UI の改善

@@ -261,6 +261,12 @@ openapi/openapi.yaml
 
 ![AI gear link modal](docs/screenshots/ai-gear-link.png)
 
+## Demo Video
+
+A short demo video showing feed browsing, signup, login, profile page, post creation, post edit, AI gear link suggestions, and post delete is available here:
+
+[Watch the demo](docs/demo/photo-share-demo.mp4)
+
 ## Future Improvements
 
 - Improve create post ui
