@@ -133,8 +133,14 @@ func (s *AIService) FindGearLinks(ctx context.Context, p dto.GearLinkRequest) (d
 	}
 
 	log.Printf("AI raw content: %s", content)
+
+	jsonContent, err := extractJSONContent(content)
+	if err != nil {
+		return dto.GearLinkResponse{}, fmt.Errorf("extract ai json content: %w; content was: %s", err, content)
+	}
+
 	var result dto.GearLinkResponse
-	if err := json.Unmarshal([]byte(content), &result); err != nil {
+	if err := json.Unmarshal([]byte(jsonContent), &result); err != nil {
 		return dto.GearLinkResponse{}, err
 	}
 
@@ -184,6 +190,14 @@ Do not include:
 - explanations before the JSON
 - explanations after the JSON
 - code fences
+- triple backticks
+- Markdown escaping inside JSON strings
+
+Important JSON string rules:
+- Do not escape asterisks.
+- Write T* as T*, not T\*.
+- Write f/1.5 normally.
+- Only use valid JSON escapes such as \", \\n, or \\uXXXX when necessary.
 
 The first character of your response must be {
 The last character of your response must be }
@@ -270,4 +284,31 @@ func filterValidSuggestions(suggestions []dto.GearLinkSuggestion) []dto.GearLink
 	}
 
 	return validSuggestions
+}
+
+func extractJSONContent(content string) (string, error) {
+	content = strings.TrimSpace(content)
+
+	if strings.HasPrefix(content, "```") {
+		lines := strings.Split(content, "\n")
+
+		if len(lines) >= 2 {
+			lines = lines[1:]
+
+			if len(lines) > 0 && strings.TrimSpace(lines[len(lines)-1]) == "```" {
+				lines = lines[:len(lines)-1]
+			}
+
+			content = strings.TrimSpace(strings.Join(lines, "\n"))
+		}
+	}
+
+	start := strings.Index(content, "{")
+	end := strings.LastIndex(content, "}")
+
+	if start == -1 || end == -1 || end < start {
+		return "", errors.New("ai response did not contain a json object")
+	}
+
+	return content[start : end+1], nil
 }
