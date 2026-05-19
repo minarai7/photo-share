@@ -9,6 +9,7 @@ export function CreatePostPage() {
   const navigate = useNavigate();
 
   const [photo, setPhoto] = useState<File | null>(null);
+  const [previewUrl, setPreviewUrl] = useState<string | null>(null);
   const [caption, setCaption] = useState("");
   const [location, setLocation] = useState("");
   const [cameraBody, setCameraBody] = useState("");
@@ -21,6 +22,12 @@ export function CreatePostPage() {
     const selectedFile = event.target.files?.[0] ?? null;
 
     setPhoto(selectedFile);
+
+    if (selectedFile) {
+      setPreviewUrl(URL.createObjectURL(selectedFile));
+    } else {
+      setPreviewUrl(null);
+    }
   }
 
   async function handleSubmit(event: SubmitEvent<HTMLFormElement>) {
@@ -77,11 +84,29 @@ export function CreatePostPage() {
         <form className="create-post-form" onSubmit={handleSubmit}>
           <div className="form-field">
             <label htmlFor="photo">Photo</label>
+
+            <label className="image-upload-box" htmlFor="photo">
+              {previewUrl ? (
+                <img
+                  src={previewUrl}
+                  alt="Selected preview"
+                  className="image-upload-preview"
+                />
+              ) : (
+                <>
+                  <span className="image-upload-title">Choose a photo</span>
+                  <span className="image-upload-subtitle">JPG, PNG or WebP</span>
+                </>
+              )
+              }
+            </label>
+
             <input
               id="photo"
               name="photo"
               type="file"
               accept="image/*"
+              className="image-upload-input"
               onChange={handlePhotoChange}
             />
           </div>
