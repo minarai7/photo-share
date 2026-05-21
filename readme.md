@@ -269,7 +269,6 @@ A short demo video showing feed browsing, signup, login, profile page, post crea
 
 ## Future Improvements
 
-- Improve create post ui
 - Deploy the frontend and backend
 - Store uploaded images in cloud storage such as S3
 - Add comments and likes

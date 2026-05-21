@@ -1,4 +1,4 @@
-import type { GearKind, GearLinkRequest, GearLinkResponse } from "../types/ai";
+import type { GearLinkRequest, GearLinkResponse } from "../types/ai";
 import { apiRequest } from "./client";
 
 export function findGearLinks(data: GearLinkRequest) {

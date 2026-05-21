@@ -1,0 +1,6 @@
+.git
+bin/
+storage/uploads/*
+.env
+.env.*
+*.log

@@ -46,7 +46,7 @@ func getEnvInt64(key string, fallback int64) int64 {
 func MustLoad() Config {
 	err := godotenv.Load()
 	if err != nil {
-		log.Println(".env file not found, using system environment variables")
+		log.Println("No local .env file loaded; using environment variables")
 	}
 	cfg := Config{
 		Port:           getEnv("PORT", "8080"),

@@ -9,6 +9,7 @@ backend/storage/uploads/*
 
 # general
 .env
+.env.docker
 .DS_Store
 
 # testfiles
