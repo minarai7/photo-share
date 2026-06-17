@@ -1,4 +1,4 @@
-type FormFieldPropes = {
+type FormFieldProps = {
     id: string;
     label: string;
     type: "text" | "email" | "password";
@@ -14,7 +14,7 @@ export function FormField({
     value,
     setValue,
     autoComplete,
-}: FormFieldPropes) {
+}: FormFieldProps) {
     return (
         <div className="form-field">
             <label htmlFor={id}>{label}</label>
