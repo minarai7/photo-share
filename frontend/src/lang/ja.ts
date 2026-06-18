@@ -25,7 +25,7 @@ export const ja: TranslationDictionary = {
   },
 
   posts: {
-    feedTitle: "写真フィード",
+    feedTitle: "フィード",
     createPostTitle: "投稿を作成",
     editPostTitle: "投稿を編集",
     caption: "キャプション",

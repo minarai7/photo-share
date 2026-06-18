@@ -25,7 +25,7 @@ export const en: TranslationDictionary = {
   },
 
   posts: {
-    feedTitle: "Photo Feed",
+    feedTitle: "Feed",
     createPostTitle: "Create Post",
     editPostTitle: "Edit Post",
     caption: "Caption",

@@ -2,8 +2,11 @@ import { useEffect, useState } from "react";
 import { getPosts } from "../api/postsApi";
 import { PostCard } from "../components/PostCard";
 import type { GetPostsResponse } from "../types/post";
+import { useLanguage } from "../lang/LanguageContext";
 
 export function FeedPage() {
+    const { t } = useLanguage();
+
     const [posts, setPosts] = useState<GetPostsResponse>([]);
     const [isLoading, setIsLoading] = useState(true);
     const [error, setError] = useState<string | null>(null);
@@ -60,7 +63,7 @@ export function FeedPage() {
     return (
         <main className="feed-page">
             <header className="feed-header">
-                <h1>Feed</h1>
+                <h1>{t.posts.feedTitle}</h1>
                 <p>See the latest photos shared by users</p>
             </header>
 
