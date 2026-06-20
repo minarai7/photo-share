@@ -54,7 +54,7 @@ export async function apiRequest<T>(
         try {
             const errorData = (await response.json()) as ApiErrorResponse;
             if (errorData?.error?.code) {
-                message = errorData.error.code;
+                code = errorData.error.code;
             }
             if (errorData?.error?.message) {
                 message = errorData.error.message;

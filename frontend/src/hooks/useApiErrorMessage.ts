@@ -21,7 +21,9 @@ export function useApiErrorMessage() {
         }
 
         if (error instanceof ApiError) {
-            return getApiErrorMessage(error.code, t)
+            const translatedMessage = getApiErrorMessage(error.code, t);
+
+            return translatedMessage ?? options.fallbackMessage ?? t.apiErrors.unknown;
         }
 
         return options.fallbackMessage ?? t.apiErrors.unknown

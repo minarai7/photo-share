@@ -3,7 +3,7 @@ import type { TranslationDictionary } from "../lang";
 export function getApiErrorMessage(
     code: string,
     t: TranslationDictionary
-): string {
+): string | undefined {
   switch (code) {
     case "invalid_json":
       return t.apiErrors.invalidJson;
@@ -69,6 +69,6 @@ export function getApiErrorMessage(
       return t.apiErrors.uploadFailed;
 
     default:
-      return t.apiErrors.unknown;
+      return undefined;
   }
 }

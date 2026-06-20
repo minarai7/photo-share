@@ -5,6 +5,7 @@ import { useAuth } from "../auth/AuthContext";
 import { FormField } from "../components/FormField";
 import { useLanguage } from "../lang/LanguageContext";
 import { useApiErrorMessage } from "../hooks/useApiErrorMessage";
+import { ApiError } from "../api/apiError";
 
 export function LoginPage() {
   const { t } = useLanguage();
@@ -48,6 +49,9 @@ export function LoginPage() {
 
       navigate(from, { replace: true});
     } catch (error) {
+      if (error instanceof ApiError) {
+        console.log(error.code)
+      }
       setError(
         getApiErrorMessageText(error, {
           fallbackMessage: t.auth.loginFailed,
