@@ -8,7 +8,7 @@ export type TranslationDictionary = {
   nav: {
     feed: string;
     createPost: string;
-    profile: string;
+    profile: (username: string) => string;
     login: string;
     logout: string;
     signup: string;
@@ -22,6 +22,7 @@ export type TranslationDictionary = {
     signupTitle: string;
     loginButton: string;
     signupButton: string;
+    loginFailed: string;
   };
 
   posts: {
@@ -50,9 +51,35 @@ export type TranslationDictionary = {
   };
 
   validation: {
-    required: string;
+    emailRequired: string;
+    passwordRequired: string;
     invalidEmail: string;
     passwordTooShort: string;
+  };
+
+  apiErrors: {
+    invalidJson: string;
+    invalidKind: string;
+    emptyName: string;
+    aiConfigMissing: string;
+    aiRequestFailed: string;
+    invalidUserId: string;
+    userNotFound: string;
+    internalError: string;
+    signupFailed: string;
+    invalidCredentials: string;
+    invalidPostId: string;
+    postNotFound: string;
+    listPostsFailed: string;
+    unauthorized: string;
+    createPostFailed: string;
+    forbidden: string;
+    invalidMultipartForm: string;
+    imageRequired: string;
+    fileTooLarge: string;
+    invalidFileType: string;
+    uploadFailed: string;
+    unknown: string;
   };
 
   common: {

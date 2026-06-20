@@ -1,5 +1,6 @@
 import { getToken } from "../auth/authStorage";
 import type { ApiErrorResponse } from "../types/auth";
+import { ApiError } from "./apiError";
 
 export const API_BASE_URL = import.meta.env.VITE_API_BASE_URL ?? "http://localhost:8080"
 
@@ -48,15 +49,23 @@ export async function apiRequest<T>(
     });
 
     if (!response.ok) {
+        let code = "unknown_error"
         let message = `Request failed with status ${response.status}`;
         try {
             const errorData = (await response.json()) as ApiErrorResponse;
+            if (errorData?.error?.code) {
+                message = errorData.error.code;
+            }
             if (errorData?.error?.message) {
                 message = errorData.error.message;
             }
         } catch {
         }
-        throw new Error(message);
+        throw new ApiError(
+            code,
+            message,
+            response.status
+        );
     }
 
     if (response.status === 204) {

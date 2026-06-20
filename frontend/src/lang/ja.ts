@@ -8,7 +8,7 @@ export const ja: TranslationDictionary = {
   nav: {
     feed: "フィード",
     createPost: "投稿を作成",
-    profile: "プロフィール",
+    profile: (username: string) => `${username}さんのプロフィール`,
     login: "ログイン",
     logout: "ログアウト",
     signup: "新規登録",
@@ -22,6 +22,7 @@ export const ja: TranslationDictionary = {
     signupTitle: "新規登録",
     loginButton: "ログイン",
     signupButton: "登録",
+    loginFailed: "ログインできませんでした。もう一度お試しください。",
   },
 
   posts: {
@@ -50,9 +51,35 @@ export const ja: TranslationDictionary = {
   },
 
   validation: {
-    required: "この項目は必須です。",
+    emailRequired: "Email is required.",
+    passwordRequired: "Password is required.",
     invalidEmail: "有効なメールアドレスを入力してください。",
     passwordTooShort: "パスワードは8文字以上で入力してください。",
+  },
+
+  apiErrors: {
+    invalidJson: "リクエストデータが正しくありません。",
+    invalidKind: "カメラまたはレンズを選択してください。",
+    emptyName: "名前を入力してください。",
+    aiConfigMissing: "AI検索はまだ設定されていません。",
+    aiRequestFailed: "AIによる機材候補の取得に失敗しました。もう一度お試しください。",
+    invalidUserId: "ユーザーIDが正しくありません。",
+    userNotFound: "ユーザーが見つかりません。",
+    internalError: "エラーが発生しました。もう一度お試しください。",
+    signupFailed: "新規登録に失敗しました。入力内容を確認してもう一度お試しください。",
+    invalidCredentials: "メールアドレスまたはパスワードが正しくありません。",
+    invalidPostId: "投稿IDが正しくありません。",
+    postNotFound: "投稿が見つかりません。",
+    listPostsFailed: "投稿を読み込めませんでした。もう一度お試しください。",
+    unauthorized: "もう一度ログインしてください。",
+    createPostFailed: "投稿を作成できませんでした。入力内容を確認してもう一度お試しください。",
+    forbidden: "この操作を行う権限がありません。",
+    invalidMultipartForm: "アップロードフォームが正しくないか、ファイルサイズが大きすぎます。",
+    imageRequired: "画像ファイルを選択してください。",
+    fileTooLarge: "画像ファイルのサイズが大きすぎます。",
+    invalidFileType: "JPEG、PNG、WebP形式の画像のみアップロードできます。",
+    uploadFailed: "画像のアップロードに失敗しました。もう一度お試しください。",
+    unknown: "エラーが発生しました。もう一度お試しください。",
   },
 
   common: {

@@ -163,7 +163,7 @@ func (h *AuthHandler) Login(w http.ResponseWriter, r *http.Request) {
 			httpx.WriteJSON(w, http.StatusUnauthorized, httpx.ErrorResponse{
 				Error: httpx.ErrorDetail{
 					Code:    "invalid_credentials",
-					Message: "invalid login or password",
+					Message: "invalid email or password",
 				},
 			})
 			return

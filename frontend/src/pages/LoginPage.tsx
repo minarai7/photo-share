@@ -3,14 +3,16 @@ import { Link, useLocation, useNavigate } from "react-router";
 import { loginUser } from "../api/authApi";
 import { useAuth } from "../auth/AuthContext";
 import { FormField } from "../components/FormField";
+import { useLanguage } from "../lang/LanguageContext";
+import { useApiErrorMessage } from "../hooks/useApiErrorMessage";
 
 export function LoginPage() {
+  const { t } = useLanguage();
   const navigate = useNavigate();
   const location = useLocation();
+  const getApiErrorMessageText = useApiErrorMessage();
 
   const from = location.state?.from?.pathname ?? "/";
-
-  console.log("navigating to:", from);
 
   const { login } = useAuth();
 
@@ -26,11 +28,11 @@ export function LoginPage() {
     setError(null);
 
     if (!email.trim()) {
-      setError("Email is required.");
+      setError(t.validation.emailRequired);
       return;
     }
     if (!password) {
-      setError("Password is required.");
+      setError(t.validation.passwordRequired);
       return;
     }
 
@@ -46,11 +48,11 @@ export function LoginPage() {
 
       navigate(from, { replace: true});
     } catch (error) {
-      if (error instanceof Error) {
-        setError(error.message);
-      } else {
-        setError("Login failed. Please try again.");
-      }
+      setError(
+        getApiErrorMessageText(error, {
+          fallbackMessage: t.auth.loginFailed,
+        })
+      );
     } finally {
       setIsSubmitting(false);
     }
