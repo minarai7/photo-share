@@ -23,25 +23,81 @@ export type TranslationDictionary = {
     loginButton: string;
     signupButton: string;
     loginFailed: string;
+    creatingAccount: string;
+    signupSuccess: string;
+    signupFailed: string;
+    alreadyHaveAccountLogin: string;
   };
 
   posts: {
     feedTitle: string;
+    feedSubtitle: string;
+    loadingPosts: string;
+    loadPostsFailed: string;
+    noPosts: string;
+    backToFeed: string;
+    backToProfile: string;
+
     createPostTitle: string;
     editPostTitle: string;
+    postDetailTitle: string;
+
+    title: string;
     caption: string;
     location: string;
-    cameraBody: string;
+    camera: string;
     lens: string;
+    created: string;
+
+    photo: string;
+    selectedPreviewAlt: string;
+    choosePhoto: string;
+    supportedImageTypes: string;
+    creatingPost: string;
+    createPostButton: string;
+    createPostFailed: string;
+
     submit: string;
     save: string;
+    saving: string;
     delete: string;
+    deleting: string;
+    edit: string;
+
+    loadingPost: string;
+    loadPostFailed: string;
+    updatePostFailed: string;
+    deletePostFailed: string;
+    postNotFound: string;
+    postIdMissing: string;
+    invalidPostId: string;
+    deleteConfirm: string;
+    notSpecified: string;
+    postImageAlt: string;
   };
 
   profile: {
     title: string;
-    myPosts: string;
-    noPosts: string;
+    userPostsTitle: (username: string) => string;
+    postCount: (count: number) => string;
+    ownEmptyPostsMessage: string;
+    createFirstPost: string;
+    loadProfileFailed: string;
+  };
+
+  aiGear: {
+    finding: string;
+    findProduct: string;
+    modalKicker: string;
+    productSuggestions: string;
+    findFailed: string;
+    noReliableLinks: string;
+    confidence: string;
+    confidenceHigh: string;
+    confidenceMedium: string;
+    confidenceLow: string;
+    confidenceUnknown: string;
+    warning: string;
   };
 
   settings: {
@@ -51,10 +107,19 @@ export type TranslationDictionary = {
   };
 
   validation: {
+    usernameRequired: string;
     emailRequired: string;
     passwordRequired: string;
-    invalidEmail: string;
     passwordTooShort: string;
+    photoRequired: string;
+    userIdMissing: string;
+    invalidUserId: string;
+  };
+
+  notFound: {
+    title: string;
+    message: string;
+    backToFeed: string;
   };
 
   apiErrors: {
@@ -87,5 +152,8 @@ export type TranslationDictionary = {
     error: string;
     cancel: string;
     confirm: string;
+    back: string;
+    retry: string;
+    close: string;
   };
 };

@@ -2,9 +2,11 @@ import { type SubmitEvent, useState } from "react";
 import { Link, useNavigate } from "react-router";
 import { signup } from "../api/authApi";
 import { FormField } from "../components/FormField";
+import { useLanguage } from "../lang/LanguageContext";
 
 
 export function SignupPage() {
+    const { t } = useLanguage();
     const navigate = useNavigate();
 
     const [username, setUsername] = useState("");
@@ -22,20 +24,20 @@ export function SignupPage() {
         setSuccessMessage(null);
 
         if (!username.trim()) {
-            setError("Username is required.");
+            setError(t.validation.usernameRequired);
             return;
         } 
         if (!email.trim()) {
-            setError("Email is required.");
+            setError(t.validation.emailRequired);
             return;
         }
         if (!password) {
-            setError("Password is required.");
+            setError(t.validation.passwordRequired);
             return;
         }
 
         if (password.length < 8) {
-            setError("Password must be at least 8 characters.");
+            setError(t.validation.passwordTooShort);
             return;
         }
 
@@ -48,7 +50,7 @@ export function SignupPage() {
                 password,
             });
 
-            setSuccessMessage("Account created successfully.");
+            setSuccessMessage(t.auth.signupSuccess);
 
             setTimeout(() => {
                 navigate("/login")
@@ -57,7 +59,7 @@ export function SignupPage() {
             if (err instanceof Error) {
                 setError(err.message);
             } else {
-                setError("Signup failed.");
+                setError(t.auth.signupFailed);
             }
         } finally {
             setIsSubmitting(false);
@@ -104,12 +106,12 @@ export function SignupPage() {
                     />
 
                     <button type="submit" disabled={isSubmitting}>
-                        {isSubmitting ? "Creating account..." : "Sign up"}
+                        {isSubmitting ? t.auth.creatingAccount : t.auth.signupButton}
                     </button>
                 </form>
 
                 <p className="form-link">
-                    <Link to="/login">Already have an account? Log in</Link>
+                    <Link to="/login">{t.auth.alreadyHaveAccountLogin}</Link>
                 </p>
             </section>
         </main>

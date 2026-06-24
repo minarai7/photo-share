@@ -11,7 +11,7 @@ export function LoginPage() {
   const { t } = useLanguage();
   const navigate = useNavigate();
   const location = useLocation();
-  const getApiErrorMessageText = useApiErrorMessage();
+  const toApiErrorMessage = useApiErrorMessage();
 
   const from = location.state?.from?.pathname ?? "/";
 
@@ -53,7 +53,7 @@ export function LoginPage() {
         console.log(error.code)
       }
       setError(
-        getApiErrorMessageText(error, {
+        toApiErrorMessage(error, {
           fallbackMessage: t.auth.loginFailed,
         })
       );

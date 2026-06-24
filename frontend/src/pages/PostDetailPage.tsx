@@ -6,16 +6,39 @@ import type { Post, UpdatePostRequest } from "../types/post";
 import { useAuth } from "../auth/AuthContext";
 import { FormField } from "../components/FormField";
 import { GearLinkAction } from "../components/GearLinkAction";
+import { useLanguage } from "../lang/LanguageContext";
+import { useApiErrorMessage } from "../hooks/useApiErrorMessage";
+import { getLocaleFromLanguage } from "../utils/locale";
+
+type ReturnToLabelKey = "backToFeed" | "backToProfile";
+
+type ReturnTo = {
+    pathname: string;
+    labelKey: ReturnToLabelKey;
+};
 
 export function PostDetailPage() {
+    const { t, language } = useLanguage();
+    const toApiErrorMessage = useApiErrorMessage();
+
+    function getReturnToLabel(labelKey: ReturnToLabelKey): string {
+        switch (labelKey) {
+            case "backToFeed":
+            return t.posts.backToFeed;
+
+            case "backToProfile":
+            return t.posts.backToProfile;
+        }
+    }
+
     const { postId } = useParams<{postId: string}>();
     const location = useLocation();
     const navigate = useNavigate();
     const { user, isAuthenticated } = useAuth();
 
-    const returnTo = location.state?.returnTo ?? {
+    const returnTo: ReturnTo = location.state?.returnTo ?? {
         pathname: "/",
-        label: "Back to feed",
+        label: t.posts.backToFeed,
     };
 
     const [post, setPost] = useState<Post | null>(null);
@@ -37,7 +60,7 @@ export function PostDetailPage() {
 
     useEffect(() => {
         if (!postId) {
-            setError("Post ID is missing.");
+            setError(t.posts.postIdMissing);
             setIsLoading(false);
             return
         }
@@ -45,7 +68,7 @@ export function PostDetailPage() {
         const numericPostId = Number(postId);
 
         if (Number.isNaN(numericPostId)) {
-            setError("Invalid post ID.");
+            setError(t.posts.invalidPostId);
             setIsLoading(false);
             return
         }
@@ -59,7 +82,9 @@ export function PostDetailPage() {
                 setPost(post);
             }  catch (err) {
                     setError(
-                        err instanceof Error ? err.message : "Failed to load post."
+                        toApiErrorMessage(err, {
+                            fallbackMessage: t.posts.loadPostFailed,
+                        })
                     );
             } finally {
                 setIsLoading(false);
@@ -67,7 +92,13 @@ export function PostDetailPage() {
         }
 
         loadPost();
-    }, [postId]);
+    }, [
+        postId,
+        t.posts.postIdMissing,
+        t.posts.invalidPostId,
+        t.posts.loadPostFailed,
+        toApiErrorMessage
+    ]);
 
     function startEditing() {
         if (!isAuthenticated) {
@@ -98,14 +129,14 @@ export function PostDetailPage() {
         event.preventDefault();
 
         if (!postId) {
-            setEditError("Post ID is missing.");
+            setEditError(t.posts.postIdMissing);
             return
         }
 
         const numericPostId = Number(postId);
 
         if (Number.isNaN(numericPostId)) {
-            setEditError("Invalid post ID.");
+            setEditError(t.posts.invalidPostId);
             return
         }
 
@@ -133,7 +164,9 @@ export function PostDetailPage() {
             setIsEditing(false);
         } catch (err) {
             setEditError(
-                err instanceof Error ? err.message : "Failed to update post."
+                toApiErrorMessage(err, {
+                    fallbackMessage: t.posts.updatePostFailed,
+                })
             );
         } finally {
             setIsSaving(false);
@@ -145,9 +178,7 @@ export function PostDetailPage() {
             return
         }
 
-        const confirmed = window.confirm(
-            "Delete this post? This action cannot be undone."
-        );
+        const confirmed = window.confirm(t.posts.deleteConfirm);
 
         if (!confirmed) {
             return;
@@ -162,7 +193,9 @@ export function PostDetailPage() {
             navigate(returnTo.pathname, { replace: true });
         } catch (err) {
             setDeleteError(
-                err instanceof Error ? err.message : "Failed to delete post."
+                toApiErrorMessage(err, {
+                    fallbackMessage: t.posts.deletePostFailed,
+                })
             );
         } finally {
             setIsDeleting(false);
@@ -172,7 +205,7 @@ export function PostDetailPage() {
     if (isLoading) {
         return (
             <main className="page">
-                <p>Loading post...</p>
+                <p>{t.posts.loadingPost}</p>
             </main>
         )
     }
@@ -181,29 +214,37 @@ export function PostDetailPage() {
         return (
             <main className="page">
                 <p className="error-message">{error}</p>
-                <Link to={returnTo.pathname}>{returnTo.label}</Link>
+                <Link to={returnTo.pathname}>
+                    {getReturnToLabel(returnTo.labelKey)}
+                </Link>
             </main>
         )
     }
 
     if (!post) {
         return (
-        <main className="page">
-            <p>Post not found.</p>
-            <Link to={returnTo.pathname}>{returnTo.label}</Link>
-        </main>
+            <main className="page">
+                <p>{t.posts.postNotFound}</p>
+                <Link to={returnTo.pathname}>
+                    {getReturnToLabel(returnTo.labelKey)}
+                </Link>
+            </main>
         );
     }
 
     const isOwner = user?.id === post.user_id;
+
+    const createdAt = new Date(post.created_at).toLocaleString(
+        getLocaleFromLanguage(language)
+    );
     
     return (
         <main className="page">
         <article className="post-detail-card">
             <img
-            className="post-detail-image"
-            src={getImageUrl(post.image_path)}
-            alt={post.caption || "Post image"}
+                className="post-detail-image"
+                src={getImageUrl(post.image_path)}
+                alt={post.caption || t.posts.postImageAlt}
             />
 
             <div className="post-detail-content">
@@ -215,7 +256,7 @@ export function PostDetailPage() {
                     <form className="create-post-form" onSubmit={handleUpdatePost}>
                         <FormField
                             id="caption"
-                            label="Title"
+                            label={t.posts.title}
                             type="text"
                             value={caption}
                             setValue={setCaption}
@@ -223,7 +264,7 @@ export function PostDetailPage() {
             
                         <FormField
                             id="location"
-                            label="Location"
+                            label={t.posts.location}
                             type="text"
                             value={photoLocation}
                             setValue={setPhotoLocation}
@@ -231,7 +272,7 @@ export function PostDetailPage() {
             
                         <FormField
                             id="camera-body"
-                            label="Camera Body"
+                            label={t.posts.camera}
                             type="text"
                             value={cameraBody}
                             setValue={setCameraBody}
@@ -239,7 +280,7 @@ export function PostDetailPage() {
             
                         <FormField
                             id="lens"
-                            label="Lens"
+                            label={t.posts.lens}
                             type="text"
                             value={lens}
                             setValue={setLens}
@@ -252,7 +293,7 @@ export function PostDetailPage() {
                                 onClick={cancelEditing}
                                 disabled={isSaving || isDeleting}
                             >
-                            Cancel
+                                {t.common.cancel}
                             </button>
                             <button
                                 type="button"
@@ -260,13 +301,13 @@ export function PostDetailPage() {
                                 onClick={handleDeletePost}
                                 disabled={isSaving || isDeleting}
                             >
-                                {isDeleting ? "Deleting..." : "Delete"}
+                                {isDeleting ? t.posts.deleting : t.posts.delete}
                             </button>
                             <button
                                 type="submit"
                                 className="text-button"
                                 disabled={isSaving || isDeleting}>
-                                {isSaving ? "Saving..." : "Save"}
+                                {isSaving ? t.posts.saving : t.posts.save}
                             </button>
                         </div>
                     </form>
@@ -279,31 +320,33 @@ export function PostDetailPage() {
 
                 <dl className="post-detail-meta">
                     <div>
-                    <dt>Location</dt>
-                    <dd>{post.location || "Not specified"}</dd>
+                    <dt>{t.posts.location}</dt>
+                    <dd>{post.location || t.posts.notSpecified}</dd>
                     </div>
 
                     <div>
-                    <dt>Camera body</dt>
+                    <dt>{t.posts.camera}</dt>
                     <dd>
-                        {post.camera_body ? <GearLinkAction kind="camera" name={post.camera_body}/> : "Not specified"}
+                        {post.camera_body ? <GearLinkAction kind="camera" name={post.camera_body}/> : t.posts.notSpecified}
                     </dd>
                     </div>
 
                     <div>
-                    <dt>Lens</dt>
+                    <dt>{t.posts.lens}</dt>
                     <dd>
-                        {post.lens ? <GearLinkAction kind="lens" name={post.lens}/> : "Not specified"}
+                        {post.lens ? <GearLinkAction kind="lens" name={post.lens}/> : t.posts.notSpecified}
                     </dd>
                     </div>
 
                     <div>
-                    <dt>Created</dt>
-                    <dd>{new Date(post.created_at).toLocaleString()}</dd>
+                    <dt>{t.posts.created}</dt>
+                    <dd>{createdAt}</dd>
                     </div>
                 </dl>
                 <div className="post-detail-actions">
-                    <Link className="post-detail-return-link" to={returnTo.pathname}>{returnTo.label}</Link>
+                    <Link className="post-detail-return-link" to={returnTo.pathname}>
+                        {getReturnToLabel(returnTo.labelKey)}
+                    </Link>
 
                     {isOwner && (
                         <button
@@ -312,7 +355,7 @@ export function PostDetailPage() {
                             onClick={startEditing}
                             disabled={isDeleting}
                         >
-                            Edit
+                            {t.posts.edit}
                         </button>
                     )}
                 </div>

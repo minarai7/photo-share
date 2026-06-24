@@ -3,9 +3,11 @@ import { getPosts } from "../api/postsApi";
 import { PostCard } from "../components/PostCard";
 import type { GetPostsResponse } from "../types/post";
 import { useLanguage } from "../lang/LanguageContext";
+import { useApiErrorMessage } from "../hooks/useApiErrorMessage";
 
 export function FeedPage() {
     const { t } = useLanguage();
+    const toApiErrorMessage = useApiErrorMessage();
 
     const [posts, setPosts] = useState<GetPostsResponse>([]);
     const [isLoading, setIsLoading] = useState(true);
@@ -27,7 +29,9 @@ export function FeedPage() {
             } catch (err) {
                 if (isMounted) {
                     setError(
-                        err instanceof Error ? err.message : "Failed to load posts"
+                        toApiErrorMessage(err, {
+                        fallbackMessage: t.posts.loadPostsFailed,
+                        })
                     );
                 }
             } finally {
@@ -42,12 +46,12 @@ export function FeedPage() {
         return () => {
             isMounted = false;
         }
-    }, []);
+    }, [toApiErrorMessage, t.posts.loadPostsFailed]);
 
     if(isLoading) {
         return (
             <main className="feed-page">
-                <p className="feed-status">Loading posts...</p>
+                <p className="feed-status">{t.posts.loadingPosts}</p>
             </main>
         )
     }
@@ -64,11 +68,11 @@ export function FeedPage() {
         <main className="feed-page">
             <header className="feed-header">
                 <h1>{t.posts.feedTitle}</h1>
-                <p>See the latest photos shared by users</p>
+                <p>{t.posts.feedSubtitle}</p>
             </header>
 
             {posts.length === 0 ? (
-                <p className="feed-status">No posts yet.</p>
+                <p className="feed-status">{t.posts.noPosts}</p>
             ) : (
                 <div className="post-grid">
                     {posts.map((post) => (
@@ -77,7 +81,7 @@ export function FeedPage() {
                             post={post}
                             returnTo={{
                                 pathname: "/",
-                                label: "Back to feed",
+                                labelKey: "backToFeed",
                             }}
                         />
                     ))}

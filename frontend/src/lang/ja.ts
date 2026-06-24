@@ -23,26 +23,83 @@ export const ja: TranslationDictionary = {
     loginButton: "ログイン",
     signupButton: "登録",
     loginFailed: "ログインできませんでした。もう一度お試しください。",
+    creatingAccount: "アカウントを作成中...",
+    signupSuccess: "アカウントを作成しました。",
+    signupFailed: "新規登録に失敗しました。もう一度お試しください。",
+    alreadyHaveAccountLogin: "すでにアカウントをお持ちですか？ログイン",
   },
 
   posts: {
-    feedTitle: "フィード",
+    feedTitle: "写真フィード",
+    feedSubtitle: "ユーザーが共有した最新の写真を見てみましょう",
+    loadingPosts: "投稿を読み込み中...",
+    loadPostsFailed: "投稿を読み込めませんでした。",
+    noPosts: "まだ投稿がありません。",
+    backToFeed: "フィードに戻る",
+    backToProfile: "プロフィールに戻る",
+
     createPostTitle: "投稿を作成",
     editPostTitle: "投稿を編集",
+    postDetailTitle: "投稿詳細",
+
+    title: "タイトル",
     caption: "キャプション",
     location: "場所",
-    cameraBody: "カメラ本体",
+    camera: "カメラ",
     lens: "レンズ",
+    created: "作成日時",
+
+    photo: "写真",
+    selectedPreviewAlt: "選択した画像のプレビュー",
+    choosePhoto: "写真を選択",
+    supportedImageTypes: "JPG、PNG、WebP形式",
+    creatingPost: "作成中...",
+    createPostButton: "投稿を作成",
+    createPostFailed: "投稿を作成できませんでした。もう一度お試しください。",
+
     submit: "送信",
     save: "保存",
+    saving: "保存中...",
     delete: "削除",
+    deleting: "削除中...",
+    edit: "編集",
+
+    loadingPost: "投稿を読み込み中...",
+    loadPostFailed: "投稿を読み込めませんでした。",
+    updatePostFailed: "投稿を更新できませんでした。",
+    deletePostFailed: "投稿を削除できませんでした。",
+    postNotFound: "投稿が見つかりません。",
+    postIdMissing: "投稿IDが見つかりません。",
+    invalidPostId: "投稿IDが正しくありません。",
+    deleteConfirm: "この投稿を削除しますか？この操作は取り消せません。",
+    notSpecified: "未設定",
+    postImageAlt: "投稿画像",
   },
 
   profile: {
-    title: "プロフィール",
-    myPosts: "自分の投稿",
-    noPosts: "まだ投稿がありません。",
+  title: "プロフィール",
+  userPostsTitle: (username: string) => `${username}さんの投稿`,
+  postCount: (count: number) => `${count}件の投稿`,
+  ownEmptyPostsMessage: "まだ投稿を作成していません。",
+  createFirstPost: "最初の投稿を作成",
+  loadProfileFailed: "プロフィールの投稿を読み込めませんでした。",
   },
+
+  aiGear: {
+  finding: "検索中...",
+  findProduct: "製品を探す",
+  modalKicker: "AI機材検索",
+  productSuggestions: "製品候補",
+  findFailed: "製品リンクを見つけられませんでした。もう一度お試しください。",
+  noReliableLinks: "信頼できる製品リンクは見つかりませんでした。",
+  confidence: "信頼度",
+  confidenceHigh: "高",
+  confidenceMedium: "中",
+  confidenceLow: "低",
+  confidenceUnknown: "不明",
+  warning:
+    "AIの候補は不正確な場合があります。購入前に製品ページを確認してください。",
+},
 
   settings: {
     language: "言語",
@@ -51,10 +108,19 @@ export const ja: TranslationDictionary = {
   },
 
   validation: {
-    emailRequired: "Email is required.",
-    passwordRequired: "Password is required.",
-    invalidEmail: "有効なメールアドレスを入力してください。",
+    usernameRequired: "ユーザー名を入力してください。",
+    emailRequired: "メールアドレスを入力してください。",
+    passwordRequired: "パスワードを入力してください。",
     passwordTooShort: "パスワードは8文字以上で入力してください。",
+    photoRequired: "写真を選択してください。",
+    userIdMissing: "ユーザーIDが見つかりません。",
+    invalidUserId: "ユーザーIDが正しくありません。",
+  },
+
+  notFound: {
+    title: "404 Not Found",
+    message: "お探しのページは存在しません。",
+    backToFeed: "フィードに戻る",
   },
 
   apiErrors: {
@@ -87,5 +153,8 @@ export const ja: TranslationDictionary = {
     error: "エラーが発生しました。",
     cancel: "キャンセル",
     confirm: "確認",
+    back: "戻る",
+    retry: "再試行",
+    close: "閉じる",
   },
 };

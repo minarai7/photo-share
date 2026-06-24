@@ -5,8 +5,12 @@ import { PostCard } from "../components/PostCard";
 import { useAuth } from "../auth/AuthContext";
 import type { GetPostsResponse } from "../types/post";
 import { getUserById } from "../api";
+import { useLanguage } from "../lang/LanguageContext";
+import { useApiErrorMessage } from "../hooks/useApiErrorMessage";
 
 export function ProfilePage() {
+  const { t } = useLanguage();
+  const toApiErrorMessage = useApiErrorMessage();
   const { userId } = useParams<{userId: string}>();
   const { user } = useAuth();
 
@@ -18,7 +22,7 @@ export function ProfilePage() {
 
   useEffect(() => {
     if (!userId) {
-      setError("User ID is missing.");
+      setError(t.validation.userIdMissing);
       setIsLoading(false);
       return
     }
@@ -26,7 +30,7 @@ export function ProfilePage() {
     const numericUserId = Number(userId);
 
     if (Number.isNaN(numericUserId)) {
-      setError("Invalid user ID.");
+      setError(t.validation.invalidUserId);
       setIsLoading(false);
       return
     }
@@ -55,8 +59,10 @@ export function ProfilePage() {
       } catch (err) {
         if (isMounted) {
           setError(
-            err instanceof Error ? err.message : "Failed to load posts"
-          );
+            toApiErrorMessage(err, {
+              fallbackMessage: t.profile.loadProfileFailed,
+            })
+          )
         }
       } finally {
         if (isMounted) {
@@ -75,7 +81,7 @@ export function ProfilePage() {
     if(isLoading) {
       return (
           <main className="feed-page">
-              <p className="feed-status">Loading posts...</p>
+              <p className="feed-status">{t.posts.loadingPosts}</p>
           </main>
       )
   }
@@ -92,10 +98,8 @@ export function ProfilePage() {
   return (
     <main className="feed-page">
       <header className="feed-header">
-        <h1>{`${username}'s posts`}</h1>
-        <p>{posts.length === 1
-            ? "1 post"
-            : `${posts.length} posts`}</p>
+        <h1>{username ?  t.profile.userPostsTitle(username) : t.profile.title}</h1>
+        <p>{t.profile.postCount(posts.length)}</p>
       </header>
 
       {posts.length === 0 ? (
@@ -103,10 +107,13 @@ export function ProfilePage() {
           <p className="feed-status">
             {isOwnProfile
             ? (
-            <Link to="/posts/new" className="form-link">
-              You have not created any posts yet. Create your first post
-            </Link>
-            ) : "No posts yet."}
+              <>
+              {t.profile.ownEmptyPostsMessage}{" "}
+                <Link to="/posts/new" className="form-link">
+                  {t.profile.createFirstPost}
+                </Link>
+              </>
+            ) : t.posts.noPosts}
           </p>
         </>
       ) : (
@@ -118,7 +125,7 @@ export function ProfilePage() {
               showAuthor={false}
               returnTo={{
                 pathname: `/users/${userId}`,
-                label: "Back to profile",
+                labelKey: "backToProfile",
               }}
             />
           ))}
