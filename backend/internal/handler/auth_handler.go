@@ -22,10 +22,11 @@ func NewAuthHandler(authService *service.AuthService) *AuthHandler {
 
 func toUserResponse(user *model.Users) UserResponse {
 	return UserResponse{
-		ID:        user.ID,
-		Username:  user.Username,
-		Email:     user.Email,
-		CreatedAt: user.CreatedAt,
+		ID:                user.ID,
+		Username:          user.Username,
+		Email:             user.Email,
+		PreferredLanguage: user.PreferredLanguage,
+		CreatedAt:         user.CreatedAt,
 	}
 }
 

@@ -17,11 +17,12 @@ type usersTable struct {
 	postgres.Table
 
 	// Columns
-	ID           postgres.ColumnInteger
-	Username     postgres.ColumnString
-	Email        postgres.ColumnString
-	PasswordHash postgres.ColumnString
-	CreatedAt    postgres.ColumnTimestampz
+	ID                postgres.ColumnInteger
+	Username          postgres.ColumnString
+	Email             postgres.ColumnString
+	PasswordHash      postgres.ColumnString
+	CreatedAt         postgres.ColumnTimestampz
+	PreferredLanguage postgres.ColumnString
 
 	AllColumns     postgres.ColumnList
 	MutableColumns postgres.ColumnList
@@ -63,25 +64,27 @@ func newUsersTable(schemaName, tableName, alias string) *UsersTable {
 
 func newUsersTableImpl(schemaName, tableName, alias string) usersTable {
 	var (
-		IDColumn           = postgres.IntegerColumn("id")
-		UsernameColumn     = postgres.StringColumn("username")
-		EmailColumn        = postgres.StringColumn("email")
-		PasswordHashColumn = postgres.StringColumn("password_hash")
-		CreatedAtColumn    = postgres.TimestampzColumn("created_at")
-		allColumns         = postgres.ColumnList{IDColumn, UsernameColumn, EmailColumn, PasswordHashColumn, CreatedAtColumn}
-		mutableColumns     = postgres.ColumnList{UsernameColumn, EmailColumn, PasswordHashColumn, CreatedAtColumn}
-		defaultColumns     = postgres.ColumnList{IDColumn, CreatedAtColumn}
+		IDColumn                = postgres.IntegerColumn("id")
+		UsernameColumn          = postgres.StringColumn("username")
+		EmailColumn             = postgres.StringColumn("email")
+		PasswordHashColumn      = postgres.StringColumn("password_hash")
+		CreatedAtColumn         = postgres.TimestampzColumn("created_at")
+		PreferredLanguageColumn = postgres.StringColumn("preferred_language")
+		allColumns              = postgres.ColumnList{IDColumn, UsernameColumn, EmailColumn, PasswordHashColumn, CreatedAtColumn, PreferredLanguageColumn}
+		mutableColumns          = postgres.ColumnList{UsernameColumn, EmailColumn, PasswordHashColumn, CreatedAtColumn, PreferredLanguageColumn}
+		defaultColumns          = postgres.ColumnList{IDColumn, CreatedAtColumn, PreferredLanguageColumn}
 	)
 
 	return usersTable{
 		Table: postgres.NewTable(schemaName, tableName, alias, allColumns...),
 
 		//Columns
-		ID:           IDColumn,
-		Username:     UsernameColumn,
-		Email:        EmailColumn,
-		PasswordHash: PasswordHashColumn,
-		CreatedAt:    CreatedAtColumn,
+		ID:                IDColumn,
+		Username:          UsernameColumn,
+		Email:             EmailColumn,
+		PasswordHash:      PasswordHashColumn,
+		CreatedAt:         CreatedAtColumn,
+		PreferredLanguage: PreferredLanguageColumn,
 
 		AllColumns:     allColumns,
 		MutableColumns: mutableColumns,
