@@ -12,6 +12,8 @@ import (
 	table "backend/internal/db/gen/photoshare/public/table"
 )
 
+var ErrorUserNotFound = errors.New("user not found")
+
 type UserRepository struct {
 	db *sql.DB
 }
@@ -96,4 +98,30 @@ func (r *UserRepository) Create(ctx context.Context, p CreateUserParams) (*model
 	}
 
 	return &user, nil
+}
+
+func (r *UserRepository) UpdatePreferredLanguage(ctx context.Context, id int64, preferredLanguage string) error {
+	stmt := table.Users.UPDATE(
+		table.Users.PreferredLanguage,
+	).SET(
+		preferredLanguage,
+	).WHERE(
+		table.Users.ID.EQ(postgres.Int64(id)),
+	)
+
+	result, err := stmt.ExecContext(ctx, r.db)
+	if err != nil {
+		return err
+	}
+
+	rowsAffected, err := result.RowsAffected()
+	if err != nil {
+		return err
+	}
+
+	if rowsAffected == 0 {
+		return ErrorUserNotFound
+	}
+
+	return nil
 }

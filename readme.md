@@ -269,10 +269,10 @@ A short demo video showing feed browsing, signup, login, profile page, post crea
 
 ## Future Improvements
 
+- Add structured response for ai gear link
 - Deploy the frontend and backend
 - Store uploaded images in cloud storage such as S3
 - Add comments and likes
-- Add follow/follower relationships
 - Add post search and filtering
 - Add pagination or infinite scrolling to the feed
 - Improve AI gear link accuracy with caching and stricter source validation

@@ -6,7 +6,7 @@ import {
     useState,
     type ReactNode,
 } from "react";
-import type { User } from "../types/auth";
+import type { UserResponse } from "../types/auth";
 import {
     AUTH_CHANGED_EVENT,
     clearAuth,
@@ -18,9 +18,9 @@ import {
 
 type AuthContextValue = {
     token: string | null;
-    user: User | null;
+    user: UserResponse | null;
     isAuthenticated: boolean;
-    login: (token: string, user: User) => void;
+    login: (token: string, user: UserResponse) => void;
     logout: () => void;
     refreshAuthState: () => void;
 }
@@ -29,14 +29,14 @@ const AuthContext = createContext<AuthContextValue | null>(null);
 
 export function AuthProvider({ children }: {children: ReactNode}) {
     const [token, setToken] = useState<string | null>(getToken());
-    const [user, setUser] = useState<User | null>(getStoredUser());
+    const [user, setUser] = useState<UserResponse | null>(getStoredUser());
 
     function refreshAuthState() {
         setToken(getToken());
         setUser(getStoredUser());
     }
 
-    function login(token: string, user: User) {
+    function login(token: string, user: UserResponse) {
         saveAuth(token, user);
         setToken(token);
         setUser(user);

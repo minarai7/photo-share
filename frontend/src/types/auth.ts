@@ -5,7 +5,7 @@ export type ApiErrorResponse = {
     };
 };
 
-export type User = {
+export type UserResponse = {
     id: number;
     username: string;
     email: string;
@@ -25,7 +25,7 @@ export type LoginRequest = {
 
 export type LoginResponse = {
     token: string;
-    user: User;
+    user: UserResponse;
 };
 
 
