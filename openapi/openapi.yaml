@@ -12,12 +12,14 @@ servers:
 tags:
   - name: auth
     description: Authentication endpoints
+  - name: users
+    description: User profile and user settings endpoints
   - name: posts
     description: Post-related endpoints
   - name: uploads
     description: Upload-related endpoints
   - name: ai
-    description: Endpoints that use ai
+    description: Endpoints that use AI
 
 paths:
   /auth/signup:
@@ -104,13 +106,46 @@ paths:
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/User'
+                $ref: '#/components/schemas/UserResponse'
         '404':
           description: User not found
           content:
             application/json:
               schema:
                 $ref: '#/components/schemas/ErrorResponse'
+  
+  /users/me/settings/language:
+    put:
+      tags:
+        - users
+      summary: Update current user's preferred language
+      operationId: updatePreferredLanguage
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UpdatePreferredLanguageRequest'
+            example:
+              preferred_language: ja
+      responses:
+        '204':
+          description: Preferred language updated successfully
+        '400':
+          description: Invalid language value
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '401':
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
 
   /posts:
     get:
@@ -345,6 +380,21 @@ components:
       bearerFormat: JWT
   
   schemas:
+    LanguageCode:
+      type: string
+      enum:
+        - en
+        - ja
+      example: ja
+    
+    UpdatePreferredLanguageRequest:
+      type: object
+      required:
+        - preferred_language
+      properties:
+        preferred_language:
+          $ref: '#/components/schemas/LanguageCode'
+
     SignupRequest:
       type: object
       required:
@@ -379,12 +429,13 @@ components:
           format: password
           example: secret123
     
-    User:
+    UserResponse:
       type: object
       required:
         - id
         - username
         - email
+        - preferred_language
         - created_at
       properties:
         id:
@@ -398,6 +449,8 @@ components:
           type: string
           format: email
           example: yamato@example.com
+        preferred_language:
+          $ref: '#/components/schemas/LanguageCode'
         created_at:
           type: string
           format: date-time
@@ -413,7 +466,7 @@ components:
           type: string
           example: your-jwt-token-here
         user:
-          $ref: '#/components/schemas/User'
+          $ref: '#/components/schemas/UserResponse'
     
     CreatePostRequest:
       type: object

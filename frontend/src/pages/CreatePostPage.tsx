@@ -4,8 +4,12 @@ import { createPost } from "../api/postsApi";
 import { uploadImage } from "../api/uploadsApi";
 import type { CreatePostRequest } from "../types/post";
 import { FormField } from "../components/FormField";
+import { useLanguage } from "../lang/LanguageContext";
+import { useApiErrorMessage } from "../hooks/useApiErrorMessage";
 
 export function CreatePostPage() {
+  const { t } = useLanguage();
+  const toApiErrorMessage = useApiErrorMessage();
   const navigate = useNavigate();
 
   const [photo, setPhoto] = useState<File | null>(null);
@@ -36,7 +40,7 @@ export function CreatePostPage() {
     setError("");
 
     if (!photo) {
-      setError("Please select a photo.")
+      setError(t.validation.photoRequired);
       return;
     }
 
@@ -64,11 +68,11 @@ export function CreatePostPage() {
 
       navigate("/", {replace: true});
     } catch (error) {
-      if (error instanceof Error) {
-        setError(error.message);
-      } else {
-        setError("Failed to create post.");
-      }
+      setError(
+        toApiErrorMessage(error, {
+          fallbackMessage: t.posts.createPostFailed
+        })
+      );
     } finally {
         setIsSubmitting(false);
     }
@@ -77,25 +81,29 @@ export function CreatePostPage() {
   return (
     <main className="form-page">
       <section className="form-card">
-        <h1>Create Post</h1>
+        <h1>{t.posts.createPostTitle}</h1>
 
         {error && <div className="form-error">{error}</div>}
 
         <form className="create-post-form" onSubmit={handleSubmit}>
           <div className="form-field">
-            <label htmlFor="photo">Photo</label>
+            <label htmlFor="photo">{t.posts.photo}</label>
 
             <label className="image-upload-box" htmlFor="photo">
               {previewUrl ? (
                 <img
                   src={previewUrl}
-                  alt="Selected preview"
+                  alt={t.posts.selectedPreviewAlt}
                   className="image-upload-preview"
                 />
               ) : (
                 <>
-                  <span className="image-upload-title">Choose a photo</span>
-                  <span className="image-upload-subtitle">JPG, PNG or WebP</span>
+                  <span className="image-upload-title">
+                    {t.posts.choosePhoto}
+                  </span>
+                  <span className="image-upload-subtitle">
+                    {t.posts.supportedImageTypes}
+                  </span>
                 </>
               )
               }
@@ -113,7 +121,7 @@ export function CreatePostPage() {
 
           <FormField
               id="caption"
-              label="Title"
+              label={t.posts.title}
               type="text"
               value={caption}
               setValue={setCaption}
@@ -121,7 +129,7 @@ export function CreatePostPage() {
 
           <FormField
               id="location"
-              label="Location"
+              label={t.posts.location}
               type="text"
               value={location}
               setValue={setLocation}
@@ -129,7 +137,7 @@ export function CreatePostPage() {
 
           <FormField
               id="camera-body"
-              label="Camera Body"
+              label={t.posts.camera}
               type="text"
               value={cameraBody}
               setValue={setCameraBody}
@@ -137,14 +145,14 @@ export function CreatePostPage() {
 
           <FormField
               id="lens"
-              label="Lens"
+              label={t.posts.lens}
               type="text"
               value={lens}
               setValue={setLens}
           />
 
           <button type="submit" disabled={isSubmitting}>
-            {isSubmitting ? "Creating..." : "Create post"}
+            {isSubmitting ? t.posts.creatingPost : t.posts.createPostButton}
           </button>
         </form>
       </section>

@@ -1,5 +1,5 @@
 import { apiRequest } from "./client";
-import type { LoginRequest, LoginResponse, SignupRequest, User } from "../types/auth";
+import type { LoginRequest, LoginResponse, SignupRequest, UserResponse } from "../types/auth";
 
 export function signup(data: SignupRequest) {
     return apiRequest<LoginResponse>("/auth/signup", {
@@ -16,5 +16,5 @@ export function loginUser(data: LoginRequest) {
 }
 
 export function getUserById(id: number) {
-    return apiRequest<User>(`/users/${id}`);
+    return apiRequest<UserResponse>(`/users/${id}`);
 }

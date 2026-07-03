@@ -1,10 +1,14 @@
 import { Link } from "react-router";
 import type { Post } from "../types/post";
 import { getImageUrl } from "../utils/imageUrl";
+import { useLanguage } from "../lang/LanguageContext";
+import { getLocaleFromLanguage } from "../utils/locale";
+
+type ReturnToLabelKey = "backToFeed" | "backToProfile";
 
 type ReturnTo = {
     pathname: string;
-    label: string;
+    labelKey: ReturnToLabelKey;
 }
 
 type PostCardProps = {
@@ -14,7 +18,10 @@ type PostCardProps = {
 }
 
 export function PostCard({ post, showAuthor = true, returnTo }: PostCardProps) {
-    const createdAt = new Date(post.created_at).toLocaleString();
+    const { t, language } = useLanguage();
+    const createdAt = new Date(post.created_at).toLocaleString(
+        getLocaleFromLanguage(language)
+    );
 
     return (
         <article className="post-card">
@@ -25,7 +32,7 @@ export function PostCard({ post, showAuthor = true, returnTo }: PostCardProps) {
             >
                 <img
                     src={getImageUrl(post.image_path)}
-                    alt={post.caption || "Post image"}
+                    alt={post.caption || t.posts.postImageAlt}
                     className="post-card-image"
                 />
             </Link>
@@ -45,22 +52,22 @@ export function PostCard({ post, showAuthor = true, returnTo }: PostCardProps) {
                 <dl className="post-card-meta">
                     {post.location && (
                         <div>
-                            <dt>Location</dt>
+                            <dt>{t.posts.location}</dt>
                             <dd>{post.location}</dd>
                         </div>
                     )}
 
                     {post.camera_body && (
                         <div>
-                        <dt>Camera</dt>
-                        <dd>{post.camera_body}</dd>
+                            <dt>{t.posts.camera}</dt>
+                            <dd>{post.camera_body}</dd>
                         </div>
                     )}
 
                     {post.lens && (
                         <div>
-                        <dt>Lens</dt>
-                        <dd>{post.lens}</dd>
+                            <dt>{t.posts.lens}</dt>
+                            <dd>{post.lens}</dd>
                         </div>
                     )}
                 </dl>

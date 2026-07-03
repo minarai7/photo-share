@@ -1,0 +1,171 @@
+import type { TranslationDictionary } from "../types/lang";
+
+export const en: TranslationDictionary = {
+  app: {
+    title: "Photo Share",
+  },
+
+  nav: {
+    feed: "Feed",
+    createPost: "Create Post",
+    profile: (username: string) => `${username}'s Profile`,
+    login: "Login",
+    logout: "Logout",
+    signup: "Sign up",
+  },
+
+  auth: {
+    email: "Email",
+    username: "Username",
+    password: "Password",
+
+    loginTitle: "Log in",
+    signupTitle: "Sign up",
+
+    loginButton: "Log in",
+    signupButton: "Sign up",
+
+    loginFailed: "Login failed. Please check your email and password.",
+    signupFailed: "Sign up failed. Please try again.",
+
+    loggingIn: "Logging in...",
+    creatingAccount: "Creating account...",
+
+    signupSuccess: "Account created successfully.",
+
+    alreadyHaveAccountLogin: "Already have an account? Log in",
+    dontHaveAccountSignup: "Do not have an account? Sign up",
+  },
+
+  posts: {
+  feedTitle: "Photo Feed",
+  feedSubtitle: "See the latest photos shared by users",
+  loadingPosts: "Loading posts...",
+  loadPostsFailed: "Failed to load posts.",
+  noPosts: "No posts yet.",
+  backToFeed: "Back to feed",
+  backToProfile: "Back to profile",
+
+  createPostTitle: "Create Post",
+  editPostTitle: "Edit Post",
+  postDetailTitle: "Post Detail",
+
+  title: "Title",
+  caption: "Caption",
+  location: "Location",
+  camera: "Camera",
+  lens: "Lens",
+  created: "Created",
+
+  photo: "Photo",
+  selectedPreviewAlt: "Selected preview",
+  choosePhoto: "Choose a photo",
+  supportedImageTypes: "JPG, PNG or WebP",
+  creatingPost: "Creating...",
+  createPostButton: "Create post",
+  createPostFailed: "Failed to create post. Please try again.",
+
+  submit: "Submit",
+  save: "Save",
+  saving: "Saving...",
+  delete: "Delete",
+  deleting: "Deleting...",
+  edit: "Edit",
+
+  loadingPost: "Loading post...",
+  loadPostFailed: "Failed to load post.",
+  updatePostFailed: "Failed to update post.",
+  deletePostFailed: "Failed to delete post.",
+  postNotFound: "Post not found.",
+  postIdMissing: "Post ID is missing.",
+  invalidPostId: "Invalid post ID.",
+  deleteConfirm: "Delete this post? This action cannot be undone.",
+  notSpecified: "Not specified",
+  postImageAlt: "Post image",
+  },
+
+  profile: {
+  title: "Profile",
+  userPostsTitle: (username: string) => `${username}'s posts`,
+  postCount: (count: number) => (count === 1 ? "1 post" : `${count} posts`),
+  ownEmptyPostsMessage: "You have not created any posts yet.",
+  createFirstPost: "Create your first post",
+  loadProfileFailed: "Failed to load profile posts.",
+  },
+
+  aiGear: {
+  finding: "Finding...",
+  findProduct: "Find product",
+  modalKicker: "AI gear search",
+  productSuggestions: "Product suggestions",
+  findFailed: "Could not find product links. Please try again.",
+  noReliableLinks: "No reliable product links were found.",
+  confidence: "Confidence",
+  confidenceHigh: "High",
+  confidenceMedium: "Medium",
+  confidenceLow: "Low",
+  confidenceUnknown: "Unknown",
+  warning:
+    "AI suggestions may be imperfect. Please confirm the product page before buying.",
+},
+
+  settings: {
+    language: "Language",
+    english: "English",
+    japanese: "Japanese",
+    savingLanguage: "Saving language...",
+    languageSaveFailed: "Could not save language. Please try again.",
+  },
+
+  validation: {
+    usernameRequired: "Username is required.",
+    emailRequired: "Email is required.",
+    passwordRequired: "Password is required.",
+    passwordTooShort: "Password must be at least 8 characters.",
+    photoRequired: "Please select a photo.",
+    userIdMissing: "User ID is missing.",
+    invalidUserId: "Invalid user ID.",
+  },
+
+  notFound: {
+    title: "404 Not Found",
+    message: "The page you are looking for does not exist.",
+    backToFeed: "Go back to feed",
+  },
+
+  apiErrors: {
+    invalidJson: "The request data is invalid.",
+    invalidKind: "Please choose either camera or lens.",
+    emptyName: "Please enter a name.",
+    aiConfigMissing: "AI search is not configured yet.",
+    aiRequestFailed: "Could not get AI gear suggestions. Please try again.",
+    invalidUserId: "The user ID is invalid.",
+    userNotFound: "User not found.",
+    internalError: "Something went wrong. Please try again.",
+    signupFailed: "Sign up failed. Please check your input and try again.",
+    invalidCredentials: "Invalid email or password.",
+    invalidPostId: "The post ID is invalid.",
+    invalidPreferredLanguage: "Please select English or Japanese.",
+    postNotFound: "Post not found.",
+    listPostsFailed: "Could not load posts. Please try again.",
+    unauthorized: "Please log in again.",
+    createPostFailed: "Could not create the post. Please check your input and try again.",
+    forbidden: "You do not have permission to do this.",
+    invalidMultipartForm: "The upload form is invalid or the file is too large.",
+    imageRequired: "Please select an image file.",
+    fileTooLarge: "The image file is too large.",
+    invalidFileType: "Only JPEG, PNG, and WebP images are allowed.",
+    uploadFailed: "Could not upload the image. Please try again.",
+    unknown: "Something went wrong. Please try again.",
+  },
+
+  common: {
+    loading: "Loading...",
+    error: "Something went wrong.",
+    cancel: "Cancel",
+    confirm: "Confirm",
+    back: "Back",
+    retry: "Retry",
+    close: "Close",
+  },
+};

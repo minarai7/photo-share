@@ -4,6 +4,8 @@ import { findGearLinks } from "../api/aiApi";
 import { useAuth } from "../auth/AuthContext";
 import type { GearKind, GearLinkResponse } from "../types/ai";
 import { createPortal } from "react-dom";
+import { useLanguage } from "../lang/LanguageContext";
+import { useApiErrorMessage } from "../hooks/useApiErrorMessage";
 
 type GearLinkActionProps = {
     kind: GearKind;
@@ -11,6 +13,9 @@ type GearLinkActionProps = {
 }
 
 export function GearLinkAction({kind, name}: GearLinkActionProps) {
+    const { t } = useLanguage();
+    const toApiErrorMessage = useApiErrorMessage();
+    
     const navigate = useNavigate();
     const location = useLocation();
     const { isAuthenticated } = useAuth();
@@ -23,7 +28,23 @@ export function GearLinkAction({kind, name}: GearLinkActionProps) {
     const trimmedName = name.trim();
 
     if (!trimmedName) {
-        return "Not specified";
+        return <>{t.posts.notSpecified}</>;
+    }
+
+    function getConfidenceLabel(confidence: string): string {
+        switch (confidence) {
+            case "high":
+                return t.aiGear.confidenceHigh;
+            
+            case "medium":
+                return t.aiGear.confidenceMedium;
+            
+            case "low":
+                return t.aiGear.confidenceLow;
+            
+            default:
+                return t.aiGear.confidenceUnknown;
+        }
     }
 
     async function handleFindProduct() {
@@ -49,10 +70,10 @@ export function GearLinkAction({kind, name}: GearLinkActionProps) {
             setIsModalOpen(true);
         } catch (error) {
             setError(
-                error instanceof Error
-                ? error.message
-                : "Could not find product links. Please try again."
-            );
+                toApiErrorMessage(error, {
+                    fallbackMessage: t.aiGear.findFailed,
+                })
+            )
             setIsModalOpen(true);
         } finally {
             setIsLoading(false);
@@ -72,7 +93,7 @@ export function GearLinkAction({kind, name}: GearLinkActionProps) {
                 onClick={handleFindProduct}
                 disabled={isLoading || isModalOpen}
             >
-                {isLoading ? "Finding..." : "Find product"}
+                {isLoading ? t.aiGear.finding : t.aiGear.findProduct}
             </button>
 
             {isModalOpen && createPortal(
@@ -80,10 +101,10 @@ export function GearLinkAction({kind, name}: GearLinkActionProps) {
                     <div className="gear-link-modal" role="dialog" aria-modal="true">
                         <div className="gear-link-modal-header">
                             <p className="gear-link-modal-kicker">
-                                AI gear search
+                                {t.aiGear.modalKicker}
                             </p>
                             <h2>
-                                {result ? result.name : "Product suggestions"}
+                                {result ? result.name : t.aiGear.productSuggestions}
                             </h2>
                         </div>
 
@@ -95,7 +116,7 @@ export function GearLinkAction({kind, name}: GearLinkActionProps) {
 
                                 {result.suggestions.length === 0 ? (
                                     <p className="gear-link-empty">
-                                        No reliable product links were found.
+                                        {t.aiGear.noReliableLinks}
                                     </p>
                                 ): (
                                     <ul className="gear-link-suggestions">
@@ -114,7 +135,8 @@ export function GearLinkAction({kind, name}: GearLinkActionProps) {
                                                     </a>
 
                                                     <span className="gear-link-confidence">
-                                                        {`Confidence: ${suggestion.confidence}`}
+                                                        {t.aiGear.confidence}:{" "}
+                                                        {getConfidenceLabel(suggestion.confidence)}
                                                     </span>
                                                 </div>
 
@@ -129,11 +151,11 @@ export function GearLinkAction({kind, name}: GearLinkActionProps) {
                                     className="text-button"
                                     onClick={closeModal}
                                 >
-                                    Close
+                                    {t.common.close}
                                 </button>
 
                                 <p className="gear-link-warning">
-                                    AI suggestions may be imperfect. Please confirm the product page before buying.
+                                    {t.aiGear.warning}
                                 </p>
                             </div>
                         )}
@@ -144,7 +166,7 @@ export function GearLinkAction({kind, name}: GearLinkActionProps) {
                                 className="text-button"
                                 onClick={closeModal}
                             >
-                                Close
+                                {t.common.close}
                             </button>
                         )}
                     </div>

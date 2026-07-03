@@ -46,9 +46,9 @@ func main() {
 	postRepo := repository.NewPostRepository(database)
 
 	authService := service.NewAuthService(userRepo, cfg.JWTSecret)
-	postService := service.NewPostService(postRepo)
-
 	authHandler := handler.NewAuthHandler(authService)
+
+	postService := service.NewPostService(postRepo)
 	postHandler := handler.NewPostHandler(postService)
 
 	uploadService := service.NewUploadService(cfg.UploadDir, cfg.MaxUploadBytes)
@@ -62,6 +62,9 @@ func main() {
 		AppTitle: cfg.OpenRouterAppTitle,
 	})
 	aiHandler := handler.NewAIHandler(aiService)
+
+	userSettingsService := service.NewUserSettingsService(userRepo)
+	userSettingsHandler := handler.NewUserSettingsHandler(userSettingsService)
 
 	/*
 		ctx := context.Background()
@@ -113,6 +116,8 @@ func main() {
 	mux.Handle("/uploads/", http.StripPrefix("/uploads/", fileServer))
 
 	mux.Handle("POST /ai/gear-link", authMiddleware.RequireAuth(http.HandlerFunc(aiHandler.GearLink)))
+
+	mux.Handle("PUT /users/me/settings/language", authMiddleware.RequireAuth(http.HandlerFunc(userSettingsHandler.UpdatePreferredLanguage)))
 
 	corsMiddleware := cors.New(cors.Options{
 		AllowedOrigins:   []string{cfg.FrontendOrigin},

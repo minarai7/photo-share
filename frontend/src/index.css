@@ -88,6 +88,17 @@ button {
     padding: 32px 24px;
 }
 
+.language-switcher {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.language-switcher p {
+  margin: 0;
+  font-size: 14px;
+}
+
 
 
 
@@ -614,6 +625,7 @@ button {
   margin: 0 0;
   border-top: 1px solid #eeeeee;
   padding-top: 12px;
+  text-align: center;
   color: #777;
   font-size: 13px;
   line-height: 1.5;

@@ -14,10 +14,11 @@ type LoginRequest struct {
 }
 
 type UserResponse struct {
-	ID        int64     `json:"id"`
-	Username  string    `json:"username"`
-	Email     string    `json:"email"`
-	CreatedAt time.Time `json:"created_at"`
+	ID                int64     `json:"id"`
+	Username          string    `json:"username"`
+	Email             string    `json:"email"`
+	PreferredLanguage string    `json:"preferred_language"`
+	CreatedAt         time.Time `json:"created_at"`
 }
 
 type LoginResponse struct {

@@ -3,14 +3,16 @@ import { Link, useLocation, useNavigate } from "react-router";
 import { loginUser } from "../api/authApi";
 import { useAuth } from "../auth/AuthContext";
 import { FormField } from "../components/FormField";
+import { useApiErrorMessage } from "../hooks/useApiErrorMessage";
+import { useLanguage } from "../lang/LanguageContext";
 
 export function LoginPage() {
+  const { t } = useLanguage();
   const navigate = useNavigate();
   const location = useLocation();
+  const toApiErrorMessage = useApiErrorMessage();
 
   const from = location.state?.from?.pathname ?? "/";
-
-  console.log("navigating to:", from);
 
   const { login } = useAuth();
 
@@ -26,31 +28,32 @@ export function LoginPage() {
     setError(null);
 
     if (!email.trim()) {
-      setError("Email is required.");
+      setError(t.validation.emailRequired);
       return;
     }
+
     if (!password) {
-      setError("Password is required.");
+      setError(t.validation.passwordRequired);
       return;
     }
 
     try {
       setIsSubmitting(true);
-       
+
       const response = await loginUser({
         email: email.trim(),
         password,
-      })
+      });
 
       login(response.token, response.user);
 
-      navigate(from, { replace: true});
+      navigate(from, { replace: true });
     } catch (error) {
-      if (error instanceof Error) {
-        setError(error.message);
-      } else {
-        setError("Login failed. Please try again.");
-      }
+      setError(
+        toApiErrorMessage(error, {
+          fallbackMessage: t.auth.loginFailed,
+        })
+      );
     } finally {
       setIsSubmitting(false);
     }
@@ -59,38 +62,38 @@ export function LoginPage() {
   return (
     <main className="form-page">
       <section className="form-card">
-        <h1>Login</h1>
-        
+        <h1>{t.auth.loginTitle}</h1>
+
         {error && <div className="form-error">{error}</div>}
 
         <form onSubmit={handleSubmit}>
           <FormField
-              id="email"
-              label="Email"
-              type="email"
-              value={email}
-              setValue={setEmail}
-              autoComplete="email"
+            id="email"
+            label={t.auth.email}
+            type="email"
+            value={email}
+            setValue={setEmail}
+            autoComplete="email"
           />
 
           <FormField
-              id="password"
-              label="Password"
-              type="password"
-              value={password}
-              setValue={setPassword}
-              autoComplete="current-password"
+            id="password"
+            label={t.auth.password}
+            type="password"
+            value={password}
+            setValue={setPassword}
+            autoComplete="current-password"
           />
 
           <button type="submit" disabled={isSubmitting}>
-            {isSubmitting ? "Logging in..." : "Log in"}
+            {isSubmitting ? t.auth.loggingIn : t.auth.loginButton}
           </button>
         </form>
 
         <p className="form-link">
-          <Link to="/signup">Do not have an account? Sign up</Link>
+          <Link to="/signup">{t.auth.dontHaveAccountSignup}</Link>
         </p>
       </section>
     </main>
-  )
+  );
 }
