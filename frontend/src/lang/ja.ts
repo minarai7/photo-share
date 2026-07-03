@@ -18,15 +18,23 @@ export const ja: TranslationDictionary = {
     email: "メールアドレス",
     username: "ユーザー名",
     password: "パスワード",
+
     loginTitle: "ログイン",
     signupTitle: "新規登録",
+
     loginButton: "ログイン",
     signupButton: "登録",
-    loginFailed: "ログインできませんでした。もう一度お試しください。",
-    creatingAccount: "アカウントを作成中...",
-    signupSuccess: "アカウントを作成しました。",
+
+    loginFailed: "ログインに失敗しました。メールアドレスとパスワードを確認してください。",
     signupFailed: "新規登録に失敗しました。もう一度お試しください。",
+
+    loggingIn: "ログイン中...",
+    creatingAccount: "アカウントを作成中...",
+
+    signupSuccess: "アカウントを作成しました。",
+
     alreadyHaveAccountLogin: "すでにアカウントをお持ちですか？ログイン",
+    dontHaveAccountSignup: "アカウントをお持ちでないですか？新規登録",
   },
 
   posts: {

@@ -18,15 +18,23 @@ export type TranslationDictionary = {
     email: string;
     username: string;
     password: string;
+
     loginTitle: string;
     signupTitle: string;
+
     loginButton: string;
     signupButton: string;
+
     loginFailed: string;
-    creatingAccount: string;
-    signupSuccess: string;
     signupFailed: string;
+
+    loggingIn: string;
+    creatingAccount: string;
+
+    signupSuccess: string;
+
     alreadyHaveAccountLogin: string;
+    dontHaveAccountSignup: string;
   };
 
   posts: {

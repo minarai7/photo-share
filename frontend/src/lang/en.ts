@@ -18,15 +18,23 @@ export const en: TranslationDictionary = {
     email: "Email",
     username: "Username",
     password: "Password",
+
     loginTitle: "Log in",
     signupTitle: "Sign up",
+
     loginButton: "Log in",
     signupButton: "Sign up",
-    loginFailed: "Login failed. Please try again.",
-    creatingAccount: "Creating account...",
-    signupSuccess: "Account created successfully.",
+
+    loginFailed: "Login failed. Please check your email and password.",
     signupFailed: "Sign up failed. Please try again.",
+
+    loggingIn: "Logging in...",
+    creatingAccount: "Creating account...",
+
+    signupSuccess: "Account created successfully.",
+
     alreadyHaveAccountLogin: "Already have an account? Log in",
+    dontHaveAccountSignup: "Do not have an account? Sign up",
   },
 
   posts: {

@@ -3,9 +3,8 @@ import { Link, useLocation, useNavigate } from "react-router";
 import { loginUser } from "../api/authApi";
 import { useAuth } from "../auth/AuthContext";
 import { FormField } from "../components/FormField";
-import { useLanguage } from "../lang/LanguageContext";
 import { useApiErrorMessage } from "../hooks/useApiErrorMessage";
-import { ApiError } from "../api/apiError";
+import { useLanguage } from "../lang/LanguageContext";
 
 export function LoginPage() {
   const { t } = useLanguage();
@@ -32,6 +31,7 @@ export function LoginPage() {
       setError(t.validation.emailRequired);
       return;
     }
+
     if (!password) {
       setError(t.validation.passwordRequired);
       return;
@@ -39,19 +39,16 @@ export function LoginPage() {
 
     try {
       setIsSubmitting(true);
-       
+
       const response = await loginUser({
         email: email.trim(),
         password,
-      })
+      });
 
       login(response.token, response.user);
 
-      navigate(from, { replace: true});
+      navigate(from, { replace: true });
     } catch (error) {
-      if (error instanceof ApiError) {
-        console.log(error.code)
-      }
       setError(
         toApiErrorMessage(error, {
           fallbackMessage: t.auth.loginFailed,
@@ -65,38 +62,38 @@ export function LoginPage() {
   return (
     <main className="form-page">
       <section className="form-card">
-        <h1>Login</h1>
-        
+        <h1>{t.auth.loginTitle}</h1>
+
         {error && <div className="form-error">{error}</div>}
 
         <form onSubmit={handleSubmit}>
           <FormField
-              id="email"
-              label="Email"
-              type="email"
-              value={email}
-              setValue={setEmail}
-              autoComplete="email"
+            id="email"
+            label={t.auth.email}
+            type="email"
+            value={email}
+            setValue={setEmail}
+            autoComplete="email"
           />
 
           <FormField
-              id="password"
-              label="Password"
-              type="password"
-              value={password}
-              setValue={setPassword}
-              autoComplete="current-password"
+            id="password"
+            label={t.auth.password}
+            type="password"
+            value={password}
+            setValue={setPassword}
+            autoComplete="current-password"
           />
 
           <button type="submit" disabled={isSubmitting}>
-            {isSubmitting ? "Logging in..." : "Log in"}
+            {isSubmitting ? t.auth.loggingIn : t.auth.loginButton}
           </button>
         </form>
 
         <p className="form-link">
-          <Link to="/signup">Do not have an account? Sign up</Link>
+          <Link to="/signup">{t.auth.dontHaveAccountSignup}</Link>
         </p>
       </section>
     </main>
-  )
+  );
 }

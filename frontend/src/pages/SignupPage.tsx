@@ -1,119 +1,122 @@
-import { type SubmitEvent, useState } from "react";
+import { type FormEvent, useState } from "react";
 import { Link, useNavigate } from "react-router";
 import { signup } from "../api/authApi";
 import { FormField } from "../components/FormField";
+import { useApiErrorMessage } from "../hooks/useApiErrorMessage";
 import { useLanguage } from "../lang/LanguageContext";
 
-
 export function SignupPage() {
-    const { t } = useLanguage();
-    const navigate = useNavigate();
+  const { t } = useLanguage();
+  const toApiErrorMessage = useApiErrorMessage();
+  const navigate = useNavigate();
 
-    const [username, setUsername] = useState("");
-    const [email, setEmail] = useState("");
-    const [password, setPassword] = useState("");
+  const [username, setUsername] = useState("");
+  const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
 
-    const [error, setError] = useState<string | null>(null);
-    const [successMessage, setSuccessMessage] = useState<string | null>(null);
-    const [isSubmitting, setIsSubmitting] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [successMessage, setSuccessMessage] = useState<string | null>(null);
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
-    async function handleSubmit(event: SubmitEvent<HTMLFormElement>) {
-        event.preventDefault();
+  async function handleSubmit(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
 
-        setError(null);
-        setSuccessMessage(null);
+    setError(null);
+    setSuccessMessage(null);
 
-        if (!username.trim()) {
-            setError(t.validation.usernameRequired);
-            return;
-        } 
-        if (!email.trim()) {
-            setError(t.validation.emailRequired);
-            return;
-        }
-        if (!password) {
-            setError(t.validation.passwordRequired);
-            return;
-        }
-
-        if (password.length < 8) {
-            setError(t.validation.passwordTooShort);
-            return;
-        }
-
-        try {
-            setIsSubmitting(true);
-
-            await signup({
-                username: username.trim(),
-                email: email.trim(),
-                password,
-            });
-
-            setSuccessMessage(t.auth.signupSuccess);
-
-            setTimeout(() => {
-                navigate("/login")
-            }, 800)
-        } catch (err) {
-            if (err instanceof Error) {
-                setError(err.message);
-            } else {
-                setError(t.auth.signupFailed);
-            }
-        } finally {
-            setIsSubmitting(false);
-        }
+    if (!username.trim()) {
+      setError(t.validation.usernameRequired);
+      return;
     }
 
-    return (
-        <main className="form-page">
-            <section className="form-card">
-                <h1>Signup</h1>
-                
-                {error && <div className="form-error">{error}</div>}
+    if (!email.trim()) {
+      setError(t.validation.emailRequired);
+      return;
+    }
 
-                {successMessage && (
-                    <div className="form-success">{successMessage}</div>
-                )}
+    if (!password) {
+      setError(t.validation.passwordRequired);
+      return;
+    }
 
-                <form onSubmit={handleSubmit}>
-                    <FormField
-                        id="username"
-                        label="Username"
-                        type="text"
-                        value={username}
-                        setValue={setUsername}
-                        autoComplete="username"
-                    />
+    if (password.length < 8) {
+      setError(t.validation.passwordTooShort);
+      return;
+    }
 
-                    <FormField
-                        id="email"
-                        label="Email"
-                        type="email"
-                        value={email}
-                        setValue={setEmail}
-                        autoComplete="email"
-                    />
+    try {
+      setIsSubmitting(true);
 
-                    <FormField
-                        id="password"
-                        label="Password"
-                        type="password"
-                        value={password}
-                        setValue={setPassword}
-                        autoComplete="new-password"
-                    />
+      await signup({
+        username: username.trim(),
+        email: email.trim(),
+        password,
+      });
 
-                    <button type="submit" disabled={isSubmitting}>
-                        {isSubmitting ? t.auth.creatingAccount : t.auth.signupButton}
-                    </button>
-                </form>
+      setSuccessMessage(t.auth.signupSuccess);
 
-                <p className="form-link">
-                    <Link to="/login">{t.auth.alreadyHaveAccountLogin}</Link>
-                </p>
-            </section>
-        </main>
-    )
+      setTimeout(() => {
+        navigate("/login");
+      }, 800);
+    } catch (err) {
+      setError(
+        toApiErrorMessage(err, {
+          fallbackMessage: t.auth.signupFailed,
+        })
+      );
+    } finally {
+      setIsSubmitting(false);
+    }
+  }
+
+  return (
+    <main className="form-page">
+      <section className="form-card">
+        <h1>{t.auth.signupTitle}</h1>
+
+        {error && <div className="form-error">{error}</div>}
+
+        {successMessage && (
+          <div className="form-success">{successMessage}</div>
+        )}
+
+        <form onSubmit={handleSubmit}>
+          <FormField
+            id="username"
+            label={t.auth.username}
+            type="text"
+            value={username}
+            setValue={setUsername}
+            autoComplete="username"
+          />
+
+          <FormField
+            id="email"
+            label={t.auth.email}
+            type="email"
+            value={email}
+            setValue={setEmail}
+            autoComplete="email"
+          />
+
+          <FormField
+            id="password"
+            label={t.auth.password}
+            type="password"
+            value={password}
+            setValue={setPassword}
+            autoComplete="new-password"
+          />
+
+          <button type="submit" disabled={isSubmitting}>
+            {isSubmitting ? t.auth.creatingAccount : t.auth.signupButton}
+          </button>
+        </form>
+
+        <p className="form-link">
+          <Link to="/login">{t.auth.alreadyHaveAccountLogin}</Link>
+        </p>
+      </section>
+    </main>
+  );
 }
