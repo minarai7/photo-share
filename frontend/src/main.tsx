@@ -8,7 +8,7 @@ import { LanguageProvider } from './lang/LanguageContext.tsx'
 
 createRoot(document.getElementById('root')!).render(
   <StrictMode>
-    <LanguageProvider initialLanguage='ja'>
+    <LanguageProvider>
       <BrowserRouter>
         <AuthProvider>
           <App />

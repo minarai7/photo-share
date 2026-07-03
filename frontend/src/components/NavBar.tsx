@@ -1,6 +1,7 @@
 import { Link, NavLink, useNavigate } from "react-router";
 import { useAuth } from "../auth/AuthContext";
 import { useLanguage } from "../lang/LanguageContext";
+import { LanguageSwitcher } from "./LanguageSwitcher";
 
 export function NavBar() {
     const { t } = useLanguage();
@@ -52,6 +53,8 @@ export function NavBar() {
                         {t.nav.logout}
                     </button>
                 )}
+
+                <LanguageSwitcher />
             </nav>
         </header>
     )

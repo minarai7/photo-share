@@ -1,3 +1,5 @@
+import type { LanguageCode } from "./lang";
+
 export type ApiErrorResponse = {
     error: {
         code: string;
@@ -10,6 +12,7 @@ export type UserResponse = {
     username: string;
     email: string;
     created_at: string;
+    preferred_language: LanguageCode;
 };
 
 export type SignupRequest = {

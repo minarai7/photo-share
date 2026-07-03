@@ -380,7 +380,7 @@ components:
       bearerFormat: JWT
   
   schemas:
-    PreferredLanguage:
+    LanguageCode:
       type: string
       enum:
         - en
@@ -393,7 +393,7 @@ components:
         - preferred_language
       properties:
         preferred_language:
-          $ref: '#/components/schemas/PreferredLanguage'
+          $ref: '#/components/schemas/LanguageCode'
 
     SignupRequest:
       type: object
@@ -450,7 +450,7 @@ components:
           format: email
           example: yamato@example.com
         preferred_language:
-          $ref: '#/components/schemas/PreferredLanguage'
+          $ref: '#/components/schemas/LanguageCode'
         created_at:
           type: string
           format: date-time

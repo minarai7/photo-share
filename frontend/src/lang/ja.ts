@@ -1,4 +1,4 @@
-import type { TranslationDictionary } from "./types";
+import type { TranslationDictionary } from "../types/lang";
 
 export const ja: TranslationDictionary = {
   app: {
@@ -105,6 +105,8 @@ export const ja: TranslationDictionary = {
     language: "言語",
     english: "英語",
     japanese: "日本語",
+    savingLanguage: "言語設定を保存中...",
+    languageSaveFailed: "言語設定を保存できませんでした。もう一度お試しください。",
   },
 
   validation: {
@@ -135,6 +137,7 @@ export const ja: TranslationDictionary = {
     signupFailed: "新規登録に失敗しました。入力内容を確認してもう一度お試しください。",
     invalidCredentials: "メールアドレスまたはパスワードが正しくありません。",
     invalidPostId: "投稿IDが正しくありません。",
+    invalidPreferredLanguage: "英語または日本語を選択してください。",
     postNotFound: "投稿が見つかりません。",
     listPostsFailed: "投稿を読み込めませんでした。もう一度お試しください。",
     unauthorized: "もう一度ログインしてください。",

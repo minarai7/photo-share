@@ -104,6 +104,8 @@ export type TranslationDictionary = {
     language: string;
     english: string;
     japanese: string;
+    savingLanguage: string;
+    languageSaveFailed: string;
   };
 
   validation: {
@@ -134,6 +136,7 @@ export type TranslationDictionary = {
     signupFailed: string;
     invalidCredentials: string;
     invalidPostId: string;
+    invalidPreferredLanguage: string;
     postNotFound: string;
     listPostsFailed: string;
     unauthorized: string;

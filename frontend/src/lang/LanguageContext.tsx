@@ -1,5 +1,5 @@
 import { createContext, useContext, useMemo, useState, type ReactNode } from "react";
-import type { LanguageCode, TranslationDictionary } from "./types"
+import type { LanguageCode, TranslationDictionary } from "../types/lang"
 import { translations } from ".";
 
 type LanguageContextValue = {
@@ -10,6 +10,8 @@ type LanguageContextValue = {
 
 export const LanguageContext = createContext<LanguageContextValue | null>(null);
 
+export const DEFAULT_LANGUAGE = "en";
+
 type LanguageProviderProps = {
     children: ReactNode;
     initialLanguage?: LanguageCode;
@@ -17,7 +19,7 @@ type LanguageProviderProps = {
 
 export function LanguageProvider({
     children,
-    initialLanguage = "en",
+    initialLanguage = DEFAULT_LANGUAGE,
 }: LanguageProviderProps) {
     const [language, setLanguage] = useState<LanguageCode>(initialLanguage);
 

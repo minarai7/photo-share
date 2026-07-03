@@ -1,6 +1,6 @@
 import { en } from "./en";
 import { ja } from "./ja";
-import type { LanguageCode, TranslationDictionary } from "./types";
+import type { LanguageCode, TranslationDictionary } from "../types/lang";
 
 export const defaultLanguage: LanguageCode = "en";
 

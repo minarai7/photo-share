@@ -1,7 +1,5 @@
-import type { LanguageCode } from "../lang";
-
-export type PreferredLanguage = LanguageCode;
+import type { LanguageCode } from "./lang";
 
 export type UpdatePreferredLanguageRequest = {
-  preferred_language: PreferredLanguage;
+  preferred_language: LanguageCode;
 };

@@ -37,6 +37,9 @@ export function getApiErrorMessage(
 
     case "invalid_post_id":
       return t.apiErrors.invalidPostId;
+    
+    case "invalid_preferred_language":
+      return t.apiErrors.invalidPreferredLanguage;
 
     case "post_not_found":
       return t.apiErrors.postNotFound;
