@@ -99,6 +99,44 @@ button {
   font-size: 14px;
 }
 
+.language-toggle {
+  display: inline-flex;
+  border: 1px solid #ddd;
+  border-radius: 8px;
+  overflow: hidden;
+}
+
+.language-toggle-btn {
+  padding: 4px 10px;
+  border: none;
+  border-radius: 0;
+  background: none;
+  color: #777;
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background 0.15s ease, color 0.15s ease;
+}
+
+.language-toggle-btn + .language-toggle-btn {
+  border-left: 1px solid #ddd;
+}
+
+.language-toggle-btn:hover:not(.active) {
+  background: #f2f2f2;
+  color: #333;
+}
+
+.language-toggle-btn.active {
+  background: #222;
+  color: #fff;
+}
+
+.language-toggle-btn:disabled {
+  cursor: not-allowed;
+  opacity: 0.6;
+}
+
 
 
 
@@ -110,6 +148,8 @@ button {
 .form-page {
     display: flex;
     justify-content: center;
+    align-items: center;
+    min-height: calc(100vh - 64px);
     padding: 48px 16px;
 }
 
@@ -169,13 +209,20 @@ button {
     color: #1f6f2a;
 }
 
-.form-card button {
+.form-card button[type="submit"] {
     width: 100%;
     padding: 10px 12px;
     border: none;
     border-radius: 8px;
     font-size: 16px;
     cursor: pointer;
+    background: #222;
+    color: #fff;
+    font-weight: 600;
+}
+
+.form-card button[type="submit"]:hover {
+    background: #444;
 }
 
 .form-card button:disabled {

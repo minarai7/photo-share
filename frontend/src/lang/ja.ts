@@ -35,6 +35,10 @@ export const ja: TranslationDictionary = {
 
     alreadyHaveAccountLogin: "すでにアカウントをお持ちですか？ログイン",
     dontHaveAccountSignup: "アカウントをお持ちでないですか？新規登録",
+
+    emailPlaceholder: "example@email.com",
+    usernamePlaceholder: "例：yamada_taro",
+    passwordPlaceholder: "8文字以上",
   },
 
   posts: {

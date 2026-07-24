@@ -88,6 +88,7 @@ export function SignupPage() {
             value={username}
             setValue={setUsername}
             autoComplete="username"
+            placeholder={t.auth.usernamePlaceholder}
           />
 
           <FormField
@@ -97,6 +98,7 @@ export function SignupPage() {
             value={email}
             setValue={setEmail}
             autoComplete="email"
+            placeholder={t.auth.emailPlaceholder}
           />
 
           <FormField
@@ -106,6 +108,7 @@ export function SignupPage() {
             value={password}
             setValue={setPassword}
             autoComplete="new-password"
+            placeholder={t.auth.passwordPlaceholder}
           />
 
           <button type="submit" disabled={isSubmitting}>

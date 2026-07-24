@@ -5,6 +5,7 @@ type FormFieldProps = {
     value: string
     setValue: (value: string) => void;
     autoComplete?: string;
+    placeholder?: string;
 }
 
 export function FormField({
@@ -14,6 +15,7 @@ export function FormField({
     value,
     setValue,
     autoComplete,
+    placeholder,
 }: FormFieldProps) {
     return (
         <div className="form-field">
@@ -25,6 +27,7 @@ export function FormField({
                 value={value}
                 onChange={(event) => setValue(event.target.value)}
                 autoComplete={autoComplete}
+                placeholder={placeholder}
             />
         </div>
     )

@@ -74,6 +74,7 @@ export function LoginPage() {
             value={email}
             setValue={setEmail}
             autoComplete="email"
+            placeholder={t.auth.emailPlaceholder}
           />
 
           <FormField
@@ -83,6 +84,7 @@ export function LoginPage() {
             value={password}
             setValue={setPassword}
             autoComplete="current-password"
+            placeholder={t.auth.passwordPlaceholder}
           />
 
           <button type="submit" disabled={isSubmitting}>

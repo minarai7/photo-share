@@ -35,6 +35,10 @@ export type TranslationDictionary = {
 
     alreadyHaveAccountLogin: string;
     dontHaveAccountSignup: string;
+
+    emailPlaceholder: string;
+    usernamePlaceholder: string;
+    passwordPlaceholder: string;
   };
 
   posts: {

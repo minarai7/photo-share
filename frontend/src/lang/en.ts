@@ -35,6 +35,10 @@ export const en: TranslationDictionary = {
 
     alreadyHaveAccountLogin: "Already have an account? Log in",
     dontHaveAccountSignup: "Do not have an account? Sign up",
+
+    emailPlaceholder: "you@example.com",
+    usernamePlaceholder: "e.g. janedoe",
+    passwordPlaceholder: "8+ characters",
   },
 
   posts: {

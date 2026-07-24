@@ -4,6 +4,11 @@ import { useAuth } from "../auth/AuthContext";
 import type { LanguageCode } from "../lang";
 import { useLanguage } from "../lang/LanguageContext";
 
+const OPTIONS: { code: LanguageCode; label: string }[] = [
+  { code: "en", label: "EN" },
+  { code: "ja", label: "JA" },
+];
+
 export function LanguageSwitcher() {
   const { isAuthenticated } = useAuth();
   const { language, setLanguage, t } = useLanguage();
@@ -11,10 +16,7 @@ export function LanguageSwitcher() {
   const [isSaving, setIsSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  async function handleLanguageChange(
-    event: React.ChangeEvent<HTMLSelectElement>
-  ) {
-    const nextLanguage = event.target.value as LanguageCode;
+  async function handleSelect(nextLanguage: LanguageCode) {
     const previousLanguage = language;
 
     if (nextLanguage === previousLanguage) {
@@ -43,17 +45,20 @@ export function LanguageSwitcher() {
 
   return (
     <div className="language-switcher">
-      <label htmlFor="language-select">{t.settings.language}: </label>
-
-      <select
-        id="language-select"
-        value={language}
-        onChange={handleLanguageChange}
-        disabled={isSaving}
-      >
-        <option value="en">{t.settings.english}</option>
-        <option value="ja">{t.settings.japanese}</option>
-      </select>
+      <div className="language-toggle" role="group" aria-label={t.settings.language}>
+        {OPTIONS.map(({ code, label }) => (
+          <button
+            key={code}
+            type="button"
+            className={`language-toggle-btn${language === code ? " active" : ""}`}
+            onClick={() => handleSelect(code)}
+            disabled={isSaving}
+            aria-pressed={language === code}
+          >
+            {label}
+          </button>
+        ))}
+      </div>
 
       {isSaving && <span>{t.settings.savingLanguage}</span>}
 
