@@ -9,10 +9,14 @@ import (
 )
 
 type Config struct {
+	AppEnv         string
 	Port           string
 	DatabaseURL    string
 	FrontendOrigin string
 	JWTSecret      string
+	StorageDriver  string
+	S3BucketName   string
+	AWSRegion      string
 	UploadDir      string
 	MaxUploadBytes int64
 
@@ -49,10 +53,14 @@ func MustLoad() Config {
 		log.Println("No local .env file loaded; using environment variables")
 	}
 	cfg := Config{
+		AppEnv:         getEnv("APP_ENV", "development"),
 		Port:           getEnv("PORT", "8080"),
 		DatabaseURL:    os.Getenv("DATABASE_URL"),
 		FrontendOrigin: getEnv("FRONTEND_ORIGIN", "http://localhost:5173"),
 		JWTSecret:      os.Getenv("JWT_SECRET"),
+		StorageDriver:  getEnv("STORAGE_DRIVER", "local"),
+		S3BucketName:   os.Getenv("S3_BUCKET_NAME"),
+		AWSRegion:      getEnv("AWS_ERGION", "ap-northeast-1"),
 		UploadDir:      getEnv("UPLOAD_DIR", "storage/uploads"),
 		MaxUploadBytes: getEnvInt64("MAX_UPLOAD_BYTES", 5*1024*1024),
 
@@ -64,6 +72,9 @@ func MustLoad() Config {
 	}
 	if cfg.DatabaseURL == "" {
 		log.Fatal("DATABASE_URL is required")
+	}
+	if cfg.StorageDriver == "s3" && cfg.S3BucketName == "" {
+		log.Fatal("S3_BUCKET_NAME is required when STORAGE_DRIVER=s3")
 	}
 	return cfg
 }
