@@ -1,16 +1,16 @@
-// Files are stored on disk under storage/uploads.
 // The DB stores public paths like /uploads/<filename>.
+
 package service
 
 import (
+	"backend/internal/storage"
+	"context"
 	"crypto/rand"
 	"errors"
 	"fmt"
 	"io"
 	"mime/multipart"
 	"net/http"
-	"os"
-	"path/filepath"
 	"time"
 )
 
@@ -21,18 +21,18 @@ var (
 )
 
 type UploadService struct {
-	uploadDir      string
+	storage        storage.Storage
 	maxUploadBytes int64
 }
 
-func NewUploadService(uploadDir string, maxUploadBytes int64) *UploadService {
+func NewUploadService(storage storage.Storage, maxUploadBytes int64) *UploadService {
 	return &UploadService{
-		uploadDir:      uploadDir,
+		storage:        storage,
 		maxUploadBytes: maxUploadBytes,
 	}
 }
 
-func (s *UploadService) SaveImage(file multipart.File, header *multipart.FileHeader) (string, error) {
+func (s *UploadService) SaveImage(ctx context.Context, file multipart.File, header *multipart.FileHeader) (string, error) {
 	if file == nil || header == nil {
 		return "", ErrFileRequired
 	}
@@ -58,25 +58,21 @@ func (s *UploadService) SaveImage(file multipart.File, header *multipart.FileHea
 		return "", err
 	}
 
-	if err := os.MkdirAll(s.uploadDir, 0755); err != nil {
-		return "", err
-	}
-
 	filename := fmt.Sprintf("%d_%s%s", time.Now().UnixNano(), randomString(8), ext)
 
-	fullPath := filepath.Join(s.uploadDir, filename)
-
-	dst, err := os.Create(fullPath)
+	err = s.storage.Save(ctx, file, filename, contentType)
 	if err != nil {
-		return "", err
-	}
-	defer dst.Close()
-
-	if _, err := io.Copy(dst, file); err != nil {
 		return "", err
 	}
 
 	return "/uploads/" + filename, nil
+}
+
+func (s *UploadService) Get(
+	ctx context.Context,
+	filename string,
+) (*storage.StoredFile, error) {
+	return s.storage.Open(ctx, filename)
 }
 
 func extensionFromContentType(contentType string) (string, error) {

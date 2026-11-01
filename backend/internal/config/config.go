@@ -60,7 +60,7 @@ func MustLoad() Config {
 		JWTSecret:      os.Getenv("JWT_SECRET"),
 		StorageDriver:  getEnv("STORAGE_DRIVER", "local"),
 		S3BucketName:   os.Getenv("S3_BUCKET_NAME"),
-		AWSRegion:      getEnv("AWS_ERGION", "ap-northeast-1"),
+		AWSRegion:      getEnv("AWS_REGION", "ap-northeast-1"),
 		UploadDir:      getEnv("UPLOAD_DIR", "storage/uploads"),
 		MaxUploadBytes: getEnvInt64("MAX_UPLOAD_BYTES", 5*1024*1024),
 

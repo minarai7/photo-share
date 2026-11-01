@@ -11,6 +11,7 @@ backend/storage/uploads/*
 .env
 .env.docker
 .env.compose
+.env.rds
 .DS_Store
 
 # testfiles
@@ -21,3 +22,5 @@ dev-notes/
 
 # claude
 CLAUDE.md
+current-task.md
+upcoming-task.md

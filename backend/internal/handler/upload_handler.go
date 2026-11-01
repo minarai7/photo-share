@@ -4,7 +4,10 @@ import (
 	"backend/internal/httpx"
 	"backend/internal/service"
 	"errors"
+	"io"
 	"net/http"
+	"path"
+	"strings"
 )
 
 type UploadHandler struct {
@@ -48,7 +51,7 @@ func (h *UploadHandler) UploadImage(w http.ResponseWriter, r *http.Request) {
 	}
 	defer file.Close()
 
-	imagePath, err := h.uploadService.SaveImage(file, header)
+	imagePath, err := h.uploadService.SaveImage(r.Context(), file, header)
 	if err != nil {
 		switch {
 		case errors.Is(err, service.ErrFileRequired):
@@ -92,4 +95,37 @@ func (h *UploadHandler) UploadImage(w http.ResponseWriter, r *http.Request) {
 	httpx.WriteJSON(w, http.StatusCreated, UploadImageResponse{
 		ImagePath: imagePath,
 	})
+}
+
+func (h *UploadHandler) Get(w http.ResponseWriter, r *http.Request) {
+	filename := strings.TrimPrefix(
+		r.URL.Path,
+		"/uploads/",
+	)
+
+	if filename == "" || filename != path.Base(filename) {
+		http.NotFound(w, r)
+		return
+	}
+
+	file, err := h.uploadService.Get(
+		r.Context(),
+		filename,
+	)
+	if err != nil {
+		http.NotFound(w, r)
+		return
+	}
+	defer file.Body.Close()
+
+	if file.ContentType != "" {
+		w.Header().Set(
+			"Content-Type",
+			file.ContentType,
+		)
+	}
+
+	if _, err := io.Copy(w, file.Body); err != nil {
+		return
+	}
 }

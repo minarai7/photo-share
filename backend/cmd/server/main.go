@@ -1,6 +1,7 @@
 package main
 
 import (
+	"context"
 	"encoding/json"
 	"log"
 	"net/http"
@@ -11,6 +12,7 @@ import (
 	"backend/internal/middleware"
 	"backend/internal/repository"
 	"backend/internal/service"
+	"backend/internal/storage"
 
 	"github.com/rs/cors"
 )
@@ -42,6 +44,19 @@ func main() {
 	defer database.Close()
 	log.Println("database connection successful")
 
+	fileStorage, err := storage.New(
+		context.Background(),
+		storage.Config{
+			Driver:    cfg.StorageDriver,
+			UploadDir: cfg.UploadDir,
+			AWSRegion: cfg.AWSRegion,
+			S3Bucket:  cfg.S3BucketName,
+		},
+	)
+	if err != nil {
+		log.Fatalf("initialize storage: %v", err)
+	}
+
 	userRepo := repository.NewUserRepository(database)
 	postRepo := repository.NewPostRepository(database)
 
@@ -51,7 +66,7 @@ func main() {
 	postService := service.NewPostService(postRepo)
 	postHandler := handler.NewPostHandler(postService)
 
-	uploadService := service.NewUploadService(cfg.UploadDir, cfg.MaxUploadBytes)
+	uploadService := service.NewUploadService(fileStorage, cfg.MaxUploadBytes)
 	uploadHandler := handler.NewUploadHandler(uploadService, cfg.MaxUploadBytes)
 
 	aiService := service.NewAIService(service.AIConfig{
@@ -112,8 +127,7 @@ func main() {
 
 	mux.Handle("POST /uploads", authMiddleware.RequireAuth(http.HandlerFunc(uploadHandler.UploadImage)))
 
-	fileServer := http.FileServer(http.Dir(cfg.UploadDir))
-	mux.Handle("/uploads/", http.StripPrefix("/uploads/", fileServer))
+	mux.HandleFunc("GET /uploads/", uploadHandler.Get)
 
 	mux.Handle("POST /ai/gear-link", authMiddleware.RequireAuth(http.HandlerFunc(aiHandler.GearLink)))
 
