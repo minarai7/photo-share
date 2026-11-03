@@ -1,6 +1,6 @@
 import { Link, NavLink, useNavigate } from "react-router";
-import { useAuth } from "../auth/AuthContext";
-import { useLanguage } from "../lang/LanguageContext";
+import { useAuth } from "../auth/useAuth";
+import { useLanguage } from "../lang/useLanguage";
 import { LanguageSwitcher } from "./LanguageSwitcher";
 
 export function NavBar() {

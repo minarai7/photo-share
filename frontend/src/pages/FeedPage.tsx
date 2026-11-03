@@ -2,7 +2,7 @@ import { useEffect, useState } from "react";
 import { getPosts } from "../api/postsApi";
 import { PostCard } from "../components/PostCard";
 import type { GetPostsResponse } from "../types/post";
-import { useLanguage } from "../lang/LanguageContext";
+import { useLanguage } from "../lang/useLanguage";
 import { useApiErrorMessage } from "../hooks/useApiErrorMessage";
 
 export function FeedPage() {

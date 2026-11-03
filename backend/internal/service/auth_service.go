@@ -24,11 +24,11 @@ var (
 )
 
 type AuthService struct {
-	userRepo  *repository.UserRepository
+	userRepo  UserStore
 	jwtSecret []byte
 }
 
-func NewAuthService(userRepo *repository.UserRepository, jwtSecret string) *AuthService {
+func NewAuthService(userRepo UserStore, jwtSecret string) *AuthService {
 	return &AuthService{
 		userRepo:  userRepo,
 		jwtSecret: []byte(jwtSecret),

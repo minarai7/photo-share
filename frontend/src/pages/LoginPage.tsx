@@ -1,10 +1,10 @@
 import { useState, type SubmitEvent } from "react";
 import { Link, useLocation, useNavigate } from "react-router";
 import { loginUser } from "../api/authApi";
-import { useAuth } from "../auth/AuthContext";
+import { useAuth } from "../auth/useAuth";
 import { FormField } from "../components/FormField";
 import { useApiErrorMessage } from "../hooks/useApiErrorMessage";
-import { useLanguage } from "../lang/LanguageContext";
+import { useLanguage } from "../lang/useLanguage";
 
 export function LoginPage() {
   const { t } = useLanguage();

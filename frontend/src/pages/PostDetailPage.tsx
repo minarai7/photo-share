@@ -3,10 +3,10 @@ import { Link, useParams, useLocation, useNavigate } from "react-router";
 import { getImageUrl } from "../utils/imageUrl";
 import { deletePostById, getPostById, updatePostById } from "../api/postsApi";
 import type { Post, UpdatePostRequest } from "../types/post";
-import { useAuth } from "../auth/AuthContext";
+import { useAuth } from "../auth/useAuth";
 import { FormField } from "../components/FormField";
 import { GearLinkAction } from "../components/GearLinkAction";
-import { useLanguage } from "../lang/LanguageContext";
+import { useLanguage } from "../lang/useLanguage";
 import { useApiErrorMessage } from "../hooks/useApiErrorMessage";
 import { getLocaleFromLanguage } from "../utils/locale";
 
@@ -38,7 +38,7 @@ export function PostDetailPage() {
 
     const returnTo: ReturnTo = location.state?.returnTo ?? {
         pathname: "/",
-        label: t.posts.backToFeed,
+        labelKey: "backToFeed",
     };
 
     const [post, setPost] = useState<Post | null>(null);
@@ -58,18 +58,16 @@ export function PostDetailPage() {
     const [cameraBody, setCameraBody] = useState("");
     const [lens, setLens] = useState("");
 
+    // Validate the URL param during render; the effect only fetches.
+    const numericPostId = postId ? Number(postId) : NaN;
+    const idError = !postId
+        ? t.posts.postIdMissing
+        : Number.isNaN(numericPostId)
+            ? t.posts.invalidPostId
+            : null;
+
     useEffect(() => {
-        if (!postId) {
-            setError(t.posts.postIdMissing);
-            setIsLoading(false);
-            return
-        }
-
-        const numericPostId = Number(postId);
-
-        if (Number.isNaN(numericPostId)) {
-            setError(t.posts.invalidPostId);
-            setIsLoading(false);
+        if (idError) {
             return
         }
 
@@ -93,9 +91,8 @@ export function PostDetailPage() {
 
         loadPost();
     }, [
-        postId,
-        t.posts.postIdMissing,
-        t.posts.invalidPostId,
+        idError,
+        numericPostId,
         t.posts.loadPostFailed,
         toApiErrorMessage
     ]);
@@ -202,21 +199,23 @@ export function PostDetailPage() {
         }
     }
 
-    if (isLoading) {
+    const shownError = idError ?? error;
+
+    if (shownError) {
         return (
             <main className="page">
-                <p>{t.posts.loadingPost}</p>
+                <p className="error-message">{shownError}</p>
+                <Link to={returnTo.pathname}>
+                    {getReturnToLabel(returnTo.labelKey)}
+                </Link>
             </main>
         )
     }
 
-    if (error) {
+    if (isLoading) {
         return (
             <main className="page">
-                <p className="error-message">{error}</p>
-                <Link to={returnTo.pathname}>
-                    {getReturnToLabel(returnTo.labelKey)}
-                </Link>
+                <p>{t.posts.loadingPost}</p>
             </main>
         )
     }

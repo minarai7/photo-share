@@ -33,6 +33,7 @@ func (h *AIHandler) GearLink(w http.ResponseWriter, r *http.Request) {
 				Message: "request body is invalid",
 			},
 		})
+		return
 	}
 
 	req.Kind = strings.TrimSpace(req.Kind)

@@ -4,7 +4,7 @@ import { createPost } from "../api/postsApi";
 import { uploadImage } from "../api/uploadsApi";
 import type { CreatePostRequest } from "../types/post";
 import { FormField } from "../components/FormField";
-import { useLanguage } from "../lang/LanguageContext";
+import { useLanguage } from "../lang/useLanguage";
 import { useApiErrorMessage } from "../hooks/useApiErrorMessage";
 
 export function CreatePostPage() {

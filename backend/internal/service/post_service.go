@@ -19,10 +19,10 @@ var (
 )
 
 type PostService struct {
-	postRepo *repository.PostRepository
+	postRepo PostStore
 }
 
-func NewPostService(postRepo *repository.PostRepository) *PostService {
+func NewPostService(postRepo PostStore) *PostService {
 	return &PostService{postRepo: postRepo}
 }
 

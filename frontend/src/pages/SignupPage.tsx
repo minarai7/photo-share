@@ -3,7 +3,7 @@ import { Link, useNavigate } from "react-router";
 import { signup } from "../api/authApi";
 import { FormField } from "../components/FormField";
 import { useApiErrorMessage } from "../hooks/useApiErrorMessage";
-import { useLanguage } from "../lang/LanguageContext";
+import { useLanguage } from "../lang/useLanguage";
 
 export function SignupPage() {
   const { t } = useLanguage();

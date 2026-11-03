@@ -11,10 +11,10 @@ var (
 )
 
 type UserSettingsService struct {
-	userRepo *repository.UserRepository
+	userRepo UserStore
 }
 
-func NewUserSettingsService(userRepository *repository.UserRepository) *UserSettingsService {
+func NewUserSettingsService(userRepository UserStore) *UserSettingsService {
 	return &UserSettingsService{
 		userRepo: userRepository,
 	}

@@ -1,7 +1,7 @@
 import { useCallback } from "react";
 import { ApiError } from "../api/apiError";
 import { getApiErrorMessage } from "../api/getApiErrorMessage";
-import { useLanguage } from "../lang/LanguageContext";
+import { useLanguage } from "../lang/useLanguage";
 
 type Options = {
     fallbackMessage?: string;

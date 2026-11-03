@@ -2,10 +2,10 @@ import { useEffect, useState } from "react";
 import { Link, useParams } from "react-router";
 import { getPostsByUserId } from "../api/postsApi";
 import { PostCard } from "../components/PostCard";
-import { useAuth } from "../auth/AuthContext";
+import { useAuth } from "../auth/useAuth";
 import type { GetPostsResponse } from "../types/post";
 import { getUserById } from "../api";
-import { useLanguage } from "../lang/LanguageContext";
+import { useLanguage } from "../lang/useLanguage";
 import { useApiErrorMessage } from "../hooks/useApiErrorMessage";
 
 export function ProfilePage() {
@@ -15,27 +15,25 @@ export function ProfilePage() {
   const { user } = useAuth();
 
   const [posts, setPosts] = useState<GetPostsResponse>([]);
-  const [isOwnProfile, setIsOwnProfile] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
   const [username, setUsername] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
 
+  // Derived during render (not stored in state) so they always match the
+  // current URL and session; the effect only fetches.
+  const numericUserId = userId ? Number(userId) : NaN;
+  const idError = !userId
+    ? t.validation.userIdMissing
+    : Number.isNaN(numericUserId)
+      ? t.validation.invalidUserId
+      : null;
+  const isOwnProfile = user !== null && user.id === numericUserId;
+  const ownUsername = isOwnProfile ? user.username : null;
+
   useEffect(() => {
-    if (!userId) {
-      setError(t.validation.userIdMissing);
-      setIsLoading(false);
+    if (idError) {
       return
     }
-
-    const numericUserId = Number(userId);
-
-    if (Number.isNaN(numericUserId)) {
-      setError(t.validation.invalidUserId);
-      setIsLoading(false);
-      return
-    }
-
-    setIsOwnProfile(user?.id === numericUserId);
 
     let isMounted = true;
 
@@ -44,17 +42,14 @@ export function ProfilePage() {
         setIsLoading(true);
         setError(null);
 
-        const profilePosts = await getPostsByUserId(numericUserId);
-
-        if (isOwnProfile) {
-          setUsername(user!.username)
-        } else {
-          const currentlyViewingUser = await getUserById(numericUserId);
-          setUsername(currentlyViewingUser.username)
-        }
+        const [profilePosts, profileUsername] = await Promise.all([
+          getPostsByUserId(numericUserId),
+          ownUsername ?? getUserById(numericUserId).then((u) => u.username),
+        ]);
 
         if (isMounted) {
-            setPosts(profilePosts);
+          setPosts(profilePosts);
+          setUsername(profileUsername);
         }
       } catch (err) {
         if (isMounted) {
@@ -76,23 +71,25 @@ export function ProfilePage() {
     return () => {
       isMounted = false;
     };
-  }, [userId])
+  }, [idError, numericUserId, ownUsername, toApiErrorMessage, t.profile.loadProfileFailed])
 
-    if(isLoading) {
-      return (
-          <main className="feed-page">
-              <p className="feed-status">{t.posts.loadingPosts}</p>
-          </main>
-      )
+  const shownError = idError ?? error;
+
+  if (shownError) {
+    return (
+      <main className="feed-page">
+        <p className="feed-error">{shownError}</p>
+      </main>
+    )
   }
 
-    if (error) {
-        return (
-            <main className="feed-page">
-                <p className="feed-error">{error}</p>
-            </main>
-        )
-    }
+  if (isLoading) {
+    return (
+      <main className="feed-page">
+        <p className="feed-status">{t.posts.loadingPosts}</p>
+      </main>
+    )
+  }
 
 
   return (

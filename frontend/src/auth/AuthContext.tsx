@@ -1,6 +1,5 @@
 import {
-    createContext,
-    useContext,
+    useCallback,
     useEffect,
     useMemo,
     useState,
@@ -15,42 +14,32 @@ import {
     saveAuth,
     isTokenExpired,
 } from "./authStorage";
-import { DEFAULT_LANGUAGE, useLanguage } from "../lang/LanguageContext";
-
-type AuthContextValue = {
-    token: string | null;
-    user: UserResponse | null;
-    isAuthenticated: boolean;
-    login: (token: string, user: UserResponse) => void;
-    logout: () => void;
-    refreshAuthState: () => void;
-}
-
-const AuthContext = createContext<AuthContextValue | null>(null);
+import { DEFAULT_LANGUAGE, useLanguage } from "../lang/useLanguage";
+import { AuthContext, type AuthContextValue } from "./useAuth";
 
 export function AuthProvider({ children }: {children: ReactNode}) {
     const { setLanguage } = useLanguage();
     const [token, setToken] = useState<string | null>(getToken());
     const [user, setUser] = useState<UserResponse | null>(getStoredUser());
 
-    function refreshAuthState() {
+    const refreshAuthState = useCallback(() => {
         setToken(getToken());
         setUser(getStoredUser());
-    }
+    }, []);
 
-    function login(token: string, user: UserResponse) {
+    const login = useCallback((token: string, user: UserResponse) => {
         saveAuth(token, user);
         setToken(token);
         setUser(user);
         setLanguage(user.preferred_language);
-    }
+    }, [setLanguage]);
 
-    function logout() {
+    const logout = useCallback(() => {
         clearAuth();
         setToken(null);
         setUser(null);
         setLanguage(DEFAULT_LANGUAGE);
-    }
+    }, [setLanguage]);
 
     useEffect(() => {
         window.addEventListener(AUTH_CHANGED_EVENT, refreshAuthState);
@@ -58,7 +47,7 @@ export function AuthProvider({ children }: {children: ReactNode}) {
         return () => {
             window.removeEventListener(AUTH_CHANGED_EVENT, refreshAuthState);
         }
-    }, [])
+    }, [refreshAuthState])
 
     const value = useMemo<AuthContextValue>(() => {
         return {
@@ -69,17 +58,7 @@ export function AuthProvider({ children }: {children: ReactNode}) {
             logout,
             refreshAuthState,
         }
-    }, [token, user]);
+    }, [token, user, login, logout, refreshAuthState]);
 
     return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
-}
-
-export function useAuth() {
-    const context = useContext(AuthContext);
-
-    if (context === null) {
-        throw new Error("useAuth must be used inside AuthProvider");
-    }
-
-    return context;
 }

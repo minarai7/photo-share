@@ -1,10 +1,10 @@
 import { useState } from "react";
 import { useLocation, useNavigate } from "react-router";
 import { findGearLinks } from "../api/aiApi";
-import { useAuth } from "../auth/AuthContext";
+import { useAuth } from "../auth/useAuth";
 import type { GearKind, GearLinkResponse } from "../types/ai";
 import { createPortal } from "react-dom";
-import { useLanguage } from "../lang/LanguageContext";
+import { useLanguage } from "../lang/useLanguage";
 import { useApiErrorMessage } from "../hooks/useApiErrorMessage";
 
 type GearLinkActionProps = {

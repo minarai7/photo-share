@@ -1,7 +1,7 @@
 import { Link } from "react-router";
 import type { Post } from "../types/post";
 import { getImageUrl } from "../utils/imageUrl";
-import { useLanguage } from "../lang/LanguageContext";
+import { useLanguage } from "../lang/useLanguage";
 import { getLocaleFromLanguage } from "../utils/locale";
 
 type ReturnToLabelKey = "backToFeed" | "backToProfile";

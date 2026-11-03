@@ -1,16 +1,7 @@
-import { createContext, useContext, useMemo, useState, type ReactNode } from "react";
-import type { LanguageCode, TranslationDictionary } from "../types/lang"
+import { useMemo, useState, type ReactNode } from "react";
+import type { LanguageCode } from "../types/lang"
 import { translations } from ".";
-
-type LanguageContextValue = {
-    language: LanguageCode;
-    setLanguage: (language: LanguageCode) => void;
-    t: TranslationDictionary;
-}
-
-export const LanguageContext = createContext<LanguageContextValue | null>(null);
-
-export const DEFAULT_LANGUAGE = "en";
+import { DEFAULT_LANGUAGE, LanguageContext, type LanguageContextValue } from "./useLanguage";
 
 type LanguageProviderProps = {
     children: ReactNode;
@@ -36,14 +27,4 @@ export function LanguageProvider({
             {children}
         </LanguageContext.Provider>
     );
-}
-
-export function useLanguage() {
-    const context = useContext(LanguageContext);
-
-    if (context === null) {
-        throw new Error("useLanguage must be used inside LanguageProvider");
-    }
-
-    return context;
 }

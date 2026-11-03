@@ -60,6 +60,7 @@ export async function apiRequest<T>(
                 message = errorData.error.message;
             }
         } catch {
+            // Body wasn't the JSON error envelope (e.g. a proxy's HTML page): keep the defaults above.
         }
         throw new ApiError(
             code,

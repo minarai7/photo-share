@@ -1,8 +1,8 @@
 import { useState } from "react";
 import { updatePreferredLanguage } from "../api/userSettingsApi";
-import { useAuth } from "../auth/AuthContext";
+import { useAuth } from "../auth/useAuth";
 import type { LanguageCode } from "../lang";
-import { useLanguage } from "../lang/LanguageContext";
+import { useLanguage } from "../lang/useLanguage";
 
 const OPTIONS: { code: LanguageCode; label: string }[] = [
   { code: "en", label: "EN" },

@@ -1,5 +1,5 @@
 import { Link } from "react-router";
-import { useLanguage } from "../lang/LanguageContext";
+import { useLanguage } from "../lang/useLanguage";
 
 export function NotFoundPage() {
   const { t } = useLanguage();
