@@ -3,6 +3,7 @@ package handler
 import (
 	"encoding/json"
 	"errors"
+	"log"
 	"net/http"
 	"strconv"
 	"strings"
@@ -116,10 +117,12 @@ func (h *AuthHandler) Signup(w http.ResponseWriter, r *http.Request) {
 			return
 
 		default:
+			// Raw DB/bcrypt errors stay in the server log; clients get a generic message.
+			log.Printf("signup: %v", err)
 			httpx.WriteJSON(w, http.StatusInternalServerError, httpx.ErrorResponse{
 				Error: httpx.ErrorDetail{
 					Code:    "signup_failed",
-					Message: err.Error(),
+					Message: "signup failed",
 				},
 			})
 			return

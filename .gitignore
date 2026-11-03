@@ -12,6 +12,7 @@ backend/storage/uploads/*
 .env.docker
 .env.compose
 .env.rds
+.env.production
 .DS_Store
 
 # testfiles
@@ -19,6 +20,9 @@ testfiles/*
 
 # dev notes
 dev-notes/
+
+# seed data
+seedfiles/*
 
 # claude
 CLAUDE.md

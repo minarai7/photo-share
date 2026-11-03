@@ -30,7 +30,7 @@ func (h *AIHandler) GearLink(w http.ResponseWriter, r *http.Request) {
 		httpx.WriteJSON(w, http.StatusBadRequest, httpx.ErrorResponse{
 			Error: httpx.ErrorDetail{
 				Code:    "invalid_json",
-				Message: err.Error(),
+				Message: "request body is invalid",
 			},
 		})
 	}

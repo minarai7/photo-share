@@ -3,6 +3,7 @@ package handler
 import (
 	"encoding/json"
 	"errors"
+	"log"
 	"net/http"
 	"strconv"
 	"strings"
@@ -111,10 +112,22 @@ func (h *PostHandler) CreatePost(w http.ResponseWriter, r *http.Request) {
 
 	resp, err := h.postService.CreatePost(r.Context(), post)
 	if err != nil {
-		_ = httpx.WriteJSON(w, http.StatusBadRequest, httpx.ErrorResponse{
+		if errors.Is(err, service.ErrUserRequired) || errors.Is(err, service.ErrImagePathRequired) {
+			_ = httpx.WriteJSON(w, http.StatusBadRequest, httpx.ErrorResponse{
+				Error: httpx.ErrorDetail{
+					Code:    "create_post_failed",
+					Message: err.Error(),
+				},
+			})
+			return
+		}
+
+		// Raw DB errors stay in the server log; clients get a generic message.
+		log.Printf("create post: %v", err)
+		_ = httpx.WriteJSON(w, http.StatusInternalServerError, httpx.ErrorResponse{
 			Error: httpx.ErrorDetail{
 				Code:    "create_post_failed",
-				Message: err.Error(),
+				Message: "failed to create post",
 			},
 		})
 		return

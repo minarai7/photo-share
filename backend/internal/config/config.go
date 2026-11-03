@@ -66,7 +66,7 @@ func MustLoad() Config {
 
 		OpenRouterAPIKey:   os.Getenv("OPENROUTER_API_KEY"),
 		OpenRouterBaseURL:  getEnv("OPENROUTER_BASE_URL", "https://openrouter.ai/api/v1"),
-		OpenRouterModel:    getEnv("OPENROUTER_MODEL", "google/gemini-2.5-flash-lite"),
+		OpenRouterModel:    getEnv("OPENROUTER_MODEL", "mistralai/mistral-small-3.2-24b-instruct"),
 		OpenRouterAppURL:   getEnv("OPENROUTER_APP_URL", "http://localhost:5173"),
 		OpenRouterAppTitle: getEnv("OPENROUTER_APP_TITLE", "Photo Share Dev"),
 	}
