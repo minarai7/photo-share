@@ -301,6 +301,10 @@ paths:
       tags:
         - uploads
       summary: Upload a post image
+      description: >-
+        Accepts JPEG, PNG or WebP (detected from the file content). The file may
+        be at most `MAX_UPLOAD_BYTES` bytes (default 33554432 = 32 MiB);
+        larger files are rejected with `400 file_too_large`.
       operationId: uploadImage
       requestBody:
         required: true

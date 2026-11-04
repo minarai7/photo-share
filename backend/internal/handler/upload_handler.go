@@ -26,10 +26,25 @@ func NewUploadHandler(uploadService *service.UploadService, maxUploadBytes int64
 	}
 }
 
-func (h *UploadHandler) UploadImage(w http.ResponseWriter, r *http.Request) {
-	r.Body = http.MaxBytesReader(w, r.Body, h.maxUploadBytes)
+const (
+	// multipartOverhead is allowed on top of maxUploadBytes for the multipart
+	// boundaries and part headers, so a file of exactly the limit still fits.
+	// The file size itself is enforced by UploadService.
+	multipartOverhead = 1 << 20
 
-	if err := r.ParseMultipartForm(h.maxUploadBytes); err != nil {
+	// uploadMemoryBytes caps how much of an upload is held in RAM; anything
+	// larger is spooled to a temp file (the Fargate task only has 0.5 GB).
+	uploadMemoryBytes = 8 << 20
+)
+
+func (h *UploadHandler) UploadImage(w http.ResponseWriter, r *http.Request) {
+	r.Body = http.MaxBytesReader(w, r.Body, h.maxUploadBytes+multipartOverhead)
+
+	if err := r.ParseMultipartForm(min(h.maxUploadBytes, uploadMemoryBytes)); err != nil {
+		if _, ok := errors.AsType[*http.MaxBytesError](err); ok {
+			writeFileTooLarge(w)
+			return
+		}
 		httpx.WriteJSON(w, http.StatusBadRequest, httpx.ErrorResponse{
 			Error: httpx.ErrorDetail{
 				Code:    "invalid_multipart_form",
@@ -64,12 +79,7 @@ func (h *UploadHandler) UploadImage(w http.ResponseWriter, r *http.Request) {
 			return
 
 		case errors.Is(err, service.ErrFileTooLarge):
-			httpx.WriteJSON(w, http.StatusBadRequest, httpx.ErrorResponse{
-				Error: httpx.ErrorDetail{
-					Code:    "file_too_large",
-					Message: "image exceeds max allowed size",
-				},
-			})
+			writeFileTooLarge(w)
 			return
 
 		case errors.Is(err, service.ErrInvalidFileType):
@@ -94,6 +104,15 @@ func (h *UploadHandler) UploadImage(w http.ResponseWriter, r *http.Request) {
 
 	httpx.WriteJSON(w, http.StatusCreated, UploadImageResponse{
 		ImagePath: imagePath,
+	})
+}
+
+func writeFileTooLarge(w http.ResponseWriter) {
+	httpx.WriteJSON(w, http.StatusBadRequest, httpx.ErrorResponse{
+		Error: httpx.ErrorDetail{
+			Code:    "file_too_large",
+			Message: "image exceeds max allowed size",
+		},
 	})
 }
 

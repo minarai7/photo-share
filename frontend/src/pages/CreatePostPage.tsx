@@ -6,6 +6,7 @@ import type { CreatePostRequest } from "../types/post";
 import { FormField } from "../components/FormField";
 import { useLanguage } from "../lang/useLanguage";
 import { useApiErrorMessage } from "../hooks/useApiErrorMessage";
+import { MAX_UPLOAD_BYTES, MAX_UPLOAD_MB } from "../config/upload";
 
 export function CreatePostPage() {
   const { t } = useLanguage();
@@ -23,7 +24,15 @@ export function CreatePostPage() {
   const [isSubmitting, setIsSubmitting] = useState(false);
 
   function handlePhotoChange(event: ChangeEvent<HTMLInputElement>) {
-    const selectedFile = event.target.files?.[0] ?? null;
+    let selectedFile = event.target.files?.[0] ?? null;
+
+    if (selectedFile && selectedFile.size > MAX_UPLOAD_BYTES) {
+      setError(t.validation.photoTooLarge(MAX_UPLOAD_MB));
+      event.target.value = "";
+      selectedFile = null;
+    } else if (selectedFile) {
+      setError(null);
+    }
 
     setPhoto(selectedFile);
 
@@ -103,6 +112,9 @@ export function CreatePostPage() {
                   </span>
                   <span className="image-upload-subtitle">
                     {t.posts.supportedImageTypes}
+                  </span>
+                  <span className="image-upload-subtitle">
+                    {t.posts.maxImageSize(MAX_UPLOAD_MB)}
                   </span>
                 </>
               )

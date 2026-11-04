@@ -65,6 +65,7 @@ export type TranslationDictionary = {
     selectedPreviewAlt: string;
     choosePhoto: string;
     supportedImageTypes: string;
+    maxImageSize: (sizeMb: number) => string;
     creatingPost: string;
     createPostButton: string;
     createPostFailed: string;
@@ -126,6 +127,7 @@ export type TranslationDictionary = {
     passwordRequired: string;
     passwordTooShort: string;
     photoRequired: string;
+    photoTooLarge: (sizeMb: number) => string;
     userIdMissing: string;
     invalidUserId: string;
   };

@@ -253,27 +253,61 @@ func TestUploadErrors(t *testing.T) {
 	expectError(t, app.upload(tok, "anim.gif", fixtures.GIF()), http.StatusBadRequest, "invalid_file_type")
 	expectError(t, app.upload(tok, "evil.jpg", []byte("<html><script>alert(1)</script></html>")), http.StatusBadRequest, "invalid_file_type")
 
+	// Over the file limit but within the body allowance: rejected by the service.
 	big := append(fixtures.JPEG(), make([]byte, 128<<10)...)
-	rec := app.upload(tok, "big.jpg", big)
-	expectStatus(t, rec, http.StatusBadRequest)
-	var env struct {
-		Error struct{ Code string } `json:"error"`
-	}
-	decodeOne(t, rec, &env)
-	if env.Error.Code != "file_too_large" && env.Error.Code != "invalid_multipart_form" {
-		t.Errorf("oversized upload code = %q", env.Error.Code)
-	}
+	expectError(t, app.upload(tok, "big.jpg", big), http.StatusBadRequest, "file_too_large")
+
+	// Past the body allowance too: MaxBytesReader trips while parsing the form,
+	// and the client still gets file_too_large rather than a generic form error.
+	huge := append(fixtures.JPEG(), make([]byte, 3<<20)...)
+	expectError(t, app.upload(tok, "huge.jpg", huge), http.StatusBadRequest, "file_too_large")
 
 	// Multipart form without the "image" field.
 	hr := httptest.NewRequest(http.MethodPost, "/uploads", strings.NewReader("--x\r\nContent-Disposition: form-data; name=\"other\"\r\n\r\nv\r\n--x--\r\n"))
 	hr.Header.Set("Content-Type", "multipart/form-data; boundary=x")
 	hr.Header.Set("Authorization", "Bearer "+tok)
-	rec = httptest.NewRecorder()
+	rec := httptest.NewRecorder()
 	app.handler.ServeHTTP(rec, hr)
 	expectError(t, rec, http.StatusBadRequest, "image_required")
 
 	// Not multipart at all.
 	expectError(t, app.do(req{method: http.MethodPost, path: "/uploads", token: tok, body: map[string]string{"image": "x"}}), http.StatusBadRequest, "invalid_multipart_form")
+}
+
+// A file of exactly the limit must fit even though the request body is a bit
+// larger (multipart boundaries + headers).
+func TestUploadAtExactLimitSucceeds(t *testing.T) {
+	const limit = 64 << 10
+	app := newTestApp(t, appOptions{maxUploadBytes: limit})
+	_, tok := app.userWithToken("alice")
+
+	jpeg := fixtures.JPEG()
+	exact := append(jpeg, make([]byte, limit-len(jpeg))...)
+	expectStatus(t, app.upload(tok, "exact.jpg", exact), http.StatusCreated)
+
+	over := append(exact, 0)
+	expectError(t, app.upload(tok, "over.jpg", over), http.StatusBadRequest, "file_too_large")
+}
+
+// Files bigger than the in-memory threshold are spooled to a temp file by
+// ParseMultipartForm; they must still be stored intact.
+func TestUploadLargerThanMemoryThreshold(t *testing.T) {
+	app := newTestApp(t, appOptions{maxUploadBytes: 32 << 20})
+	_, tok := app.userWithToken("alice")
+
+	data := append(fixtures.JPEG(), bytes.Repeat([]byte{0xAB}, 12<<20)...)
+	rec := app.upload(tok, "large.jpg", data)
+	expectStatus(t, rec, http.StatusCreated)
+	var up struct {
+		ImagePath string `json:"image_path"`
+	}
+	decodeOne(t, rec, &up)
+
+	rec = app.do(req{method: http.MethodGet, path: up.ImagePath})
+	expectStatus(t, rec, http.StatusOK)
+	if !bytes.Equal(rec.Body.Bytes(), data) {
+		t.Error("served bytes differ from uploaded bytes")
+	}
 }
 
 func TestServeUploadCannotEscapeUploadDir(t *testing.T) {

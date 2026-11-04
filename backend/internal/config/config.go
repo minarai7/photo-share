@@ -62,7 +62,9 @@ func MustLoad() Config {
 		S3BucketName:   os.Getenv("S3_BUCKET_NAME"),
 		AWSRegion:      getEnv("AWS_REGION", "ap-northeast-1"),
 		UploadDir:      getEnv("UPLOAD_DIR", "storage/uploads"),
-		MaxUploadBytes: getEnvInt64("MAX_UPLOAD_BYTES", 5*1024*1024),
+		// 32 MiB fits full-quality JPEGs from high-resolution cameras.
+		// Keep in sync with MAX_UPLOAD_BYTES in frontend/src/config/upload.ts.
+		MaxUploadBytes: getEnvInt64("MAX_UPLOAD_BYTES", 32*1024*1024),
 
 		OpenRouterAPIKey:   os.Getenv("OPENROUTER_API_KEY"),
 		OpenRouterBaseURL:  getEnv("OPENROUTER_BASE_URL", "https://openrouter.ai/api/v1"),
