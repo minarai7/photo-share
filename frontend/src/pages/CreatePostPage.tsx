@@ -56,21 +56,25 @@ export function CreatePostPage() {
     try {
       setIsSubmitting(true);
 
-      const { image_path } = await uploadImage(photo);
+      const uploaded = await uploadImage(photo);
 
       const data: CreatePostRequest = {
-        image_path: image_path,
+        image_path: uploaded.image_path,
         caption: caption.trim(),
       }
 
       if (location.trim() !== "") {
         data.location = location.trim();
       }
-      if (cameraBody.trim() !== "") {
-        data.camera_body = cameraBody.trim();
+
+      // What the user typed wins; blank fields fall back to the photo's EXIF data.
+      const camera = cameraBody.trim() || uploaded.camera_body;
+      if (camera) {
+        data.camera_body = camera;
       }
-      if (lens.trim() !== "") {
-        data.lens = lens.trim();
+      const lensName = lens.trim() || uploaded.lens;
+      if (lensName) {
+        data.lens = lensName;
       }
 
       await createPost(data);
@@ -153,6 +157,7 @@ export function CreatePostPage() {
               type="text"
               value={cameraBody}
               setValue={setCameraBody}
+              placeholder={t.posts.gearFromPhotoPlaceholder}
           />
 
           <FormField
@@ -161,6 +166,7 @@ export function CreatePostPage() {
               type="text"
               value={lens}
               setValue={setLens}
+              placeholder={t.posts.gearFromPhotoPlaceholder}
           />
 
           <button type="submit" disabled={isSubmitting}>

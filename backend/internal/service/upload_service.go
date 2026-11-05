@@ -3,6 +3,7 @@
 package service
 
 import (
+	"backend/internal/exifmeta"
 	"backend/internal/storage"
 	"context"
 	"crypto/rand"
@@ -32,40 +33,55 @@ func NewUploadService(storage storage.Storage, maxUploadBytes int64) *UploadServ
 	}
 }
 
-func (s *UploadService) SaveImage(ctx context.Context, file multipart.File, header *multipart.FileHeader) (string, error) {
+// UploadedImage is a stored image plus the gear read from its EXIF data.
+// CameraBody and Lens are empty when the photo does not record them.
+type UploadedImage struct {
+	ImagePath  string
+	CameraBody string
+	Lens       string
+}
+
+func (s *UploadService) SaveImage(ctx context.Context, file multipart.File, header *multipart.FileHeader) (*UploadedImage, error) {
 	if file == nil || header == nil {
-		return "", ErrFileRequired
+		return nil, ErrFileRequired
 	}
 
 	if header.Size > s.maxUploadBytes {
-		return "", ErrFileTooLarge
+		return nil, ErrFileTooLarge
 	}
 
 	firstBytes := make([]byte, 512)
 	n, err := file.Read(firstBytes)
 	if err != nil && err != io.EOF {
-		return "", err
+		return nil, err
 	}
 
 	if _, err := file.Seek(0, io.SeekStart); err != nil {
-		return "", err
+		return nil, err
 	}
 
 	contentType := http.DetectContentType(firstBytes[:n])
 
 	ext, err := extensionFromContentType(contentType)
 	if err != nil {
-		return "", err
+		return nil, err
 	}
+
+	// ReadAt leaves the read offset alone, so storage still gets the whole file.
+	gear := exifmeta.Read(file, header.Size)
 
 	filename := fmt.Sprintf("%d_%s%s", time.Now().UnixNano(), randomString(8), ext)
 
 	err = s.storage.Save(ctx, file, filename, contentType)
 	if err != nil {
-		return "", err
+		return nil, err
 	}
 
-	return "/uploads/" + filename, nil
+	return &UploadedImage{
+		ImagePath:  "/uploads/" + filename,
+		CameraBody: gear.CameraBody,
+		Lens:       gear.Lens,
+	}, nil
 }
 
 func (s *UploadService) Get(

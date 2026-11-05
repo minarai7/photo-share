@@ -59,6 +59,7 @@ export const ja: TranslationDictionary = {
     location: "場所",
     camera: "カメラ",
     lens: "レンズ",
+    gearFromPhotoPlaceholder: "空欄の場合は写真のデータから自動入力",
     created: "作成日時",
 
     photo: "写真",

@@ -305,6 +305,8 @@ paths:
         Accepts JPEG, PNG or WebP (detected from the file content). The file may
         be at most `MAX_UPLOAD_BYTES` bytes (default 33554432 = 32 MiB);
         larger files are rejected with `400 file_too_large`.
+        The camera and lens recorded in the photo's EXIF data (if any) are
+        returned so clients can fill in post fields the user left blank.
       operationId: uploadImage
       requestBody:
         required: true
@@ -325,10 +327,26 @@ paths:
             application/json:
               schema:
                 type: object
+                required:
+                  - image_path
                 properties:
                   image_path:
                     type: string
                     example: /uploads/posts/1714020000_abcd1234.jpg
+                  camera_body:
+                    type: string
+                    maxLength: 100
+                    description: >-
+                      Camera from EXIF Make + Model, e.g. "SONY ILCE-7C".
+                      Omitted when the photo does not record it.
+                    example: SONY ILCE-7C
+                  lens:
+                    type: string
+                    maxLength: 100
+                    description: >-
+                      Lens from EXIF LensModel. Omitted when absent or a
+                      placeholder such as "----" (manual lens).
+                    example: FE 35mm F1.8
         '400':
           description: Invalid file
         '401':

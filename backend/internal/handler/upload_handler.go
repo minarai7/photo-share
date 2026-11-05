@@ -15,8 +15,12 @@ type UploadHandler struct {
 	maxUploadBytes int64
 }
 
+// UploadImageResponse carries the camera and lens read from the photo's EXIF
+// data (omitted when absent) so the client can fill in fields the user left blank.
 type UploadImageResponse struct {
-	ImagePath string `json:"image_path"`
+	ImagePath  string `json:"image_path"`
+	CameraBody string `json:"camera_body,omitempty"`
+	Lens       string `json:"lens,omitempty"`
 }
 
 func NewUploadHandler(uploadService *service.UploadService, maxUploadBytes int64) *UploadHandler {
@@ -66,7 +70,7 @@ func (h *UploadHandler) UploadImage(w http.ResponseWriter, r *http.Request) {
 	}
 	defer file.Close()
 
-	imagePath, err := h.uploadService.SaveImage(r.Context(), file, header)
+	uploaded, err := h.uploadService.SaveImage(r.Context(), file, header)
 	if err != nil {
 		switch {
 		case errors.Is(err, service.ErrFileRequired):
@@ -103,7 +107,9 @@ func (h *UploadHandler) UploadImage(w http.ResponseWriter, r *http.Request) {
 	}
 
 	httpx.WriteJSON(w, http.StatusCreated, UploadImageResponse{
-		ImagePath: imagePath,
+		ImagePath:  uploaded.ImagePath,
+		CameraBody: uploaded.CameraBody,
+		Lens:       uploaded.Lens,
 	})
 }
 

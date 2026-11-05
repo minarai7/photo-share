@@ -53,6 +53,53 @@ describe("CreatePostPage", () => {
     });
   });
 
+  it("fills blank camera and lens from the photo's EXIF data", async () => {
+    const api = mockApi({
+      "POST /uploads": ok(
+        { image_path: "/uploads/123_abc.jpg", camera_body: "SONY ILCE-7C", lens: "FE 35mm F1.8" },
+        201,
+      ),
+      "POST /posts": ok(makePost(), 201),
+      "GET /posts": ok([]),
+    });
+    const { user, currentPath } = renderApp("/posts/new");
+
+    expect(screen.getByLabelText(en.posts.camera)).toHaveAttribute("placeholder", en.posts.gearFromPhotoPlaceholder);
+    expect(screen.getByLabelText(en.posts.lens)).toHaveAttribute("placeholder", en.posts.gearFromPhotoPlaceholder);
+
+    await user.upload(screen.getByLabelText(en.posts.photo), photo());
+    await user.type(screen.getByLabelText(en.posts.lens), "   ");
+    await user.click(screen.getByRole("button", { name: en.posts.createPostButton }));
+
+    await waitFor(() => expect(currentPath()).toBe("/"));
+    expect(api.calls("POST /posts")[0].json()).toEqual({
+      image_path: "/uploads/123_abc.jpg",
+      caption: "",
+      camera_body: "SONY ILCE-7C",
+      lens: "FE 35mm F1.8",
+    });
+  });
+
+  it("keeps what the user typed over the photo's EXIF data", async () => {
+    const api = mockApi({
+      "POST /uploads": ok({ image_path: "/uploads/123_abc.jpg", camera_body: "SONY ILCE-7C", lens: "FE 35mm F1.8" }, 201),
+      "POST /posts": ok(makePost(), 201),
+      "GET /posts": ok([]),
+    });
+    const { user, currentPath } = renderApp("/posts/new");
+
+    await user.upload(screen.getByLabelText(en.posts.photo), photo());
+    await user.type(screen.getByLabelText(en.posts.camera), " Sony a7C ");
+    await user.type(screen.getByLabelText(en.posts.lens), "Zeiss C Sonnar 50mm f/1.5");
+    await user.click(screen.getByRole("button", { name: en.posts.createPostButton }));
+
+    await waitFor(() => expect(currentPath()).toBe("/"));
+    expect(api.calls("POST /posts")[0].json()).toMatchObject({
+      camera_body: "Sony a7C",
+      lens: "Zeiss C Sonnar 50mm f/1.5",
+    });
+  });
+
   it("tells the user the maximum file size", () => {
     mockApi({});
     renderApp("/posts/new");

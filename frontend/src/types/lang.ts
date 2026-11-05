@@ -59,6 +59,7 @@ export type TranslationDictionary = {
     location: string;
     camera: string;
     lens: string;
+    gearFromPhotoPlaceholder: string;
     created: string;
 
     photo: string;

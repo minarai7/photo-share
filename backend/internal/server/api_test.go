@@ -246,6 +246,31 @@ func TestUploadAndServe(t *testing.T) {
 	}
 }
 
+func TestUploadReturnsGearFromEXIF(t *testing.T) {
+	app := newTestApp(t)
+	_, tok := app.userWithToken("alice")
+
+	data := fixtures.JPEGWithEXIF(fixtures.CameraTIFF("FUJIFILM", "X-T30 III", "XF35mmF1.4 R"))
+	rec := app.upload(tok, "pic.jpg", data)
+	expectStatus(t, rec, http.StatusCreated)
+	var up map[string]any
+	decodeOne(t, rec, &up)
+	if up["camera_body"] != "FUJIFILM X-T30 III" || up["lens"] != "XF35mmF1.4 R" {
+		t.Fatalf("response = %v", up)
+	}
+
+	// Without metadata the keys are absent rather than empty strings.
+	rec = app.upload(tok, "plain.png", fixtures.PNG())
+	expectStatus(t, rec, http.StatusCreated)
+	up = nil
+	decodeOne(t, rec, &up)
+	for _, k := range []string{"camera_body", "lens"} {
+		if _, ok := up[k]; ok {
+			t.Errorf("%s present without EXIF: %v", k, up)
+		}
+	}
+}
+
 func TestUploadErrors(t *testing.T) {
 	app := newTestApp(t, appOptions{maxUploadBytes: 64 << 10})
 	_, tok := app.userWithToken("alice")

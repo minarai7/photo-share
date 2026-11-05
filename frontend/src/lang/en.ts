@@ -59,6 +59,7 @@ export const en: TranslationDictionary = {
   location: "Location",
   camera: "Camera",
   lens: "Lens",
+  gearFromPhotoPlaceholder: "Leave blank to fill in from the photo's data",
   created: "Created",
 
   photo: "Photo",

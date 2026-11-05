@@ -14,6 +14,7 @@ The project also includes an AI-powered gear link assistant that helps users fin
 - JWT-based authentication
 - Create photo posts with uploaded images
 - Add caption, location, camera body, and lens metadata
+- Camera body and lens left blank are filled in from the photo's EXIF data
 - View a feed of recent posts
 - View individual post detail pages
 - View user profile pages

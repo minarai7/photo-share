@@ -71,13 +71,16 @@ func TestSaveImage_AcceptedTypes(t *testing.T) {
 			st := newRecordingStorage()
 			svc := service.NewUploadService(st, 1<<20)
 
-			path, err := svc.SaveImage(context.Background(), memFile{bytes.NewReader(tc.data)}, &multipart.FileHeader{Size: int64(len(tc.data))})
+			up, err := svc.SaveImage(context.Background(), memFile{bytes.NewReader(tc.data)}, &multipart.FileHeader{Size: int64(len(tc.data))})
 			if err != nil {
 				t.Fatalf("SaveImage: %v", err)
 			}
-			m := uploadPathRE.FindStringSubmatch(path)
+			m := uploadPathRE.FindStringSubmatch(up.ImagePath)
 			if m == nil || m[2] != tc.wantExt {
-				t.Fatalf("path %q does not match /uploads/<nanos>_<rand8>%s", path, tc.wantExt)
+				t.Fatalf("path %q does not match /uploads/<nanos>_<rand8>%s", up.ImagePath, tc.wantExt)
+			}
+			if up.CameraBody != "" || up.Lens != "" {
+				t.Errorf("no EXIF in fixture, but got camera %q lens %q", up.CameraBody, up.Lens)
 			}
 			name := m[1] + m[2]
 			// The service sniffs the first 512 bytes; it must rewind so storage gets the whole file.
@@ -96,14 +99,50 @@ func TestSaveImage_UniqueNames(t *testing.T) {
 	seen := map[string]bool{}
 	for i := 0; i < 20; i++ {
 		f, h := fileOf(fixtures.PNG())
-		p, err := svc.SaveImage(context.Background(), f, h)
+		up, err := svc.SaveImage(context.Background(), f, h)
 		if err != nil {
 			t.Fatal(err)
 		}
-		if seen[p] {
-			t.Fatalf("duplicate upload path %q", p)
+		if seen[up.ImagePath] {
+			t.Fatalf("duplicate upload path %q", up.ImagePath)
 		}
-		seen[p] = true
+		seen[up.ImagePath] = true
+	}
+}
+
+func TestSaveImage_ReadsGearFromEXIF(t *testing.T) {
+	tiff := fixtures.CameraTIFF("SONY", "ILCE-7C", "FE 35mm F1.8")
+	for name, data := range map[string][]byte{
+		"jpeg": fixtures.JPEGWithEXIF(tiff),
+		"png":  fixtures.PNGWithEXIF(tiff),
+		"webp": fixtures.WebPWithEXIF(tiff),
+	} {
+		t.Run(name, func(t *testing.T) {
+			svc := service.NewUploadService(newRecordingStorage(), 1<<20)
+			f, h := fileOf(data)
+
+			up, err := svc.SaveImage(context.Background(), f, h)
+			if err != nil {
+				t.Fatalf("SaveImage: %v", err)
+			}
+			if up.CameraBody != "SONY ILCE-7C" || up.Lens != "FE 35mm F1.8" {
+				t.Errorf("got camera %q lens %q", up.CameraBody, up.Lens)
+			}
+		})
+	}
+}
+
+// Sony bodies record "----" as the lens when a manual or adapted lens is mounted.
+func TestSaveImage_ManualLensPlaceholderIsDropped(t *testing.T) {
+	svc := service.NewUploadService(newRecordingStorage(), 1<<20)
+	f, h := fileOf(fixtures.JPEGWithEXIF(fixtures.CameraTIFF("SONY", "ILCE-7C", "----")))
+
+	up, err := svc.SaveImage(context.Background(), f, h)
+	if err != nil {
+		t.Fatalf("SaveImage: %v", err)
+	}
+	if up.CameraBody != "SONY ILCE-7C" || up.Lens != "" {
+		t.Errorf("got camera %q lens %q, want camera only", up.CameraBody, up.Lens)
 	}
 }
 
