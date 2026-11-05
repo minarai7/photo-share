@@ -66,6 +66,48 @@ func TestRead_BigEndian(t *testing.T) {
 	}
 }
 
+func TestOrientation(t *testing.T) {
+	orientation := func(b []byte) int { return exifmeta.Orientation(bytes.NewReader(b), int64(len(b))) }
+	withOrientation := func(order binary.ByteOrder, v uint16) []byte {
+		return fixtures.TIFF(order, map[uint16]any{fixtures.TagMake: "Apple", fixtures.TagOrientation: v}, nil)
+	}
+
+	for _, order := range []binary.ByteOrder{binary.LittleEndian, binary.BigEndian} {
+		for v := uint16(1); v <= 8; v++ {
+			if got := orientation(fixtures.JPEGWithEXIF(withOrientation(order, v))); got != int(v) {
+				t.Errorf("%v orientation %d: got %d", order, v, got)
+			}
+		}
+	}
+	if got := orientation(fixtures.PNGWithEXIF(withOrientation(binary.LittleEndian, 6))); got != 6 {
+		t.Errorf("png: got %d, want 6", got)
+	}
+	if got := orientation(fixtures.WebPWithEXIF(withOrientation(binary.LittleEndian, 8))); got != 8 {
+		t.Errorf("webp: got %d, want 8", got)
+	}
+
+	// Absent, out of range, or stored as the wrong type all mean "upright".
+	for name, img := range map[string][]byte{
+		"no exif":     fixtures.JPEG(),
+		"no tag":      fixtures.JPEGWithEXIF(fixtures.CameraTIFF("SONY", "ILCE-7C", "")),
+		"zero":        fixtures.JPEGWithEXIF(withOrientation(binary.LittleEndian, 0)),
+		"nine":        fixtures.JPEGWithEXIF(withOrientation(binary.LittleEndian, 9)),
+		"ascii value": fixtures.JPEGWithEXIF(fixtures.TIFF(binary.LittleEndian, map[uint16]any{fixtures.TagOrientation: "6"}, nil)),
+		"real file":   nil, // filled below
+	} {
+		if name == "real file" {
+			app1, err := os.ReadFile("testdata/sony-ilce7c-manual-lens.app1")
+			if err != nil {
+				t.Fatal(err)
+			}
+			img = append(append([]byte{0xFF, 0xD8}, app1...), fixtures.JPEG()[2:]...)
+		}
+		if got := orientation(img); got != 1 {
+			t.Errorf("%s: got %d, want 1", name, got)
+		}
+	}
+}
+
 // The real image must still decode after the EXIF segment is found, i.e. the
 // fixture is realistic; and the XMP APP1 segment that often precedes or
 // follows EXIF must be skipped rather than mistaken for it.

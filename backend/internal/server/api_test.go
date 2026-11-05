@@ -2,6 +2,7 @@ package server
 
 import (
 	"bytes"
+	"encoding/binary"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -12,6 +13,7 @@ import (
 	"strings"
 	"testing"
 
+	"backend/internal/exifmeta"
 	"backend/internal/testutil/fixtures"
 )
 
@@ -278,6 +280,10 @@ func TestUploadErrors(t *testing.T) {
 	expectError(t, app.upload(tok, "anim.gif", fixtures.GIF()), http.StatusBadRequest, "invalid_file_type")
 	expectError(t, app.upload(tok, "evil.jpg", []byte("<html><script>alert(1)</script></html>")), http.StatusBadRequest, "invalid_file_type")
 
+	// Sniffs as JPEG, but breaks off before any image data: its metadata can't
+	// be stripped safely, so it is refused rather than stored as is.
+	expectError(t, app.upload(tok, "cut.jpg", fixtures.JPEGWithEXIF(fixtures.CameraTIFF("SONY", "ILCE-7C", ""))[:40]), http.StatusBadRequest, "invalid_image")
+
 	// Over the file limit but within the body allowance: rejected by the service.
 	big := append(fixtures.JPEG(), make([]byte, 128<<10)...)
 	expectError(t, app.upload(tok, "big.jpg", big), http.StatusBadRequest, "file_too_large")
@@ -315,23 +321,89 @@ func TestUploadAtExactLimitSucceeds(t *testing.T) {
 }
 
 // Files bigger than the in-memory threshold are spooled to a temp file by
-// ParseMultipartForm; they must still be stored intact.
+// ParseMultipartForm, and metadata stripping reads from that file lazily.
+// The image must still be stored intact, minus its metadata.
 func TestUploadLargerThanMemoryThreshold(t *testing.T) {
 	app := newTestApp(t, appOptions{maxUploadBytes: 32 << 20})
 	_, tok := app.userWithToken("alice")
 
-	data := append(fixtures.JPEG(), bytes.Repeat([]byte{0xAB}, 12<<20)...)
-	rec := app.upload(tok, "large.jpg", data)
+	// ~12 MiB of ICC profile segments, which are kept (64 KiB max each).
+	jpeg := fixtures.JPEG()
+	data := append([]byte{}, jpeg[:2]...)
+	for i := 0; len(data) < 12<<20; i++ {
+		payload := append([]byte("ICC_PROFILE\x00"), bytes.Repeat([]byte{byte(i)}, 60000)...)
+		data = append(data, 0xFF, 0xE2, byte((len(payload)+2)>>8), byte(len(payload)+2))
+		data = append(data, payload...)
+	}
+	data = append(data, jpeg[2:]...)
+
+	// The upload is the same file with an EXIF segment, which must not be stored.
+	exif := append([]byte("Exif\x00\x00"), fixtures.CameraTIFF("SONY", "ILCE-7C", "")...)
+	upload := append([]byte{}, data[:2]...)
+	upload = append(upload, 0xFF, 0xE1, byte((len(exif)+2)>>8), byte(len(exif)+2))
+	upload = append(upload, exif...)
+	upload = append(upload, data[2:]...)
+
+	rec := app.upload(tok, "large.jpg", upload)
 	expectStatus(t, rec, http.StatusCreated)
 	var up struct {
-		ImagePath string `json:"image_path"`
+		ImagePath  string `json:"image_path"`
+		CameraBody string `json:"camera_body"`
 	}
 	decodeOne(t, rec, &up)
+	if up.CameraBody != "SONY ILCE-7C" {
+		t.Errorf("camera_body = %q", up.CameraBody)
+	}
 
 	rec = app.do(req{method: http.MethodGet, path: up.ImagePath})
 	expectStatus(t, rec, http.StatusOK)
 	if !bytes.Equal(rec.Body.Bytes(), data) {
-		t.Error("served bytes differ from uploaded bytes")
+		t.Errorf("served %d bytes, want the %d-byte image without its EXIF segment", rec.Body.Len(), len(data))
+	}
+}
+
+// The public GET /uploads must never hand out location or other metadata,
+// while the upload response still reports the gear it read before stripping.
+func TestServedUploadHasNoMetadata(t *testing.T) {
+	app := newTestApp(t)
+	_, tok := app.userWithToken("alice")
+
+	const gps = "GPS 35.6586N 139.7454E"
+	tiff := fixtures.TIFF(binary.LittleEndian,
+		map[uint16]any{fixtures.TagMake: "Apple", fixtures.TagModel: "iPhone 15 Pro", fixtures.TagImageDescription: gps, fixtures.TagOrientation: uint16(6)},
+		map[uint16]any{fixtures.TagLensModel: "iPhone 15 Pro back camera"},
+	)
+	for name, data := range map[string][]byte{
+		"photo.jpg":  fixtures.JPEGWithEXIF(tiff),
+		"photo.png":  fixtures.PNGWithEXIF(tiff),
+		"photo.webp": fixtures.WebPWithEXIF(tiff),
+	} {
+		t.Run(name, func(t *testing.T) {
+			rec := app.upload(tok, name, data)
+			expectStatus(t, rec, http.StatusCreated)
+			var up struct {
+				ImagePath  string `json:"image_path"`
+				CameraBody string `json:"camera_body"`
+				Lens       string `json:"lens"`
+			}
+			decodeOne(t, rec, &up)
+			if up.CameraBody != "Apple iPhone 15 Pro" || up.Lens != "iPhone 15 Pro back camera" {
+				t.Errorf("gear = %q / %q", up.CameraBody, up.Lens)
+			}
+
+			rec = app.do(req{method: http.MethodGet, path: up.ImagePath})
+			expectStatus(t, rec, http.StatusOK)
+			served := rec.Body.Bytes()
+			for _, s := range []string{gps, "iPhone", "Apple"} {
+				if bytes.Contains(served, []byte(s)) {
+					t.Errorf("served file still contains %q", s)
+				}
+			}
+			// Orientation is the one value kept, so the photo still displays upright.
+			if o := exifmeta.Orientation(bytes.NewReader(served), int64(len(served))); o != 6 {
+				t.Errorf("served orientation = %d, want 6", o)
+			}
+		})
 	}
 }
 

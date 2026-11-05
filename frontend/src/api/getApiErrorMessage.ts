@@ -68,6 +68,9 @@ export function getApiErrorMessage(
     case "invalid_file_type":
       return t.apiErrors.invalidFileType;
 
+    case "invalid_image":
+      return t.apiErrors.invalidImage;
+
     case "upload_failed":
       return t.apiErrors.uploadFailed;
 

@@ -36,6 +36,44 @@ func TestLocalStorage_RoundTrip(t *testing.T) {
 	}
 }
 
+func TestLocalStorage_SaveReplacesAndList(t *testing.T) {
+	dir := t.TempDir()
+	s := NewLocalStorage(dir)
+	ctx := context.Background()
+	save := func(name, body string) {
+		t.Helper()
+		if err := s.Save(ctx, memFile{bytes.NewReader([]byte(body))}, name, "image/jpeg"); err != nil {
+			t.Fatalf("Save(%q): %v", name, err)
+		}
+	}
+
+	if names, err := NewLocalStorage(filepath.Join(dir, "missing")).List(ctx); err != nil || len(names) != 0 {
+		t.Fatalf("List on a missing dir = %v, %v; want empty", names, err)
+	}
+
+	save("a.jpg", "a much longer original body")
+	save("b.png", "b")
+	save("a.jpg", "short") // replacing must not leave the old tail behind
+	if err := os.WriteFile(filepath.Join(dir, ".gitkeep"), nil, 0o644); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.Mkdir(filepath.Join(dir, "subdir"), 0o755); err != nil {
+		t.Fatal(err)
+	}
+
+	got, err := os.ReadFile(filepath.Join(dir, "a.jpg"))
+	if err != nil || string(got) != "short" {
+		t.Fatalf("a.jpg = %q, %v; want %q", got, err, "short")
+	}
+	names, err := s.List(ctx)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(names) != 2 || names[0] != "a.jpg" || names[1] != "b.png" {
+		t.Fatalf("List = %v, want [a.jpg b.png] (no dotfiles, dirs or temp files)", names)
+	}
+}
+
 func TestLocalStorage_RejectsNamesOutsideUploadDir(t *testing.T) {
 	root := t.TempDir()
 	dir := filepath.Join(root, "uploads")

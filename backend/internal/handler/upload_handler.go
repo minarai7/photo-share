@@ -95,6 +95,15 @@ func (h *UploadHandler) UploadImage(w http.ResponseWriter, r *http.Request) {
 			})
 			return
 
+		case errors.Is(err, service.ErrInvalidImage):
+			httpx.WriteJSON(w, http.StatusBadRequest, httpx.ErrorResponse{
+				Error: httpx.ErrorDetail{
+					Code:    "invalid_image",
+					Message: "image file is damaged or incomplete",
+				},
+			})
+			return
+
 		default:
 			httpx.WriteJSON(w, http.StatusInternalServerError, httpx.ErrorResponse{
 				Error: httpx.ErrorDetail{

@@ -161,6 +161,7 @@ export type TranslationDictionary = {
     imageRequired: string;
     fileTooLarge: string;
     invalidFileType: string;
+    invalidImage: string;
     uploadFailed: string;
     unknown: string;
   };

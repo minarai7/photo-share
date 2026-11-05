@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"mime/multipart"
 	"path"
+	"strings"
 
 	"github.com/aws/aws-sdk-go-v2/aws"
 	"github.com/aws/aws-sdk-go-v2/service/s3"
@@ -50,6 +51,28 @@ func (s *S3Storage) Save(
 	}
 
 	return nil
+}
+
+// List returns the names of all stored files (keys directly under uploads/).
+func (s *S3Storage) List(ctx context.Context) ([]string, error) {
+	var names []string
+	pages := s3.NewListObjectsV2Paginator(s.client, &s3.ListObjectsV2Input{
+		Bucket: aws.String(s.bucket),
+		Prefix: aws.String("uploads/"),
+	})
+	for pages.HasMorePages() {
+		page, err := pages.NextPage(ctx)
+		if err != nil {
+			return nil, fmt.Errorf("list S3 objects: %w", err)
+		}
+		for _, obj := range page.Contents {
+			name := strings.TrimPrefix(aws.ToString(obj.Key), "uploads/")
+			if name != "" && !strings.Contains(name, "/") {
+				names = append(names, name)
+			}
+		}
+	}
+	return names, nil
 }
 
 func (s *S3Storage) Open(

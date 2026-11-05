@@ -4,6 +4,7 @@ package service
 
 import (
 	"backend/internal/exifmeta"
+	"backend/internal/imagestrip"
 	"backend/internal/storage"
 	"context"
 	"crypto/rand"
@@ -19,6 +20,9 @@ var (
 	ErrFileRequired    = errors.New("file is required")
 	ErrFileTooLarge    = errors.New("file is too large")
 	ErrInvalidFileType = errors.New("invalid file type")
+	// ErrInvalidImage: the type is allowed but the file's structure is broken,
+	// so its metadata cannot be removed and it is not stored.
+	ErrInvalidImage = errors.New("invalid image")
 )
 
 type UploadService struct {
@@ -67,12 +71,22 @@ func (s *UploadService) SaveImage(ctx context.Context, file multipart.File, head
 		return nil, err
 	}
 
-	// ReadAt leaves the read offset alone, so storage still gets the whole file.
+	// Read the gear first: stripping removes it, along with GPS and every other
+	// piece of metadata, before the file becomes publicly downloadable.
 	gear := exifmeta.Read(file, header.Size)
+
+	stripped, err := imagestrip.Strip(file, header.Size)
+	if err != nil {
+		if errors.Is(err, imagestrip.ErrMalformed) || errors.Is(err, imagestrip.ErrUnsupported) {
+			return nil, ErrInvalidImage
+		}
+		return nil, err
+	}
 
 	filename := fmt.Sprintf("%d_%s%s", time.Now().UnixNano(), randomString(8), ext)
 
-	err = s.storage.Save(ctx, file, filename, contentType)
+	// stripped reads from file lazily, so large uploads are not copied into memory.
+	err = s.storage.Save(ctx, stripped, filename, contentType)
 	if err != nil {
 		return nil, err
 	}

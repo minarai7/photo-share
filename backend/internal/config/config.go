@@ -47,12 +47,26 @@ func getEnvInt64(key string, fallback int64) int64 {
 	return num
 }
 
+// MustLoad loads the server configuration and exits if it is unusable.
 func MustLoad() Config {
+	cfg := Load()
+	if cfg.DatabaseURL == "" {
+		log.Fatal("DATABASE_URL is required")
+	}
+	if cfg.StorageDriver == "s3" && cfg.S3BucketName == "" {
+		log.Fatal("S3_BUCKET_NAME is required when STORAGE_DRIVER=s3")
+	}
+	return cfg
+}
+
+// Load reads .env (if present) and the environment without validating, for
+// tools that need only part of the configuration (e.g. cmd/stripmeta).
+func Load() Config {
 	err := godotenv.Load()
 	if err != nil {
 		log.Println("No local .env file loaded; using environment variables")
 	}
-	cfg := Config{
+	return Config{
 		AppEnv:         getEnv("APP_ENV", "development"),
 		Port:           getEnv("PORT", "8080"),
 		DatabaseURL:    os.Getenv("DATABASE_URL"),
@@ -72,11 +86,4 @@ func MustLoad() Config {
 		OpenRouterAppURL:   getEnv("OPENROUTER_APP_URL", "http://localhost:5173"),
 		OpenRouterAppTitle: getEnv("OPENROUTER_APP_TITLE", "Photo Share Dev"),
 	}
-	if cfg.DatabaseURL == "" {
-		log.Fatal("DATABASE_URL is required")
-	}
-	if cfg.StorageDriver == "s3" && cfg.S3BucketName == "" {
-		log.Fatal("S3_BUCKET_NAME is required when STORAGE_DRIVER=s3")
-	}
-	return cfg
 }

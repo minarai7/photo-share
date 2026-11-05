@@ -26,12 +26,14 @@ type Gear struct {
 const MaxFieldRunes = 100
 
 const (
-	tagMake      = 0x010F
-	tagModel     = 0x0110
-	tagExifIFD   = 0x8769
-	tagLensModel = 0xA434
+	tagMake        = 0x010F
+	tagModel       = 0x0110
+	tagOrientation = 0x0112
+	tagExifIFD     = 0x8769
+	tagLensModel   = 0xA434
 
 	typeASCII = 2
+	typeShort = 3
 	typeLong  = 4
 	typeIFD   = 13
 
@@ -66,6 +68,24 @@ func extract(r io.ReaderAt, size int64) Gear {
 		CameraBody: cameraBody(tags.ascii[tagMake], tags.ascii[tagModel]),
 		Lens:       clean(tags.ascii[tagLensModel]),
 	}
+}
+
+// Orientation returns the EXIF Orientation of the image in r: 1 (upright,
+// also the answer when absent or invalid) through 8. Like Read, it never fails.
+func Orientation(r io.ReaderAt, size int64) (o int) {
+	defer func() {
+		if recover() != nil {
+			o = 1
+		}
+	}()
+	tiff := findEXIF(r, size)
+	if tiff == nil {
+		return 1
+	}
+	if v := parseTIFF(tiff).orientation; v >= 1 && v <= 8 {
+		return int(v)
+	}
+	return 1
 }
 
 // findEXIF returns the raw TIFF-structured EXIF block, or nil.
@@ -174,7 +194,8 @@ func readAt(r io.ReaderAt, size, off, n int64) []byte {
 }
 
 type tiffTags struct {
-	ascii map[uint16]string
+	ascii       map[uint16]string
+	orientation uint16
 }
 
 // parseTIFF collects the tags we care about from IFD0 and the Exif sub-IFD.
@@ -220,6 +241,10 @@ func readIFD(b []byte, bo binary.ByteOrder, off int64, tags *tiffTags, isIFD0 bo
 			// Only one level deep, so a self-referencing pointer cannot loop.
 			if isIFD0 && count == 1 && (typ == typeLong || typ == typeIFD) {
 				readIFD(b, bo, int64(bo.Uint32(value)), tags, false)
+			}
+		case tagOrientation:
+			if isIFD0 && typ == typeShort && count == 1 {
+				tags.orientation = bo.Uint16(value)
 			}
 		case tagMake, tagModel, tagLensModel:
 			if typ != typeASCII {

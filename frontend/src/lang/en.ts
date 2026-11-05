@@ -162,6 +162,7 @@ export const en: TranslationDictionary = {
     imageRequired: "Please select an image file.",
     fileTooLarge: "The image file is too large.",
     invalidFileType: "Only JPEG, PNG, and WebP images are allowed.",
+    invalidImage: "This image file is damaged or incomplete. Please try another file.",
     uploadFailed: "Could not upload the image. Please try again.",
     unknown: "Something went wrong. Please try again.",
   },

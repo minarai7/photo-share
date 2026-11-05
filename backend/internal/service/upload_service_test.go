@@ -3,6 +3,7 @@ package service_test
 import (
 	"bytes"
 	"context"
+	"encoding/base64"
 	"errors"
 	"io"
 	"mime/multipart"
@@ -83,7 +84,8 @@ func TestSaveImage_AcceptedTypes(t *testing.T) {
 				t.Errorf("no EXIF in fixture, but got camera %q lens %q", up.CameraBody, up.Lens)
 			}
 			name := m[1] + m[2]
-			// The service sniffs the first 512 bytes; it must rewind so storage gets the whole file.
+			// The service sniffs the first 512 bytes; it must rewind so storage gets the
+			// whole file. These fixtures carry no metadata, so stripping leaves them as is.
 			if !bytes.Equal(st.saved[name], tc.data) {
 				t.Errorf("stored %d bytes, want %d (file not rewound?)", len(st.saved[name]), len(tc.data))
 			}
@@ -129,6 +131,49 @@ func TestSaveImage_ReadsGearFromEXIF(t *testing.T) {
 				t.Errorf("got camera %q lens %q", up.CameraBody, up.Lens)
 			}
 		})
+	}
+}
+
+func TestSaveImage_StripsMetadataBeforeStoring(t *testing.T) {
+	st := newRecordingStorage()
+	svc := service.NewUploadService(st, 1<<20)
+	f, h := fileOf(fixtures.JPEGWithEXIF(fixtures.CameraTIFF("SONY", "ILCE-7C", "FE 35mm F1.8")))
+
+	up, err := svc.SaveImage(context.Background(), f, h)
+	if err != nil {
+		t.Fatalf("SaveImage: %v", err)
+	}
+	m := uploadPathRE.FindStringSubmatch(up.ImagePath)
+	stored := st.saved[m[1]+m[2]]
+	if bytes.Contains(stored, []byte("ILCE-7C")) || bytes.Contains(stored, []byte("Exif")) {
+		t.Error("stored file still has its EXIF data")
+	}
+	// The gear was read before stripping, so the caller still gets it.
+	if up.CameraBody != "SONY ILCE-7C" {
+		t.Errorf("camera = %q", up.CameraBody)
+	}
+}
+
+// The 1×1 JPEG the Playwright core-flow test uploads has no EOI marker;
+// browsers show such files, so they must keep being accepted.
+func TestSaveImage_AcceptsJPEGWithoutEOI(t *testing.T) {
+	tiny, _ := base64.StdEncoding.DecodeString("/9j/4AAQSkZJRgABAQEASABIAAD/2wBDAP//////////////////////////////////////////////////////////////////////////////////////wgALCAABAAEBAREA/8QAFBABAAAAAAAAAAAAAAAAAAAAAP/aAAgBAQABPxA=")
+	svc := service.NewUploadService(newRecordingStorage(), 1<<20)
+	f, h := fileOf(tiny)
+	if _, err := svc.SaveImage(context.Background(), f, h); err != nil {
+		t.Fatalf("SaveImage: %v", err)
+	}
+}
+
+func TestSaveImage_RejectsBrokenImage(t *testing.T) {
+	st := newRecordingStorage()
+	svc := service.NewUploadService(st, 1<<20)
+	f, h := fileOf(fixtures.JPEGWithEXIF(fixtures.CameraTIFF("SONY", "ILCE-7C", ""))[:40])
+	if _, err := svc.SaveImage(context.Background(), f, h); !errors.Is(err, service.ErrInvalidImage) {
+		t.Fatalf("got %v, want ErrInvalidImage", err)
+	}
+	if len(st.saved) != 0 {
+		t.Error("a file was stored")
 	}
 }
 

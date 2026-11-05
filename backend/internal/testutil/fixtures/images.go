@@ -48,18 +48,22 @@ func GIF() []byte {
 	return b.Bytes()
 }
 
-// WebP returns just enough of a RIFF/WEBP header for http.DetectContentType.
+// WebP returns a structurally valid RIFF/WEBP container (one VP8 chunk) with
+// no metadata. The VP8 payload is zeros: enough for content sniffing and
+// metadata stripping, not for decoding.
 func WebP() []byte {
-	b := []byte("RIFF\x24\x00\x00\x00WEBPVP8 ")
+	b := []byte("RIFF\x2C\x00\x00\x00WEBPVP8 \x20\x00\x00\x00")
 	return append(b, make([]byte, 32)...)
 }
 
 // EXIF tag numbers used by the fixtures.
 const (
-	TagMake        = 0x010F
-	TagModel       = 0x0110
-	TagOrientation = 0x0112
-	TagLensModel   = 0xA434
+	TagImageDescription = 0x010E
+	TagMake             = 0x010F
+	TagModel            = 0x0110
+	TagOrientation      = 0x0112
+	TagArtist           = 0x013B
+	TagLensModel        = 0xA434
 )
 
 // TIFF builds a TIFF-structured EXIF block (what follows "Exif\0\0") holding

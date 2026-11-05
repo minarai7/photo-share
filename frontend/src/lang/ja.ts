@@ -162,6 +162,7 @@ export const ja: TranslationDictionary = {
     imageRequired: "画像ファイルを選択してください。",
     fileTooLarge: "画像ファイルのサイズが大きすぎます。",
     invalidFileType: "JPEG、PNG、WebP形式の画像のみアップロードできます。",
+    invalidImage: "画像ファイルが破損しているか不完全です。別のファイルをお試しください。",
     uploadFailed: "画像のアップロードに失敗しました。もう一度お試しください。",
     unknown: "エラーが発生しました。もう一度お試しください。",
   },

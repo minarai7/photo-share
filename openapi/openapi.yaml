@@ -307,6 +307,11 @@ paths:
         larger files are rejected with `400 file_too_large`.
         The camera and lens recorded in the photo's EXIF data (if any) are
         returned so clients can fill in post fields the user left blank.
+        The stored (and publicly served) file has its metadata removed: EXIF
+        including GPS, XMP, IPTC, comments and data after the image. The image
+        data is not re-encoded; only the EXIF Orientation is kept. A file that
+        has the right type but a broken structure is rejected with
+        `400 invalid_image`.
       operationId: uploadImage
       requestBody:
         required: true
