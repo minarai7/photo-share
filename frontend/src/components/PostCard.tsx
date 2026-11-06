@@ -15,9 +15,11 @@ type PostCardProps = {
     post: Post;
     showAuthor?: boolean;
     returnTo?: ReturnTo;
+    /** Load the image right away; for the cards on the first screen. */
+    eager?: boolean;
 }
 
-export function PostCard({ post, showAuthor = true, returnTo }: PostCardProps) {
+export function PostCard({ post, showAuthor = true, returnTo, eager = false }: PostCardProps) {
     const { t, language } = useLanguage();
     const createdAt = new Date(post.created_at).toLocaleString(
         getLocaleFromLanguage(language)
@@ -28,12 +30,15 @@ export function PostCard({ post, showAuthor = true, returnTo }: PostCardProps) {
             <Link
                 to={`/posts/${post.id}`}
                 className="post-card-image-link"
-                state={{ returnTo }}
+                // The detail page renders this post at once and refreshes it in the background.
+                state={{ returnTo, post }}
             >
                 <img
                     src={getImageUrl(post.image_path)}
                     alt={post.caption || t.posts.postImageAlt}
                     className="post-card-image"
+                    loading={eager ? "eager" : "lazy"}
+                    decoding="async"
                 />
             </Link>
 

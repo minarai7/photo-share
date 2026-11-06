@@ -4,6 +4,7 @@ import { PostCard } from "../components/PostCard";
 import type { GetPostsResponse } from "../types/post";
 import { useLanguage } from "../lang/useLanguage";
 import { useApiErrorMessage } from "../hooks/useApiErrorMessage";
+import { EAGER_GRID_IMAGES } from "../config/images";
 
 export function FeedPage() {
     const { t } = useLanguage();
@@ -75,10 +76,11 @@ export function FeedPage() {
                 <p className="feed-status">{t.posts.noPosts}</p>
             ) : (
                 <div className="post-grid">
-                    {posts.map((post) => (
+                    {posts.map((post, index) => (
                         <PostCard
                             key={post.id}
                             post={post}
+                            eager={index < EAGER_GRID_IMAGES}
                             returnTo={{
                                 pathname: "/",
                                 labelKey: "backToFeed",

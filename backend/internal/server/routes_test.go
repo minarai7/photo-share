@@ -131,6 +131,10 @@ func TestCORS(t *testing.T) {
 	if got := h.Get("Access-Control-Allow-Origin"); got != testOrigin {
 		t.Errorf("allowed origin: Access-Control-Allow-Origin = %q, want %q", got, testOrigin)
 	}
+	// Without Max-Age, Chrome re-sends the preflight after 5 s.
+	if got := h.Get("Access-Control-Max-Age"); got != "7200" {
+		t.Errorf("Access-Control-Max-Age = %q, want 7200", got)
+	}
 
 	h = preflight("https://evil.example")
 	if got := h.Get("Access-Control-Allow-Origin"); got != "" {

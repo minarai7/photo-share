@@ -83,6 +83,8 @@ func NewHandler(d Deps) http.Handler {
 	return WrapMiddleware(NewMux(d), d.FrontendOrigin)
 }
 
+const corsMaxAgeSeconds = 7200
+
 // WrapMiddleware applies the global middleware chain to any handler.
 func WrapMiddleware(h http.Handler, frontendOrigin string) http.Handler {
 	corsMiddleware := cors.New(cors.Options{
@@ -90,6 +92,9 @@ func WrapMiddleware(h http.Handler, frontendOrigin string) http.Handler {
 		AllowedMethods:   []string{"GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"},
 		AllowedHeaders:   []string{"Content-Type", "Authorization"},
 		AllowCredentials: true,
+		// Let browsers cache a preflight for 2 h (Chrome's cap) instead of the
+		// 5 s default; frontend and API are on different origins in prod.
+		MaxAge: corsMaxAgeSeconds,
 	})
 
 	return middleware.Recovery(

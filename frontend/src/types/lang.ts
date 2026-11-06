@@ -82,7 +82,6 @@ export type TranslationDictionary = {
     loadPostFailed: string;
     updatePostFailed: string;
     deletePostFailed: string;
-    postNotFound: string;
     postIdMissing: string;
     invalidPostId: string;
     deleteConfirm: string;

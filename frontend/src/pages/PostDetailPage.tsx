@@ -2,6 +2,7 @@ import { useEffect, useState, type SubmitEvent  } from "react";
 import { Link, useParams, useLocation, useNavigate } from "react-router";
 import { getImageUrl } from "../utils/imageUrl";
 import { deletePostById, getPostById, updatePostById } from "../api/postsApi";
+import { ApiError } from "../api/apiError";
 import type { Post, UpdatePostRequest } from "../types/post";
 import { useAuth } from "../auth/useAuth";
 import { FormField } from "../components/FormField";
@@ -41,9 +42,26 @@ export function PostDetailPage() {
         labelKey: "backToFeed",
     };
 
-    const [post, setPost] = useState<Post | null>(null);
+    // Validate the URL param during render; the effect only fetches.
+    const numericPostId = postId ? Number(postId) : NaN;
+    const idError = !postId
+        ? t.posts.postIdMissing
+        : Number.isNaN(numericPostId)
+            ? t.posts.invalidPostId
+            : null;
 
-    const [isLoading, setIsLoading] = useState(true);
+    // A PostCard passes the post it showed, so the page can render at once.
+    // Deep links and new tabs have no state and show the loading state.
+    const statePost: Post | undefined = location.state?.post;
+    const previewPost = statePost?.id === numericPostId ? statePost : null;
+    const hasPreview = previewPost !== null;
+
+    // The latest copy from the API or from a save. It wins over the preview,
+    // so re-running the fetch effect (e.g. on a language switch) can only
+    // refresh the post, never put the older router-state copy back.
+    const [loadedPost, setLoadedPost] = useState<Post | null>(null);
+    const post = loadedPost?.id === numericPostId ? loadedPost : previewPost;
+
     const [error, setError] = useState<string | null>(null);
 
     const [isEditing, setIsEditing] = useState(false);
@@ -58,41 +76,42 @@ export function PostDetailPage() {
     const [cameraBody, setCameraBody] = useState("");
     const [lens, setLens] = useState("");
 
-    // Validate the URL param during render; the effect only fetches.
-    const numericPostId = postId ? Number(postId) : NaN;
-    const idError = !postId
-        ? t.posts.postIdMissing
-        : Number.isNaN(numericPostId)
-            ? t.posts.invalidPostId
-            : null;
-
     useEffect(() => {
         if (idError) {
             return
         }
 
+        let isMounted = true;
+
         async function loadPost() {
             try {
-                setIsLoading(true);
                 setError(null);
-
                 const post = await getPostById(numericPostId);
-                setPost(post);
+                if (isMounted) {
+                    setLoadedPost(post);
+                }
             }  catch (err) {
+                // A failed background refresh keeps the post on screen, unless
+                // the post is gone (deleted since the feed loaded).
+                if (isMounted && (!hasPreview || (err instanceof ApiError && err.status === 404))) {
                     setError(
                         toApiErrorMessage(err, {
                             fallbackMessage: t.posts.loadPostFailed,
                         })
                     );
-            } finally {
-                setIsLoading(false);
+                }
             }
         }
 
         loadPost();
+
+        return () => {
+            isMounted = false;
+        };
     }, [
         idError,
         numericPostId,
+        hasPreview,
         t.posts.loadPostFailed,
         toApiErrorMessage
     ]);
@@ -157,8 +176,16 @@ export function PostDetailPage() {
 
             const updatedPost = await updatePostById(numericPostId, data)
 
-            setPost(updatedPost);
+            setLoadedPost(updatedPost);
             setIsEditing(false);
+            // Keep the history entry in step, so Back to this page or a reload
+            // previews the edited post rather than the one the feed passed in.
+            if (hasPreview) {
+                navigate(
+                    { pathname: location.pathname, search: location.search, hash: location.hash },
+                    { replace: true, state: { ...location.state, post: updatedPost } },
+                );
+            }
         } catch (err) {
             setEditError(
                 toApiErrorMessage(err, {
@@ -212,23 +239,14 @@ export function PostDetailPage() {
         )
     }
 
-    if (isLoading) {
+    // No post yet and no error: the first fetch is still in flight (there was
+    // no matching post in the router state). A missing post arrives as a 404 error.
+    if (!post) {
         return (
             <main className="page">
                 <p>{t.posts.loadingPost}</p>
             </main>
         )
-    }
-
-    if (!post) {
-        return (
-            <main className="page">
-                <p>{t.posts.postNotFound}</p>
-                <Link to={returnTo.pathname}>
-                    {getReturnToLabel(returnTo.labelKey)}
-                </Link>
-            </main>
-        );
     }
 
     const isOwner = user?.id === post.user_id;
@@ -244,6 +262,8 @@ export function PostDetailPage() {
                 className="post-detail-image"
                 src={getImageUrl(post.image_path)}
                 alt={post.caption || t.posts.postImageAlt}
+                // The page's main image (its LCP element): fetch it first.
+                fetchPriority="high"
             />
 
             <div className="post-detail-content">

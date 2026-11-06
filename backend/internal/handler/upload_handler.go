@@ -7,7 +7,9 @@ import (
 	"io"
 	"net/http"
 	"path"
+	"strconv"
 	"strings"
+	"time"
 )
 
 type UploadHandler struct {
@@ -152,14 +154,78 @@ func (h *UploadHandler) Get(w http.ResponseWriter, r *http.Request) {
 	}
 	defer file.Body.Close()
 
+	hdr := w.Header()
 	if file.ContentType != "" {
-		w.Header().Set(
-			"Content-Type",
-			file.ContentType,
-		)
+		hdr.Set("Content-Type", file.ContentType)
+	}
+	hdr.Set("Cache-Control", uploadCacheControl)
+	if file.ETag != "" {
+		hdr.Set("ETag", file.ETag)
 	}
 
+	// Local files: ServeContent sets Content-Length and Last-Modified and
+	// answers If-None-Match / If-Modified-Since (304) and Range (206) itself.
+	if rs, ok := file.Body.(io.ReadSeeker); ok {
+		http.ServeContent(w, r, filename, file.LastModified, rs)
+		return
+	}
+
+	// S3 bodies can't seek, so pass the metadata through and handle the
+	// conditional request here. No Range support on this path.
+	if !file.LastModified.IsZero() {
+		hdr.Set("Last-Modified", file.LastModified.UTC().Format(http.TimeFormat))
+	}
+	if notModified(r, file.ETag, file.LastModified) {
+		hdr.Del("Content-Type")
+		w.WriteHeader(http.StatusNotModified)
+		return
+	}
+	if file.ContentLength > 0 {
+		hdr.Set("Content-Length", strconv.FormatInt(file.ContentLength, 10))
+	}
+	if r.Method == http.MethodHead {
+		return
+	}
 	if _, err := io.Copy(w, file.Body); err != nil {
 		return
 	}
+}
+
+// uploadCacheControl lets browsers keep an image forever: stored filenames are
+// unique (<unixnano>_<random8><ext>) and never reused for different content.
+// cmd/stripmeta -apply does rewrite files in place, so run any backfill before
+// a deploy that turns this on, or clients keep the copies with metadata.
+const uploadCacheControl = "public, max-age=31536000, immutable"
+
+// notModified evaluates If-None-Match, or If-Modified-Since when that header
+// is absent (RFC 9110 §13.2.2), for a GET/HEAD of a file with the given
+// validators.
+func notModified(r *http.Request, etag string, lastModified time.Time) bool {
+	if inm := r.Header.Get("If-None-Match"); inm != "" {
+		if etag == "" {
+			return false
+		}
+		for candidate := range strings.SplitSeq(inm, ",") {
+			candidate = strings.TrimSpace(candidate)
+			if candidate == "*" || weakETag(candidate) == weakETag(etag) {
+				return true
+			}
+		}
+		return false
+	}
+
+	ims := r.Header.Get("If-Modified-Since")
+	if ims == "" || lastModified.IsZero() {
+		return false
+	}
+	t, err := http.ParseTime(ims)
+	if err != nil {
+		return false
+	}
+	return !lastModified.Truncate(time.Second).After(t)
+}
+
+// weakETag drops the W/ prefix: If-None-Match uses weak comparison.
+func weakETag(tag string) string {
+	return strings.TrimPrefix(tag, "W/")
 }

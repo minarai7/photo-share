@@ -7,6 +7,7 @@ import type { GetPostsResponse } from "../types/post";
 import { getUserById } from "../api";
 import { useLanguage } from "../lang/useLanguage";
 import { useApiErrorMessage } from "../hooks/useApiErrorMessage";
+import { EAGER_GRID_IMAGES } from "../config/images";
 
 export function ProfilePage() {
   const { t } = useLanguage();
@@ -115,10 +116,11 @@ export function ProfilePage() {
         </>
       ) : (
         <div className="post-grid">
-          {posts.map((post) => (
+          {posts.map((post, index) => (
             <PostCard
               key={post.id}
               post={post}
+              eager={index < EAGER_GRID_IMAGES}
               showAuthor={false}
               returnTo={{
                 pathname: `/users/${userId}`,

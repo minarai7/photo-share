@@ -5,9 +5,11 @@ import (
 	"context"
 	"errors"
 	"io"
+	"io/fs"
 	"os"
 	"path/filepath"
 	"testing"
+	"time"
 )
 
 type memFile struct{ *bytes.Reader }
@@ -33,6 +35,26 @@ func TestLocalStorage_RoundTrip(t *testing.T) {
 	}
 	if f.ContentType != "image/jpeg" {
 		t.Errorf("content type = %q", f.ContentType)
+	}
+	if f.ContentLength != int64(len(data)) {
+		t.Errorf("content length = %d, want %d", f.ContentLength, len(data))
+	}
+	if f.LastModified.IsZero() || time.Since(f.LastModified) > time.Hour {
+		t.Errorf("last modified = %v, want about now", f.LastModified)
+	}
+	// The upload handler relies on this for http.ServeContent (304/Range).
+	if _, ok := f.Body.(io.ReadSeeker); !ok {
+		t.Errorf("local body %T is not an io.ReadSeeker", f.Body)
+	}
+}
+
+func TestLocalStorage_OpenDirectoryIsNotFound(t *testing.T) {
+	dir := t.TempDir()
+	if err := os.Mkdir(filepath.Join(dir, "subdir"), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := NewLocalStorage(dir).Open(context.Background(), "subdir"); !errors.Is(err, fs.ErrNotExist) {
+		t.Fatalf("Open(dir) err = %v, want fs.ErrNotExist", err)
 	}
 }
 

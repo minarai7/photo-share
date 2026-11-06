@@ -93,13 +93,20 @@ func (s *S3Storage) Open(
 		return nil, fmt.Errorf("get object from S3: %w", err)
 	}
 
-	contentType := ""
-	if result.ContentType != nil {
-		contentType = *result.ContentType
-	}
+	return storedFileFromS3(result), nil
+}
 
-	return &StoredFile{
-		Body:        result.Body,
-		ContentType: contentType,
-	}, nil
+// storedFileFromS3 copies the metadata the handler passes on to the client
+// (size, ETag, Last-Modified) out of a GetObject response.
+func storedFileFromS3(result *s3.GetObjectOutput) *StoredFile {
+	f := &StoredFile{
+		Body:          result.Body,
+		ContentType:   aws.ToString(result.ContentType),
+		ContentLength: aws.ToInt64(result.ContentLength),
+		ETag:          aws.ToString(result.ETag),
+	}
+	if result.LastModified != nil {
+		f.LastModified = *result.LastModified
+	}
+	return f
 }

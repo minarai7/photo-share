@@ -82,7 +82,6 @@ export const en: TranslationDictionary = {
   loadPostFailed: "Failed to load post.",
   updatePostFailed: "Failed to update post.",
   deletePostFailed: "Failed to delete post.",
-  postNotFound: "Post not found.",
   postIdMissing: "Post ID is missing.",
   invalidPostId: "Invalid post ID.",
   deleteConfirm: "Delete this post? This action cannot be undone.",

@@ -37,7 +37,8 @@ export function renderApp(route: InitialEntry = "/", { language = "en" as Langua
     user,
     ...utils,
     currentPath: () => utils.getByTestId("location").textContent,
-    /** Client-side navigation, like clicking a <Link>. */
-    navigate: (to: string) => act(() => void navigateFn!(to)),
+    /** Client-side navigation, like clicking a <Link>; a number moves through history (-1 = Back). */
+    navigate: (to: string | number) =>
+      act(() => void (typeof to === "number" ? navigateFn!(to) : navigateFn!(to))),
   };
 }

@@ -2,7 +2,8 @@ import { vi } from "vitest";
 import { API } from "./fixtures";
 
 type Reply = { status: number; body?: unknown };
-type Handler = Reply | ((call: RecordedCall) => Reply);
+/** A function handler may return a promise, to hold a response back (see deferred()). */
+type Handler = Reply | ((call: RecordedCall) => Reply | Promise<Reply>);
 
 export type RecordedCall = {
   method: string;
@@ -18,6 +19,20 @@ export const apiError = (status: number, code: string, message = code): Reply =>
   status,
   body: { error: { code, message } },
 });
+
+/**
+ * A reply the test sends later, for asserting what shows while a request is in flight:
+ *
+ *   const refresh = deferred();
+ *   mockApi({ "GET /posts/10": refresh.handler });
+ *   ...
+ *   await act(async () => refresh.resolve(ok(post)));
+ */
+export function deferred() {
+  let resolve!: (reply: Reply) => void;
+  const promise = new Promise<Reply>((r) => (resolve = r));
+  return { handler: () => promise, resolve };
+}
 
 /**
  * Replaces global fetch with a route table keyed by "METHOD /path".
@@ -50,7 +65,7 @@ export function mockApi(routes: Record<string, Handler>) {
     if (!handler) {
       throw new Error(`mockApi: no route for ${key}. Known: ${Object.keys(routes).join(", ")}`);
     }
-    const reply = typeof handler === "function" ? handler(call) : handler;
+    const reply = typeof handler === "function" ? await handler(call) : handler;
     const body = reply.status === 204 || reply.body === undefined ? null : JSON.stringify(reply.body);
     return new Response(body, {
       status: reply.status,

@@ -31,7 +31,8 @@ const testOrigin = "http://frontend.test"
 
 type appOptions struct {
 	maxUploadBytes int64
-	aiBaseURL      string // empty → AI not configured
+	aiBaseURL      string          // empty → AI not configured
+	storage        storage.Storage // nil → LocalStorage in a temp dir
 }
 
 func newTestApp(t *testing.T, opts ...appOptions) *testApp {
@@ -42,10 +43,14 @@ func newTestApp(t *testing.T, opts ...appOptions) *testApp {
 			o.maxUploadBytes = opts[0].maxUploadBytes
 		}
 		o.aiBaseURL = opts[0].aiBaseURL
+		o.storage = opts[0].storage
 	}
 
 	store := memstore.New()
 	uploadDir := filepath.Join(t.TempDir(), "uploads")
+	if o.storage == nil {
+		o.storage = storage.NewLocalStorage(uploadDir)
+	}
 	auth := service.NewAuthService(store.Users(), "test-secret")
 
 	aiKey := ""
@@ -58,7 +63,7 @@ func newTestApp(t *testing.T, opts ...appOptions) *testApp {
 		MaxUploadBytes:      o.maxUploadBytes,
 		AuthService:         auth,
 		PostService:         service.NewPostService(store.Posts()),
-		UploadService:       service.NewUploadService(storage.NewLocalStorage(uploadDir), o.maxUploadBytes),
+		UploadService:       service.NewUploadService(o.storage, o.maxUploadBytes),
 		AIService:           service.NewAIService(service.AIConfig{APIKey: aiKey, BaseURL: o.aiBaseURL, Model: "test/model"}),
 		UserSettingsService: service.NewUserSettingsService(store.Users()),
 	})

@@ -114,12 +114,24 @@ func (s *LocalStorage) Open(
 		return nil, err
 	}
 
+	info, err := file.Stat()
+	if err != nil {
+		file.Close()
+		return nil, err
+	}
+	if !info.Mode().IsRegular() {
+		file.Close()
+		return nil, fs.ErrNotExist
+	}
+
 	contentType := mime.TypeByExtension(
 		filepath.Ext(filename),
 	)
 
 	return &StoredFile{
-		Body:        file,
-		ContentType: contentType,
+		Body:          file,
+		ContentType:   contentType,
+		ContentLength: info.Size(),
+		LastModified:  info.ModTime(),
 	}, nil
 }

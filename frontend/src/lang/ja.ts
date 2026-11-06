@@ -82,7 +82,6 @@ export const ja: TranslationDictionary = {
     loadPostFailed: "投稿を読み込めませんでした。",
     updatePostFailed: "投稿を更新できませんでした。",
     deletePostFailed: "投稿を削除できませんでした。",
-    postNotFound: "投稿が見つかりません。",
     postIdMissing: "投稿IDが見つかりません。",
     invalidPostId: "投稿IDが正しくありません。",
     deleteConfirm: "この投稿を削除しますか？この操作は取り消せません。",
