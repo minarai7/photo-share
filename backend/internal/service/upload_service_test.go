@@ -4,10 +4,14 @@ import (
 	"bytes"
 	"context"
 	"encoding/base64"
+	"encoding/binary"
 	"errors"
+	"image"
+	_ "image/jpeg"
 	"io"
 	"mime/multipart"
 	"regexp"
+	"strings"
 	"testing"
 
 	"backend/internal/service"
@@ -27,6 +31,8 @@ type recordingStorage struct {
 	saved       map[string][]byte
 	contentType map[string]string
 	err         error
+	// errFor, when set, fails only the saves it returns true for.
+	errFor func(name string) bool
 }
 
 func newRecordingStorage() *recordingStorage {
@@ -36,6 +42,9 @@ func newRecordingStorage() *recordingStorage {
 func (s *recordingStorage) Save(_ context.Context, f multipart.File, name, ct string) error {
 	if s.err != nil {
 		return s.err
+	}
+	if s.errFor != nil && s.errFor(name) {
+		return errors.New("storage refused " + name)
 	}
 	b, err := io.ReadAll(f)
 	if err != nil {
@@ -188,6 +197,148 @@ func TestSaveImage_ManualLensPlaceholderIsDropped(t *testing.T) {
 	}
 	if up.CameraBody != "SONY ILCE-7C" || up.Lens != "" {
 		t.Errorf("got camera %q lens %q, want camera only", up.CameraBody, up.Lens)
+	}
+}
+
+// savedThumbnail checks that up has a thumbnail stored as a JPEG next to the
+// original, and returns its bytes and decoded image.
+func savedThumbnail(t *testing.T, st *recordingStorage, up *service.UploadedImage) ([]byte, image.Image) {
+	t.Helper()
+	if want := service.ThumbnailPathFor(up.ImagePath); up.ThumbnailPath != want {
+		t.Fatalf("thumbnail path = %q, want %q", up.ThumbnailPath, want)
+	}
+	m := uploadPathRE.FindStringSubmatch(up.ImagePath)
+	name := m[1] + "_w800.jpg"
+	if up.ThumbnailPath != "/uploads/"+name {
+		t.Fatalf("thumbnail path = %q, want /uploads/%s", up.ThumbnailPath, name)
+	}
+	data, ok := st.saved[name]
+	if !ok {
+		t.Fatalf("no thumbnail stored as %s (stored: %v)", name, keys(st.saved))
+	}
+	if ct := st.contentType[name]; ct != "image/jpeg" {
+		t.Errorf("thumbnail content type = %q", ct)
+	}
+	img, format, err := image.Decode(bytes.NewReader(data))
+	if err != nil || format != "jpeg" {
+		t.Fatalf("thumbnail is not a JPEG (%q): %v", format, err)
+	}
+	return data, img
+}
+
+func keys(m map[string][]byte) []string {
+	var ks []string
+	for k := range m {
+		ks = append(ks, k)
+	}
+	return ks
+}
+
+func TestSaveImage_StoresThumbnail(t *testing.T) {
+	cases := []struct {
+		name   string
+		data   []byte
+		tw, th int
+	}{
+		{"jpeg", fixtures.EncodeJPEG(fixtures.Gradient(2000, 1000)), 800, 400},
+		{"png", fixtures.EncodePNG(fixtures.Gradient(1200, 900)), 800, 600},
+		{"webp", fixtures.DecodableWebP(), 64, 48}, // small: not upscaled
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			st := newRecordingStorage()
+			svc := service.NewUploadService(st, 1<<20)
+			f, h := fileOf(tc.data)
+
+			up, err := svc.SaveImage(context.Background(), f, h)
+			if err != nil {
+				t.Fatalf("SaveImage: %v", err)
+			}
+			_, img := savedThumbnail(t, st, up)
+			if b := img.Bounds(); b.Dx() != tc.tw || b.Dy() != tc.th {
+				t.Errorf("thumbnail is %dx%d, want %dx%d", b.Dx(), b.Dy(), tc.tw, tc.th)
+			}
+			if len(st.saved) != 2 {
+				t.Errorf("stored %v, want the original and its thumbnail", keys(st.saved))
+			}
+		})
+	}
+}
+
+// A phone photo held upright is stored landscape with Orientation 6. The
+// thumbnail has no EXIF to carry that, so it must be turned in the pixels.
+func TestSaveImage_ThumbnailAppliesOrientation(t *testing.T) {
+	tiff := fixtures.TIFF(binary.LittleEndian, map[uint16]any{fixtures.TagOrientation: uint16(6)}, nil)
+	data := fixtures.AddJPEGEXIF(fixtures.EncodeJPEG(fixtures.Gradient(1600, 1200)), tiff)
+	st := newRecordingStorage()
+	svc := service.NewUploadService(st, 1<<20)
+	f, h := fileOf(data)
+
+	up, err := svc.SaveImage(context.Background(), f, h)
+	if err != nil {
+		t.Fatalf("SaveImage: %v", err)
+	}
+	_, img := savedThumbnail(t, st, up)
+	if b := img.Bounds(); b.Dx() != 800 || b.Dy() != 1067 {
+		t.Errorf("thumbnail is %dx%d, want portrait 800x1067", b.Dx(), b.Dy())
+	}
+}
+
+func TestSaveImage_ThumbnailHasNoMetadata(t *testing.T) {
+	const gps = "GPS 35.6586N 139.7454E"
+	tiff := fixtures.TIFF(binary.LittleEndian,
+		map[uint16]any{fixtures.TagMake: "SONY", fixtures.TagModel: "ILCE-7C", fixtures.TagImageDescription: gps, fixtures.TagOrientation: uint16(3)}, nil)
+	jpg := fixtures.AddJPEGEXIF(fixtures.EncodeJPEG(fixtures.Gradient(64, 48)), tiff)
+	// Plus an XMP packet, as Lightroom and phones write.
+	xmp := append([]byte("http://ns.adobe.com/xap/1.0/\x00"), `<x:xmpmeta><rdf:Description photoshop:City="Kyoto"/></x:xmpmeta>`...)
+	seg := append([]byte{0xFF, 0xE1, byte((len(xmp) + 2) >> 8), byte(len(xmp) + 2)}, xmp...)
+	data := append(append(append([]byte{}, jpg[:2]...), seg...), jpg[2:]...)
+
+	st := newRecordingStorage()
+	svc := service.NewUploadService(st, 1<<20)
+	f, h := fileOf(data)
+	up, err := svc.SaveImage(context.Background(), f, h)
+	if err != nil {
+		t.Fatalf("SaveImage: %v", err)
+	}
+	thumb, _ := savedThumbnail(t, st, up)
+	for _, s := range []string{"Exif", "SONY", "ILCE-7C", gps, "ns.adobe.com", "Kyoto"} {
+		if bytes.Contains(thumb, []byte(s)) {
+			t.Errorf("thumbnail contains %q", s)
+		}
+	}
+}
+
+// Thumbnails are best-effort: the upload must succeed without one.
+func TestSaveImage_SucceedsWhenThumbnailFails(t *testing.T) {
+	cases := []struct {
+		name   string
+		data   []byte
+		errFor func(string) bool
+	}{
+		{"undecodable webp", fixtures.WebP(), nil},
+		{"animated webp", fixtures.AnimatedWebP(), nil},
+		{"storage refuses the thumbnail", fixtures.JPEG(), func(name string) bool { return strings.HasSuffix(name, "_w800.jpg") }},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			st := newRecordingStorage()
+			st.errFor = tc.errFor
+			svc := service.NewUploadService(st, 1<<20)
+			f, h := fileOf(tc.data)
+
+			up, err := svc.SaveImage(context.Background(), f, h)
+			if err != nil {
+				t.Fatalf("SaveImage: %v", err)
+			}
+			if up.ThumbnailPath != "" {
+				t.Errorf("thumbnail path = %q, want none", up.ThumbnailPath)
+			}
+			m := uploadPathRE.FindStringSubmatch(up.ImagePath)
+			if _, ok := st.saved[m[1]+m[2]]; !ok || len(st.saved) != 1 {
+				t.Errorf("stored %v, want only the original", keys(st.saved))
+			}
+		})
 	}
 }
 

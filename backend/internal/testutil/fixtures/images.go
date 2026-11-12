@@ -3,6 +3,7 @@ package fixtures
 
 import (
 	"bytes"
+	_ "embed"
 	"encoding/binary"
 	"fmt"
 	"hash/crc32"
@@ -54,6 +55,65 @@ func GIF() []byte {
 func WebP() []byte {
 	b := []byte("RIFF\x2C\x00\x00\x00WEBPVP8 \x20\x00\x00\x00")
 	return append(b, make([]byte, 32)...)
+}
+
+// Real WebP files, made with Pillow (Go has no WebP encoder).
+var (
+	//go:embed testdata/photo.webp
+	decodableWebP []byte
+	//go:embed testdata/transparent.webp
+	transparentWebP []byte
+	//go:embed testdata/animated.webp
+	animatedWebP []byte
+	//go:embed testdata/progressive.jpg
+	progressiveJPEG []byte
+	//go:embed testdata/cmyk.jpg
+	cmykJPEG []byte
+)
+
+// CMYKJPEG is a 480×320 four-component (CMYK) JPEG with an Adobe APP14
+// marker, as Photoshop writes them (made with Pillow).
+func CMYKJPEG() []byte { return bytes.Clone(cmykJPEG) }
+
+// ProgressiveJPEG is a 960×640 progressive JPEG with 4:2:0 chroma (made with
+// Pillow; Go's encoder only writes baseline).
+func ProgressiveJPEG() []byte { return bytes.Clone(progressiveJPEG) }
+
+// DecodableWebP is a lossy 64×48 WebP that decodes, unlike WebP().
+func DecodableWebP() []byte { return bytes.Clone(decodableWebP) }
+
+// TransparentWebP is a lossless 16×16 WebP whose pixels are all transparent.
+func TransparentWebP() []byte { return bytes.Clone(transparentWebP) }
+
+// AnimatedWebP is a two-frame 16×16 animated WebP.
+func AnimatedWebP() []byte { return bytes.Clone(animatedWebP) }
+
+// Gradient is a w×h opaque image whose colour depends on the position.
+func Gradient(w, h int) image.Image {
+	img := image.NewRGBA(image.Rect(0, 0, w, h))
+	for y := range h {
+		for x := range w {
+			img.Set(x, y, color.RGBA{uint8(x * 255 / max(w-1, 1)), uint8(y * 255 / max(h-1, 1)), 128, 255})
+		}
+	}
+	return img
+}
+
+// EncodeJPEG and EncodePNG encode img, panicking on failure.
+func EncodeJPEG(img image.Image) []byte {
+	var b bytes.Buffer
+	if err := jpeg.Encode(&b, img, nil); err != nil {
+		panic(err)
+	}
+	return b.Bytes()
+}
+
+func EncodePNG(img image.Image) []byte {
+	var b bytes.Buffer
+	if err := png.Encode(&b, img); err != nil {
+		panic(err)
+	}
+	return b.Bytes()
 }
 
 // EXIF tag numbers used by the fixtures.
@@ -163,7 +223,12 @@ func CameraTIFF(mk, model, lens string) []byte {
 // JPEGWithEXIF returns JPEG() with an APP1 EXIF segment holding tiff,
 // placed after an APP0 segment as cameras do.
 func JPEGWithEXIF(tiff []byte) []byte {
-	img := JPEG()
+	return AddJPEGEXIF(JPEG(), tiff)
+}
+
+// AddJPEGEXIF returns the JPEG img with an APP0 and an APP1 EXIF segment
+// holding tiff inserted after its SOI.
+func AddJPEGEXIF(img, tiff []byte) []byte {
 	app0 := []byte("\xFF\xE0\x00\x10JFIF\x00\x01\x01\x00\x00\x01\x00\x01\x00\x00")
 	payload := append([]byte("Exif\x00\x00"), tiff...)
 	app1 := []byte{0xFF, 0xE1, 0, 0}

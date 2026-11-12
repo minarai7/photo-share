@@ -156,6 +156,7 @@ export const ja: TranslationDictionary = {
     listPostsFailed: "投稿を読み込めませんでした。もう一度お試しください。",
     unauthorized: "もう一度ログインしてください。",
     createPostFailed: "投稿を作成できませんでした。入力内容を確認してもう一度お試しください。",
+    invalidThumbnailPath: "写真のプレビュー画像が写真と一致しません。もう一度アップロードしてください。",
     forbidden: "この操作を行う権限がありません。",
     invalidMultipartForm: "アップロードフォームが正しくないか、ファイルサイズが大きすぎます。",
     imageRequired: "画像ファイルを選択してください。",

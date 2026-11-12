@@ -6,13 +6,18 @@ import (
 	"backend/internal/exifmeta"
 	"backend/internal/imagestrip"
 	"backend/internal/storage"
+	"backend/internal/thumbnail"
+	"bytes"
 	"context"
 	"crypto/rand"
 	"errors"
 	"fmt"
 	"io"
+	"log"
 	"mime/multipart"
 	"net/http"
+	"path"
+	"strings"
 	"time"
 )
 
@@ -38,11 +43,13 @@ func NewUploadService(storage storage.Storage, maxUploadBytes int64) *UploadServ
 }
 
 // UploadedImage is a stored image plus the gear read from its EXIF data.
-// CameraBody and Lens are empty when the photo does not record them.
+// CameraBody and Lens are empty when the photo does not record them;
+// ThumbnailPath is empty when no thumbnail could be made.
 type UploadedImage struct {
-	ImagePath  string
-	CameraBody string
-	Lens       string
+	ImagePath     string
+	ThumbnailPath string
+	CameraBody    string
+	Lens          string
 }
 
 func (s *UploadService) SaveImage(ctx context.Context, file multipart.File, header *multipart.FileHeader) (*UploadedImage, error) {
@@ -91,12 +98,44 @@ func (s *UploadService) SaveImage(ctx context.Context, file multipart.File, head
 		return nil, err
 	}
 
+	imagePath := uploadsPrefix + filename
 	return &UploadedImage{
-		ImagePath:  "/uploads/" + filename,
-		CameraBody: gear.CameraBody,
-		Lens:       gear.Lens,
+		ImagePath:     imagePath,
+		ThumbnailPath: s.saveThumbnail(ctx, file, header.Size, imagePath),
+		CameraBody:    gear.CameraBody,
+		Lens:          gear.Lens,
 	}, nil
 }
+
+// saveThumbnail stores the grid thumbnail for the image just saved at
+// imagePath and returns its public path. It is best-effort: on any failure it
+// logs and returns "", the upload still succeeds and the grid shows the original.
+func (s *UploadService) saveThumbnail(ctx context.Context, src io.ReaderAt, size int64, imagePath string) string {
+	thumbPath := ThumbnailPathFor(imagePath)
+	data, err := thumbnail.Make(ctx, src, size)
+	if err == nil {
+		err = s.storage.Save(ctx, bytesFile{bytes.NewReader(data)}, strings.TrimPrefix(thumbPath, uploadsPrefix), "image/jpeg")
+	}
+	if err != nil {
+		log.Printf("upload %s: no thumbnail: %v", imagePath, err)
+		return ""
+	}
+	return thumbPath
+}
+
+const uploadsPrefix = "/uploads/"
+
+// ThumbnailPathFor is the public path of the thumbnail belonging to the
+// stored image at imagePath: /uploads/1730_abc12345.png has
+// /uploads/1730_abc12345_w800.jpg.
+func ThumbnailPathFor(imagePath string) string {
+	return strings.TrimSuffix(imagePath, path.Ext(imagePath)) + thumbnail.Suffix
+}
+
+// bytesFile is an in-memory multipart.File, which is what Storage.Save takes.
+type bytesFile struct{ *bytes.Reader }
+
+func (bytesFile) Close() error { return nil }
 
 func (s *UploadService) Get(
 	ctx context.Context,

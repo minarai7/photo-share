@@ -53,6 +53,39 @@ describe("CreatePostPage", () => {
     });
   });
 
+  it("passes the upload's thumbnail on to the new post", async () => {
+    const api = mockApi({
+      "POST /uploads": ok({ image_path: "/uploads/123_abc.png", thumbnail_path: "/uploads/123_abc_w800.jpg" }, 201),
+      "POST /posts": ok(makePost(), 201),
+      "GET /posts": ok([]),
+    });
+    const { user, currentPath } = renderApp("/posts/new");
+
+    await user.upload(screen.getByLabelText(en.posts.photo), photo());
+    await user.click(screen.getByRole("button", { name: en.posts.createPostButton }));
+
+    await waitFor(() => expect(currentPath()).toBe("/"));
+    expect(api.calls("POST /posts")[0].json()).toEqual({
+      image_path: "/uploads/123_abc.png",
+      thumbnail_path: "/uploads/123_abc_w800.jpg",
+      caption: "",
+    });
+  });
+
+  it("shows a translated error when the server rejects the thumbnail", async () => {
+    mockApi({
+      "POST /uploads": ok({ image_path: "/uploads/123_abc.png", thumbnail_path: "/uploads/123_abc_w800.jpg" }, 201),
+      "POST /posts": apiError(400, "invalid_thumbnail_path"),
+    });
+    const { user, currentPath } = renderApp("/posts/new");
+
+    await user.upload(screen.getByLabelText(en.posts.photo), photo());
+    await user.click(screen.getByRole("button", { name: en.posts.createPostButton }));
+
+    expect(await screen.findByText(en.apiErrors.invalidThumbnailPath)).toBeInTheDocument();
+    expect(currentPath()).toBe("/posts/new");
+  });
+
   it("fills blank camera and lens from the photo's EXIF data", async () => {
     const api = mockApi({
       "POST /uploads": ok(

@@ -66,13 +66,109 @@ func TestPostRepository_CreateAndGetHydratesEveryField(t *testing.T) {
 			t.Fatal(err)
 		}
 		p2, _ := repo.GetPostByID(ctx, id2)
-		if p2.Location != nil || p2.CameraBody != nil || p2.Lens != nil {
+		if p2.Location != nil || p2.CameraBody != nil || p2.Lens != nil || p2.ThumbnailPath != nil {
 			t.Errorf("expected nil optionals, got %+v", p2)
 		}
 		if p2.Caption != "" {
 			t.Errorf("caption default = %q, want empty", p2.Caption)
 		}
 	})
+}
+
+// thumbnail_path goes through the same alias hydration, in both SELECTs.
+func TestPostRepository_ThumbnailPathHydration(t *testing.T) {
+	db := testdb.Open(t)
+	repo := repository.NewPostRepository(db)
+	ctx := context.Background()
+	uid := seedUser(t, db, "alice")
+
+	withThumb, err := repo.CreatePost(ctx, repository.CreatePostParams{
+		UserID: uid, ImagePath: "/uploads/a.png", ThumbnailPath: strPtr("/uploads/a_w800.jpg"),
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	without, err := repo.CreatePost(ctx, repository.CreatePostParams{UserID: uid, ImagePath: "/uploads/b.png"})
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	check := func(where string, got map[int64]*string) {
+		t.Helper()
+		if p := got[withThumb]; p == nil || *p != "/uploads/a_w800.jpg" {
+			t.Errorf("%s: set thumbnail_path = %v, want /uploads/a_w800.jpg", where, p)
+		}
+		if p := got[without]; p != nil {
+			t.Errorf("%s: NULL thumbnail_path = %q, want nil", where, *p)
+		}
+	}
+
+	byID := map[int64]*string{}
+	for _, id := range []int64{withThumb, without} {
+		p, err := repo.GetPostByID(ctx, id)
+		if err != nil {
+			t.Fatal(err)
+		}
+		byID[id] = p.ThumbnailPath
+	}
+	check("GetPostByID", byID)
+
+	list, err := repo.ListPosts(ctx)
+	if err != nil {
+		t.Fatal(err)
+	}
+	fromList := map[int64]*string{}
+	for _, p := range list {
+		fromList[p.ID] = p.ThumbnailPath
+	}
+	check("ListPosts", fromList)
+}
+
+func TestPostRepository_ThumbnailBackfillMethods(t *testing.T) {
+	db := testdb.Open(t)
+	repo := repository.NewPostRepository(db)
+	ctx := context.Background()
+
+	empty, err := repo.ListPostsMissingThumbnail(ctx)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if empty == nil || len(empty) != 0 {
+		t.Fatalf("empty = %#v, want non-nil empty slice", empty)
+	}
+
+	uid := seedUser(t, db, "alice")
+	first, _ := repo.CreatePost(ctx, repository.CreatePostParams{UserID: uid, ImagePath: "/uploads/1.jpg"})
+	done, _ := repo.CreatePost(ctx, repository.CreatePostParams{UserID: uid, ImagePath: "/uploads/2.jpg", ThumbnailPath: strPtr("/uploads/2_w800.jpg")})
+	last, _ := repo.CreatePost(ctx, repository.CreatePostParams{UserID: uid, ImagePath: "/uploads/3.png"})
+
+	missing, err := repo.ListPostsMissingThumbnail(ctx)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(missing) != 2 || missing[0] != (repository.PostImage{ID: first, ImagePath: "/uploads/1.jpg"}) ||
+		missing[1] != (repository.PostImage{ID: last, ImagePath: "/uploads/3.png"}) {
+		t.Fatalf("missing = %+v, want posts %d and %d (not %d), oldest first", missing, first, last, done)
+	}
+
+	before, _ := repo.GetPostByID(ctx, first)
+	if err := repo.SetThumbnailPath(ctx, first, "/uploads/1_w800.jpg"); err != nil {
+		t.Fatalf("SetThumbnailPath: %v", err)
+	}
+	after, _ := repo.GetPostByID(ctx, first)
+	if after.ThumbnailPath == nil || *after.ThumbnailPath != "/uploads/1_w800.jpg" {
+		t.Errorf("thumbnail_path = %v", after.ThumbnailPath)
+	}
+	if !after.UpdatedAt.Equal(before.UpdatedAt) {
+		t.Errorf("updated_at changed (%v -> %v): the backfill is not a user edit", before.UpdatedAt, after.UpdatedAt)
+	}
+	if missing, _ = repo.ListPostsMissingThumbnail(ctx); len(missing) != 1 || missing[0].ID != last {
+		t.Errorf("after set, missing = %+v, want only %d", missing, last)
+	}
+
+	if err := repo.SetThumbnailPath(ctx, 99999, "/uploads/x_w800.jpg"); !errors.Is(err, repository.ErrorPostNotFound) {
+		t.Errorf("missing post err = %v, want ErrorPostNotFound", err)
+	}
 }
 
 func TestPostRepository_GetMissingIsErrNoRows(t *testing.T) {

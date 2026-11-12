@@ -17,15 +17,16 @@ type postsTable struct {
 	postgres.Table
 
 	// Columns
-	ID         postgres.ColumnInteger
-	UserID     postgres.ColumnInteger
-	ImagePath  postgres.ColumnString
-	Caption    postgres.ColumnString
-	Location   postgres.ColumnString
-	CameraBody postgres.ColumnString
-	Lens       postgres.ColumnString
-	CreatedAt  postgres.ColumnTimestampz
-	UpdatedAt  postgres.ColumnTimestampz
+	ID            postgres.ColumnInteger
+	UserID        postgres.ColumnInteger
+	ImagePath     postgres.ColumnString
+	Caption       postgres.ColumnString
+	Location      postgres.ColumnString
+	CameraBody    postgres.ColumnString
+	Lens          postgres.ColumnString
+	CreatedAt     postgres.ColumnTimestampz
+	UpdatedAt     postgres.ColumnTimestampz
+	ThumbnailPath postgres.ColumnString
 
 	AllColumns     postgres.ColumnList
 	MutableColumns postgres.ColumnList
@@ -67,33 +68,35 @@ func newPostsTable(schemaName, tableName, alias string) *PostsTable {
 
 func newPostsTableImpl(schemaName, tableName, alias string) postsTable {
 	var (
-		IDColumn         = postgres.IntegerColumn("id")
-		UserIDColumn     = postgres.IntegerColumn("user_id")
-		ImagePathColumn  = postgres.StringColumn("image_path")
-		CaptionColumn    = postgres.StringColumn("caption")
-		LocationColumn   = postgres.StringColumn("location")
-		CameraBodyColumn = postgres.StringColumn("camera_body")
-		LensColumn       = postgres.StringColumn("lens")
-		CreatedAtColumn  = postgres.TimestampzColumn("created_at")
-		UpdatedAtColumn  = postgres.TimestampzColumn("updated_at")
-		allColumns       = postgres.ColumnList{IDColumn, UserIDColumn, ImagePathColumn, CaptionColumn, LocationColumn, CameraBodyColumn, LensColumn, CreatedAtColumn, UpdatedAtColumn}
-		mutableColumns   = postgres.ColumnList{UserIDColumn, ImagePathColumn, CaptionColumn, LocationColumn, CameraBodyColumn, LensColumn, CreatedAtColumn, UpdatedAtColumn}
-		defaultColumns   = postgres.ColumnList{IDColumn, CaptionColumn, CreatedAtColumn, UpdatedAtColumn}
+		IDColumn            = postgres.IntegerColumn("id")
+		UserIDColumn        = postgres.IntegerColumn("user_id")
+		ImagePathColumn     = postgres.StringColumn("image_path")
+		CaptionColumn       = postgres.StringColumn("caption")
+		LocationColumn      = postgres.StringColumn("location")
+		CameraBodyColumn    = postgres.StringColumn("camera_body")
+		LensColumn          = postgres.StringColumn("lens")
+		CreatedAtColumn     = postgres.TimestampzColumn("created_at")
+		UpdatedAtColumn     = postgres.TimestampzColumn("updated_at")
+		ThumbnailPathColumn = postgres.StringColumn("thumbnail_path")
+		allColumns          = postgres.ColumnList{IDColumn, UserIDColumn, ImagePathColumn, CaptionColumn, LocationColumn, CameraBodyColumn, LensColumn, CreatedAtColumn, UpdatedAtColumn, ThumbnailPathColumn}
+		mutableColumns      = postgres.ColumnList{UserIDColumn, ImagePathColumn, CaptionColumn, LocationColumn, CameraBodyColumn, LensColumn, CreatedAtColumn, UpdatedAtColumn, ThumbnailPathColumn}
+		defaultColumns      = postgres.ColumnList{IDColumn, CaptionColumn, CreatedAtColumn, UpdatedAtColumn}
 	)
 
 	return postsTable{
 		Table: postgres.NewTable(schemaName, tableName, alias, allColumns...),
 
 		//Columns
-		ID:         IDColumn,
-		UserID:     UserIDColumn,
-		ImagePath:  ImagePathColumn,
-		Caption:    CaptionColumn,
-		Location:   LocationColumn,
-		CameraBody: CameraBodyColumn,
-		Lens:       LensColumn,
-		CreatedAt:  CreatedAtColumn,
-		UpdatedAt:  UpdatedAtColumn,
+		ID:            IDColumn,
+		UserID:        UserIDColumn,
+		ImagePath:     ImagePathColumn,
+		Caption:       CaptionColumn,
+		Location:      LocationColumn,
+		CameraBody:    CameraBodyColumn,
+		Lens:          LensColumn,
+		CreatedAt:     CreatedAtColumn,
+		UpdatedAt:     UpdatedAtColumn,
+		ThumbnailPath: ThumbnailPathColumn,
 
 		AllColumns:     allColumns,
 		MutableColumns: mutableColumns,

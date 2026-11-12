@@ -18,11 +18,14 @@ type UploadHandler struct {
 }
 
 // UploadImageResponse carries the camera and lens read from the photo's EXIF
-// data (omitted when absent) so the client can fill in fields the user left blank.
+// data (omitted when absent) so the client can fill in fields the user left
+// blank, and the grid thumbnail's path (omitted when none could be made),
+// which the client passes on to POST /posts.
 type UploadImageResponse struct {
-	ImagePath  string `json:"image_path"`
-	CameraBody string `json:"camera_body,omitempty"`
-	Lens       string `json:"lens,omitempty"`
+	ImagePath     string `json:"image_path"`
+	ThumbnailPath string `json:"thumbnail_path,omitempty"`
+	CameraBody    string `json:"camera_body,omitempty"`
+	Lens          string `json:"lens,omitempty"`
 }
 
 func NewUploadHandler(uploadService *service.UploadService, maxUploadBytes int64) *UploadHandler {
@@ -39,7 +42,7 @@ const (
 	multipartOverhead = 1 << 20
 
 	// uploadMemoryBytes caps how much of an upload is held in RAM; anything
-	// larger is spooled to a temp file (the Fargate task only has 0.5 GB).
+	// larger is spooled to a temp file (the Fargate task only has 1 GB, half of it reserved for thumbnail decoding).
 	uploadMemoryBytes = 8 << 20
 )
 
@@ -118,9 +121,10 @@ func (h *UploadHandler) UploadImage(w http.ResponseWriter, r *http.Request) {
 	}
 
 	httpx.WriteJSON(w, http.StatusCreated, UploadImageResponse{
-		ImagePath:  uploaded.ImagePath,
-		CameraBody: uploaded.CameraBody,
-		Lens:       uploaded.Lens,
+		ImagePath:     uploaded.ImagePath,
+		ThumbnailPath: uploaded.ThumbnailPath,
+		CameraBody:    uploaded.CameraBody,
+		Lens:          uploaded.Lens,
 	})
 }
 

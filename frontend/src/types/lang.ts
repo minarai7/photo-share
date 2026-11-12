@@ -155,6 +155,7 @@ export type TranslationDictionary = {
     listPostsFailed: string;
     unauthorized: string;
     createPostFailed: string;
+    invalidThumbnailPath: string;
     forbidden: string;
     invalidMultipartForm: string;
     imageRequired: string;

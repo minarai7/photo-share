@@ -29,4 +29,11 @@ COPY --from=builder --chown=65532:65532 /out/storage ./storage
 
 EXPOSE 8080
 
+# The prod task has 1 GB and a thumbnail decode can briefly hold up to 512 MiB
+# (thumbnail.ServerLimits). A soft limit makes the GC collect harder near it
+# instead of letting the heap grow to twice the live size and get the task
+# OOM-killed. Keep it, the task size and ServerLimits in step: this image on a
+# 0.5 GB task could be OOM-killed by one large upload.
+ENV GOMEMLIMIT=800MiB
+
 CMD ["./server"]

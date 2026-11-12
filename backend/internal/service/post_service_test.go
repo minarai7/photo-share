@@ -55,6 +55,55 @@ func TestCreatePost_Validation(t *testing.T) {
 	}
 }
 
+func TestCreatePost_ThumbnailPath(t *testing.T) {
+	svc, store := newPosts(t)
+	alice := store.MustAddUser("alice", "alice@example.com")
+	create := func(image string, thumb *string) (*dto.PostResponse, error) {
+		return svc.CreatePost(context.Background(), service.CreatePostParams{UserID: alice.ID, ImagePath: image, ThumbnailPath: thumb})
+	}
+
+	post, err := create("/uploads/1730_abc12345.png", strPtr("/uploads/1730_abc12345_w800.jpg"))
+	if err != nil {
+		t.Fatalf("matching thumbnail: %v", err)
+	}
+	if post.ThumbnailPath == nil || *post.ThumbnailPath != "/uploads/1730_abc12345_w800.jpg" {
+		t.Errorf("thumbnail not stored: %+v", post.ThumbnailPath)
+	}
+
+	for _, thumb := range []*string{nil, strPtr("")} {
+		post, err := create("/uploads/1730_abc12345.png", thumb)
+		if err != nil {
+			t.Fatalf("no thumbnail: %v", err)
+		}
+		if post.ThumbnailPath != nil {
+			t.Errorf("absent/empty thumbnail stored as %q, want nil", *post.ThumbnailPath)
+		}
+	}
+
+	for _, bad := range []string{
+		"/uploads/someone-elses_w800.jpg",
+		"/uploads/1730_abc12345.png", // the original itself
+		"/uploads/1730_abc12345_w400.jpg",
+		"https://evil.example/1730_abc12345_w800.jpg",
+	} {
+		if _, err := create("/uploads/1730_abc12345.png", strPtr(bad)); !errors.Is(err, service.ErrInvalidThumbnailPath) {
+			t.Errorf("thumbnail %q: got %v, want ErrInvalidThumbnailPath", bad, err)
+		}
+	}
+}
+
+func TestThumbnailPathFor(t *testing.T) {
+	for in, want := range map[string]string{
+		"/uploads/1730_abc12345.png":  "/uploads/1730_abc12345_w800.jpg",
+		"/uploads/1730_abc12345.jpg":  "/uploads/1730_abc12345_w800.jpg",
+		"/uploads/1730_abc12345.webp": "/uploads/1730_abc12345_w800.jpg",
+	} {
+		if got := service.ThumbnailPathFor(in); got != want {
+			t.Errorf("ThumbnailPathFor(%q) = %q, want %q", in, got, want)
+		}
+	}
+}
+
 func TestGetPostByID_NotFound(t *testing.T) {
 	svc, _ := newPosts(t)
 	_, err := svc.GetPostByID(context.Background(), 404)

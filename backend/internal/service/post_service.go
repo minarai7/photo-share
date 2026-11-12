@@ -16,6 +16,8 @@ var (
 	ErrImagePathRequired = errors.New("image path is required")
 	ErrPostNotFound      = errors.New("post not found")
 	ErrForbidden         = errors.New("forbidden")
+	// ErrInvalidThumbnailPath: a post's thumbnail must be the one made for its image.
+	ErrInvalidThumbnailPath = errors.New("thumbnail_path does not match image_path")
 )
 
 type PostService struct {
@@ -27,12 +29,16 @@ func NewPostService(postRepo PostStore) *PostService {
 }
 
 type CreatePostParams struct {
-	UserID     int64
-	ImagePath  string
-	Caption    string
-	Location   *string
-	CameraBody *string
-	Lens       *string
+	UserID    int64
+	ImagePath string
+	// ThumbnailPath is optional. When set, it must equal
+	// ThumbnailPathFor(ImagePath), so a post can't point its grid image at
+	// someone else's file.
+	ThumbnailPath *string
+	Caption       string
+	Location      *string
+	CameraBody    *string
+	Lens          *string
 }
 
 type UpdatePostParams struct {
@@ -72,14 +78,22 @@ func (s *PostService) CreatePost(ctx context.Context, p CreatePostParams) (*dto.
 	if strings.TrimSpace(p.ImagePath) == "" {
 		return nil, ErrImagePathRequired
 	}
+	thumbnailPath := p.ThumbnailPath
+	if thumbnailPath != nil && *thumbnailPath == "" {
+		thumbnailPath = nil
+	}
+	if thumbnailPath != nil && *thumbnailPath != ThumbnailPathFor(p.ImagePath) {
+		return nil, ErrInvalidThumbnailPath
+	}
 
 	createdPostID, err := s.postRepo.CreatePost(ctx, repository.CreatePostParams{
-		UserID:     p.UserID,
-		ImagePath:  p.ImagePath,
-		Caption:    p.Caption,
-		Location:   p.Location,
-		CameraBody: p.CameraBody,
-		Lens:       p.Lens,
+		UserID:        p.UserID,
+		ImagePath:     p.ImagePath,
+		ThumbnailPath: thumbnailPath,
+		Caption:       p.Caption,
+		Location:      p.Location,
+		CameraBody:    p.CameraBody,
+		Lens:          p.Lens,
 	})
 	if err != nil {
 		return nil, err

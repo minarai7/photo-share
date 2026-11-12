@@ -63,6 +63,10 @@ export function CreatePostPage() {
         caption: caption.trim(),
       }
 
+      if (uploaded.thumbnail_path) {
+        data.thumbnail_path = uploaded.thumbnail_path;
+      }
+
       if (location.trim() !== "") {
         data.location = location.trim();
       }

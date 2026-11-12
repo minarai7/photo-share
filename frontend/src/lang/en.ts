@@ -156,6 +156,7 @@ export const en: TranslationDictionary = {
     listPostsFailed: "Could not load posts. Please try again.",
     unauthorized: "Please log in again.",
     createPostFailed: "Could not create the post. Please check your input and try again.",
+    invalidThumbnailPath: "The photo's preview does not match the photo. Please upload it again.",
     forbidden: "You do not have permission to do this.",
     invalidMultipartForm: "The upload form is invalid or the file is too large.",
     imageRequired: "Please select an image file.",

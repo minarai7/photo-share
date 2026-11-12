@@ -6,6 +6,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"image/jpeg"
 	"net/http"
 	"net/http/httptest"
 	"os"
@@ -245,6 +246,92 @@ func TestUploadAndServe(t *testing.T) {
 	}
 	if !bytes.Equal(rec.Body.Bytes(), data) {
 		t.Error("served bytes differ from uploaded bytes")
+	}
+}
+
+func TestUploadMakesThumbnailForPosts(t *testing.T) {
+	app := newTestApp(t)
+	_, tok := app.userWithToken("alice")
+
+	rec := app.upload(tok, "wide.png", fixtures.EncodePNG(fixtures.Gradient(1600, 1000)))
+	expectStatus(t, rec, http.StatusCreated)
+	var up struct {
+		ImagePath     string `json:"image_path"`
+		ThumbnailPath string `json:"thumbnail_path"`
+	}
+	decodeOne(t, rec, &up)
+	if want := strings.TrimSuffix(up.ImagePath, ".png") + "_w800.jpg"; up.ThumbnailPath != want {
+		t.Fatalf("thumbnail_path = %q, want %q", up.ThumbnailPath, want)
+	}
+
+	// The thumbnail is served like any upload: a JPEG, cacheable forever.
+	rec = app.do(req{method: http.MethodGet, path: up.ThumbnailPath})
+	expectStatus(t, rec, http.StatusOK)
+	if ct := rec.Header().Get("Content-Type"); ct != "image/jpeg" {
+		t.Errorf("Content-Type = %q, want image/jpeg", ct)
+	}
+	if cc := rec.Header().Get("Cache-Control"); !strings.Contains(cc, "immutable") {
+		t.Errorf("Cache-Control = %q", cc)
+	}
+	img, err := jpeg.Decode(bytes.NewReader(rec.Body.Bytes()))
+	if err != nil {
+		t.Fatalf("served thumbnail does not decode: %v", err)
+	}
+	if b := img.Bounds(); b.Dx() != 800 || b.Dy() != 500 {
+		t.Errorf("thumbnail is %dx%d, want 800x500", b.Dx(), b.Dy())
+	}
+
+	// The post records it, and the feed and detail return it.
+	rec = app.do(req{method: http.MethodPost, path: "/posts", token: tok, body: map[string]any{
+		"image_path": up.ImagePath, "thumbnail_path": up.ThumbnailPath, "caption": "wide",
+	}})
+	expectStatus(t, rec, http.StatusCreated)
+	created := decodePost(t, rec)
+	if created["thumbnail_path"] != up.ThumbnailPath {
+		t.Errorf("created post thumbnail_path = %v", created["thumbnail_path"])
+	}
+	rec = app.do(req{method: http.MethodGet, path: "/posts"})
+	var feed []map[string]any
+	decodeOne(t, rec, &feed)
+	if len(feed) != 1 || feed[0]["thumbnail_path"] != up.ThumbnailPath {
+		t.Errorf("feed = %v", feed)
+	}
+}
+
+func TestUploadWithoutThumbnailOmitsTheKey(t *testing.T) {
+	app := newTestApp(t)
+	_, tok := app.userWithToken("alice")
+
+	rec := app.upload(tok, "anim.webp", fixtures.AnimatedWebP())
+	expectStatus(t, rec, http.StatusCreated)
+	var up map[string]any
+	decodeOne(t, rec, &up)
+	if _, ok := up["thumbnail_path"]; ok {
+		t.Errorf("thumbnail_path present without a thumbnail: %v", up)
+	}
+
+	// A post without one omits the key too, so clients fall back to image_path.
+	rec = app.do(req{method: http.MethodPost, path: "/posts", token: tok, body: map[string]any{"image_path": up["image_path"]}})
+	expectStatus(t, rec, http.StatusCreated)
+	if p := decodePost(t, rec); p["thumbnail_path"] != nil {
+		t.Errorf("thumbnail_path = %v, want absent", p["thumbnail_path"])
+	}
+}
+
+func TestCreatePostRejectsForeignThumbnail(t *testing.T) {
+	app := newTestApp(t)
+	_, tok := app.userWithToken("alice")
+
+	for _, thumb := range []string{"/uploads/someone-else_w800.jpg", "/uploads/1730_abc12345.jpg", "https://evil.example/x.jpg"} {
+		t.Run(thumb, func(t *testing.T) {
+			rec := app.do(req{method: http.MethodPost, path: "/posts", token: tok, body: map[string]any{
+				"image_path": "/uploads/1730_abc12345.jpg", "thumbnail_path": thumb,
+			}})
+			expectError(t, rec, http.StatusBadRequest, "invalid_thumbnail_path")
+		})
+	}
+	if posts, _ := app.store.Posts().ListPosts(t.Context()); len(posts) != 0 {
+		t.Errorf("a post was created: %v", posts)
 	}
 }
 

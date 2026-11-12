@@ -1,3 +1,4 @@
+import { useState } from "react";
 import { Link } from "react-router";
 import type { Post } from "../types/post";
 import { getImageUrl } from "../utils/imageUrl";
@@ -24,6 +25,12 @@ export function PostCard({ post, showAuthor = true, returnTo, eager = false }: P
     const createdAt = new Date(post.created_at).toLocaleString(
         getLocaleFromLanguage(language)
     );
+    // The grid tile only needs the small thumbnail; older posts have none. If
+    // the thumbnail fails to load, show the original instead of a broken tile.
+    // Remembering which path failed (not just "failed") keeps this right if
+    // the card is reused for another post.
+    const [failedThumbnail, setFailedThumbnail] = useState<string | null>(null);
+    const thumbnail = post.thumbnail_path && post.thumbnail_path !== failedThumbnail ? post.thumbnail_path : null;
 
     return (
         <article className="post-card">
@@ -34,7 +41,8 @@ export function PostCard({ post, showAuthor = true, returnTo, eager = false }: P
                 state={{ returnTo, post }}
             >
                 <img
-                    src={getImageUrl(post.image_path)}
+                    src={getImageUrl(thumbnail ?? post.image_path)}
+                    onError={thumbnail ? () => setFailedThumbnail(thumbnail) : undefined}
                     alt={post.caption || t.posts.postImageAlt}
                     className="post-card-image"
                     loading={eager ? "eager" : "lazy"}

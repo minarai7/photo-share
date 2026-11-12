@@ -142,16 +142,17 @@ type PostStore struct{ s *Store }
 
 func (p *PostStore) toDTO(m model.Posts) dto.PostResponse {
 	return dto.PostResponse{
-		ID:         m.ID,
-		UserID:     m.UserID,
-		Username:   p.s.users[m.UserID].Username,
-		ImagePath:  m.ImagePath,
-		Caption:    m.Caption,
-		Location:   m.Location,
-		CameraBody: m.CameraBody,
-		Lens:       m.Lens,
-		CreatedAt:  m.CreatedAt,
-		UpdatedAt:  m.UpdatedAt,
+		ID:            m.ID,
+		UserID:        m.UserID,
+		Username:      p.s.users[m.UserID].Username,
+		ImagePath:     m.ImagePath,
+		ThumbnailPath: m.ThumbnailPath,
+		Caption:       m.Caption,
+		Location:      m.Location,
+		CameraBody:    m.CameraBody,
+		Lens:          m.Lens,
+		CreatedAt:     m.CreatedAt,
+		UpdatedAt:     m.UpdatedAt,
 	}
 }
 
@@ -202,15 +203,16 @@ func (p *PostStore) CreatePost(_ context.Context, in repository.CreatePostParams
 	}
 	now := s.Now()
 	m := model.Posts{
-		ID:         s.nextPostID,
-		UserID:     in.UserID,
-		ImagePath:  in.ImagePath,
-		Caption:    in.Caption,
-		Location:   in.Location,
-		CameraBody: in.CameraBody,
-		Lens:       in.Lens,
-		CreatedAt:  now,
-		UpdatedAt:  now,
+		ID:            s.nextPostID,
+		UserID:        in.UserID,
+		ImagePath:     in.ImagePath,
+		ThumbnailPath: in.ThumbnailPath,
+		Caption:       in.Caption,
+		Location:      in.Location,
+		CameraBody:    in.CameraBody,
+		Lens:          in.Lens,
+		CreatedAt:     now,
+		UpdatedAt:     now,
 	}
 	s.nextPostID++
 	s.posts[m.ID] = m

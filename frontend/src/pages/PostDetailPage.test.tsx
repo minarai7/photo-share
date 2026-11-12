@@ -18,6 +18,12 @@ describe("PostDetailPage", () => {
     expect(screen.queryByRole("button", { name: en.posts.edit })).not.toBeInTheDocument();
   });
 
+  it("shows the full-size original, not the grid thumbnail", async () => {
+    mockApi({ "GET /posts/10": ok({ ...post, thumbnail_path: "/uploads/photo_w800.jpg" }) });
+    renderApp("/posts/10");
+    expect(await screen.findByRole("img", { name: "Morning light" })).toHaveAttribute("src", "http://api.test/uploads/photo.jpg");
+  });
+
   it("fetches its main image with high priority", async () => {
     mockApi({ "GET /posts/10": ok(post) });
     renderApp("/posts/10");

@@ -53,6 +53,9 @@ export function getApiErrorMessage(
     case "create_post_failed":
       return t.apiErrors.createPostFailed;
 
+    case "invalid_thumbnail_path":
+      return t.apiErrors.invalidThumbnailPath;
+
     case "forbidden":
       return t.apiErrors.forbidden;
 

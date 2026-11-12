@@ -102,16 +102,26 @@ func (h *PostHandler) CreatePost(w http.ResponseWriter, r *http.Request) {
 	}
 
 	post := service.CreatePostParams{
-		UserID:     userID,
-		ImagePath:  req.ImagePath,
-		Caption:    req.Caption,
-		Location:   req.Location,
-		CameraBody: req.CameraBody,
-		Lens:       req.Lens,
+		UserID:        userID,
+		ImagePath:     req.ImagePath,
+		ThumbnailPath: req.ThumbnailPath,
+		Caption:       req.Caption,
+		Location:      req.Location,
+		CameraBody:    req.CameraBody,
+		Lens:          req.Lens,
 	}
 
 	resp, err := h.postService.CreatePost(r.Context(), post)
 	if err != nil {
+		if errors.Is(err, service.ErrInvalidThumbnailPath) {
+			_ = httpx.WriteJSON(w, http.StatusBadRequest, httpx.ErrorResponse{
+				Error: httpx.ErrorDetail{
+					Code:    "invalid_thumbnail_path",
+					Message: "thumbnail_path must be the thumbnail of image_path",
+				},
+			})
+			return
+		}
 		if errors.Is(err, service.ErrUserRequired) || errors.Is(err, service.ErrImagePathRequired) {
 			_ = httpx.WriteJSON(w, http.StatusBadRequest, httpx.ErrorResponse{
 				Error: httpx.ErrorDetail{

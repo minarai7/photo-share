@@ -24,12 +24,13 @@ func NewPostRepository(db *sql.DB) *PostRepository {
 }
 
 type CreatePostParams struct {
-	UserID     int64
-	ImagePath  string
-	Caption    string
-	Location   *string
-	CameraBody *string
-	Lens       *string
+	UserID        int64
+	ImagePath     string
+	ThumbnailPath *string
+	Caption       string
+	Location      *string
+	CameraBody    *string
+	Lens          *string
 }
 
 type UpdatePostParams struct {
@@ -48,6 +49,7 @@ func (r *PostRepository) ListPosts(ctx context.Context) ([]dto.PostResponse, err
 			table.Posts.UserID.AS("post_response.user_id"),
 			table.Users.Username.AS("post_response.username"),
 			table.Posts.ImagePath.AS("post_response.image_path"),
+			table.Posts.ThumbnailPath.AS("post_response.thumbnail_path"),
 			table.Posts.Caption.AS("post_response.caption"),
 			table.Posts.Location.AS("post_response.location"),
 			table.Posts.CameraBody.AS("post_response.camera_body"),
@@ -79,6 +81,7 @@ func (r *PostRepository) GetPostByID(ctx context.Context, id int64) (*dto.PostRe
 			table.Posts.UserID.AS("post_response.user_id"),
 			table.Users.Username.AS("post_response.username"),
 			table.Posts.ImagePath.AS("post_response.image_path"),
+			table.Posts.ThumbnailPath.AS("post_response.thumbnail_path"),
 			table.Posts.Caption.AS("post_response.caption"),
 			table.Posts.Location.AS("post_response.location"),
 			table.Posts.CameraBody.AS("post_response.camera_body"),
@@ -105,6 +108,7 @@ func (r *PostRepository) CreatePost(ctx context.Context, p CreatePostParams) (in
 		INSERT(
 			table.Posts.UserID,
 			table.Posts.ImagePath,
+			table.Posts.ThumbnailPath,
 			table.Posts.Caption,
 			table.Posts.Location,
 			table.Posts.CameraBody,
@@ -155,6 +159,54 @@ func (r *PostRepository) UpdatePost(ctx context.Context, p UpdatePostParams) err
 		return ErrorPostNotFound
 	}
 
+	return nil
+}
+
+// PostImage is a post's stored image, for the thumbnail backfill.
+type PostImage struct {
+	ID        int64
+	ImagePath string
+}
+
+// ListPostsMissingThumbnail returns the posts whose thumbnail_path is NULL,
+// oldest first. Used by cmd/thumbs only, so it is not on service.PostStore.
+func (r *PostRepository) ListPostsMissingThumbnail(ctx context.Context) ([]PostImage, error) {
+	stmt := table.Posts.
+		SELECT(
+			table.Posts.ID.AS("post_image.id"),
+			table.Posts.ImagePath.AS("post_image.image_path"),
+		).
+		FROM(table.Posts).
+		WHERE(table.Posts.ThumbnailPath.IS_NULL()).
+		ORDER_BY(table.Posts.ID.ASC())
+
+	posts := make([]PostImage, 0)
+	if err := stmt.QueryContext(ctx, r.db, &posts); err != nil {
+		return nil, err
+	}
+	return posts, nil
+}
+
+// SetThumbnailPath records a post's thumbnail. It is not an edit by the
+// user, so updated_at is left alone. Returns ErrorPostNotFound when no row
+// matches (e.g. the post was deleted meanwhile). Used by cmd/thumbs only.
+func (r *PostRepository) SetThumbnailPath(ctx context.Context, id int64, thumbnailPath string) error {
+	stmt := table.Posts.
+		UPDATE(table.Posts.ThumbnailPath).
+		SET(postgres.String(thumbnailPath)).
+		WHERE(table.Posts.ID.EQ(postgres.Int64(id)))
+
+	result, err := stmt.ExecContext(ctx, r.db)
+	if err != nil {
+		return err
+	}
+	rowsAffected, err := result.RowsAffected()
+	if err != nil {
+		return err
+	}
+	if rowsAffected == 0 {
+		return ErrorPostNotFound
+	}
 	return nil
 }
 

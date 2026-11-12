@@ -338,6 +338,16 @@ paths:
                   image_path:
                     type: string
                     example: /uploads/posts/1714020000_abcd1234.jpg
+                  thumbnail_path:
+                    type: string
+                    description: >-
+                      JPEG thumbnail for grids: at most 800 px wide (never
+                      upscaled), height capped at 1600 px, orientation applied,
+                      no metadata. Always the image name with "_w800.jpg" in
+                      place of its extension. Omitted when none could be made
+                      (e.g. animated or very large images); pass it on to
+                      POST /posts.
+                    example: /uploads/1714020000_abcd1234_w800.jpg
                   camera_body:
                     type: string
                     maxLength: 100
@@ -504,6 +514,13 @@ components:
         image_path:
           type: string
           example: /demo/test.jpg
+        thumbnail_path:
+          type: string
+          nullable: true
+          description: >-
+            The thumbnail_path returned by POST /uploads for this image_path.
+            Anything else is rejected with 400 invalid_thumbnail_path.
+          example: /demo/test_w800.jpg
         caption:
           type: string
           example: Sunset at the beach
@@ -519,7 +536,7 @@ components:
           type: string
           nullable: true
           example: FE 24-70mm F2.8 GM
-    
+
     UpdatePostRequest:
       type: object
       required:
@@ -567,6 +584,13 @@ components:
         image_path:
           type: string
           example: /demo/test.jpg
+        thumbnail_path:
+          type: string
+          nullable: true
+          description: >-
+            Small JPEG for the feed and profile grids. Omitted when the post
+            has none; show image_path instead.
+          example: /demo/test_w800.jpg
         caption:
           type: string
           example: Sunset at the beach
