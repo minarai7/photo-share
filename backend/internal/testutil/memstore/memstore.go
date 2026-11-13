@@ -6,6 +6,10 @@
 //   - user lookups return (nil, nil) when missing
 //   - GetPostByID returns qrm.ErrNoRows when missing
 //   - UpdatePost / DeletePostByID return repository.ErrorPostNotFound on 0 rows
+//   - CreatePost needs at least one image (repository.ErrorNoImages), copies
+//     image 0 onto the post as its cover, and GetPostByID returns images in
+//     order; ListPosts filters/pages like the SQL and returns ImageCount
+//     instead of Images; deleting a post deletes its images
 //   - users.username and users.email are unique; deleting is not supported
 //
 // Those conventions are asserted against a real database in
@@ -31,10 +35,12 @@ import (
 type Store struct {
 	mu sync.Mutex
 
-	users      map[int64]model.Users
-	posts      map[int64]model.Posts
-	nextUserID int64
-	nextPostID int64
+	users       map[int64]model.Users
+	posts       map[int64]model.Posts
+	images      map[int64][]model.PostImages // by post ID, in position order
+	nextUserID  int64
+	nextPostID  int64
+	nextImageID int64
 
 	// Now returns the timestamp for created_at/updated_at. Tests may override it.
 	Now func() time.Time
@@ -46,11 +52,13 @@ type Store struct {
 
 func New() *Store {
 	return &Store{
-		users:      map[int64]model.Users{},
-		posts:      map[int64]model.Posts{},
-		nextUserID: 1,
-		nextPostID: 1,
-		Now:        time.Now,
+		users:       map[int64]model.Users{},
+		posts:       map[int64]model.Posts{},
+		images:      map[int64][]model.PostImages{},
+		nextUserID:  1,
+		nextPostID:  1,
+		nextImageID: 1,
+		Now:         time.Now,
 	}
 }
 
@@ -141,12 +149,21 @@ func (u *UserStore) UpdatePreferredLanguage(_ context.Context, id int64, lang st
 type PostStore struct{ s *Store }
 
 func (p *PostStore) toDTO(m model.Posts) dto.PostResponse {
+	var images []dto.PostImageResponse
+	for _, img := range p.s.images[m.ID] {
+		images = append(images, dto.PostImageResponse{
+			ID:            img.ID,
+			ImagePath:     img.ImagePath,
+			ThumbnailPath: img.ThumbnailPath,
+		})
+	}
 	return dto.PostResponse{
 		ID:            m.ID,
 		UserID:        m.UserID,
 		Username:      p.s.users[m.UserID].Username,
 		ImagePath:     m.ImagePath,
 		ThumbnailPath: m.ThumbnailPath,
+		Images:        images,
 		Caption:       m.Caption,
 		Location:      m.Location,
 		CameraBody:    m.CameraBody,
@@ -156,23 +173,41 @@ func (p *PostStore) toDTO(m model.Posts) dto.PostResponse {
 	}
 }
 
-func (p *PostStore) ListPosts(_ context.Context) ([]dto.PostResponse, error) {
+func (p *PostStore) ListPosts(_ context.Context, in repository.ListPostsParams) ([]dto.PostResponse, error) {
 	s := p.s
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	if s.Err != nil {
 		return nil, s.Err
 	}
+	// before reports whether a is ordered before b: newer first, then higher id.
+	before := func(aAt time.Time, aID int64, bAt time.Time, bID int64) bool {
+		if !aAt.Equal(bAt) {
+			return aAt.After(bAt)
+		}
+		return aID > bID
+	}
+
 	out := make([]dto.PostResponse, 0, len(s.posts))
 	for _, m := range s.posts {
-		out = append(out, p.toDTO(m))
+		if in.UserID != nil && m.UserID != *in.UserID {
+			continue
+		}
+		// Keyset: only posts after the cursor in feed order.
+		if in.Before != nil && !before(in.Before.CreatedAt, in.Before.ID, m.CreatedAt, m.ID) {
+			continue
+		}
+		d := p.toDTO(m)
+		d.ImageCount = len(d.Images)
+		d.Images = nil // lists carry the count, not the images
+		out = append(out, d)
 	}
 	sort.Slice(out, func(i, j int) bool {
-		if !out[i].CreatedAt.Equal(out[j].CreatedAt) {
-			return out[i].CreatedAt.After(out[j].CreatedAt)
-		}
-		return out[i].ID > out[j].ID
+		return before(out[i].CreatedAt, out[i].ID, out[j].CreatedAt, out[j].ID)
 	})
+	if in.Limit > 0 && len(out) > in.Limit {
+		out = out[:in.Limit]
+	}
 	return out, nil
 }
 
@@ -198,6 +233,9 @@ func (p *PostStore) CreatePost(_ context.Context, in repository.CreatePostParams
 	if s.Err != nil {
 		return 0, s.Err
 	}
+	if len(in.Images) == 0 {
+		return 0, repository.ErrorNoImages
+	}
 	if _, ok := s.users[in.UserID]; !ok {
 		return 0, fmt.Errorf("memstore: foreign key violation posts_user_id_fkey (SQLSTATE 23503)")
 	}
@@ -205,8 +243,8 @@ func (p *PostStore) CreatePost(_ context.Context, in repository.CreatePostParams
 	m := model.Posts{
 		ID:            s.nextPostID,
 		UserID:        in.UserID,
-		ImagePath:     in.ImagePath,
-		ThumbnailPath: in.ThumbnailPath,
+		ImagePath:     in.Images[0].ImagePath,
+		ThumbnailPath: in.Images[0].ThumbnailPath,
 		Caption:       in.Caption,
 		Location:      in.Location,
 		CameraBody:    in.CameraBody,
@@ -216,6 +254,16 @@ func (p *PostStore) CreatePost(_ context.Context, in repository.CreatePostParams
 	}
 	s.nextPostID++
 	s.posts[m.ID] = m
+	for i, img := range in.Images {
+		s.images[m.ID] = append(s.images[m.ID], model.PostImages{
+			ID:            s.nextImageID,
+			PostID:        m.ID,
+			Position:      int16(i),
+			ImagePath:     img.ImagePath,
+			ThumbnailPath: img.ThumbnailPath,
+		})
+		s.nextImageID++
+	}
 	return m.ID, nil
 }
 
@@ -250,6 +298,7 @@ func (p *PostStore) DeletePostByID(_ context.Context, id int64) error {
 		return repository.ErrorPostNotFound
 	}
 	delete(s.posts, id)
+	delete(s.images, id) // ON DELETE CASCADE
 	return nil
 }
 
@@ -268,15 +317,28 @@ func (s *Store) MustAddUser(username, email string) model.Users {
 	return *u
 }
 
-// MustAddPost inserts a post directly and returns its ID.
+// MustAddPost inserts a single-image post directly and returns its ID.
 func (s *Store) MustAddPost(userID int64, imagePath, caption string) int64 {
 	id, err := s.Posts().CreatePost(context.Background(), repository.CreatePostParams{
-		UserID:    userID,
-		ImagePath: imagePath,
-		Caption:   caption,
+		UserID:  userID,
+		Images:  []repository.CreatePostImageParams{{ImagePath: imagePath}},
+		Caption: caption,
 	})
 	if err != nil {
 		panic(err)
 	}
+	return id
+}
+
+// AddLegacyPost inserts a post without image rows, like one written by a
+// backend from before post_images existed, and returns its ID.
+func (s *Store) AddLegacyPost(userID int64, imagePath string, thumbnailPath *string) int64 {
+	id := s.MustAddPost(userID, imagePath, "")
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	m := s.posts[id]
+	m.ThumbnailPath = thumbnailPath
+	s.posts[id] = m
+	delete(s.images, id)
 	return id
 }

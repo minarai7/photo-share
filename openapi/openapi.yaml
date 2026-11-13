@@ -151,17 +151,65 @@ paths:
     get:
       tags:
         - posts
-      summary: Get all posts
+      summary: List posts, newest first
+      description: >-
+        Posts are ordered by created_at, then id, both descending. Each post
+        has its cover (image_path / thumbnail_path) and image_count but no
+        images array; GET /posts/{id} has the images. To page, pass limit and,
+        for every page after the first, before_created_at + before_id of the
+        last post received (send created_at back exactly as received). A page
+        shorter than limit is the last one. Without limit, every post is
+        returned (clients from before pagination).
       operationId: listPosts
+      parameters:
+        - name: limit
+          in: query
+          required: false
+          description: Page size.
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 100
+        - name: before_created_at
+          in: query
+          required: false
+          description: created_at of the last post of the previous page (RFC 3339). Requires before_id.
+          schema:
+            type: string
+            format: date-time
+        - name: before_id
+          in: query
+          required: false
+          description: id of the last post of the previous page. Requires before_created_at.
+          schema:
+            type: integer
+            format: int64
+            minimum: 1
+        - name: user_id
+          in: query
+          required: false
+          description: Only this user's posts.
+          schema:
+            type: integer
+            format: int64
+            minimum: 1
       responses:
         '200':
-          description: A list of posts
+          description: A page of posts (possibly empty)
           content:
             application/json:
               schema:
                 type: array
                 items:
                   $ref: '#/components/schemas/Post'
+        '400':
+          description: >-
+            invalid_pagination (bad limit, or an incomplete or malformed
+            cursor) or invalid_user_id
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
 
     post:
       tags:
@@ -505,14 +553,14 @@ components:
         user:
           $ref: '#/components/schemas/UserResponse'
     
-    CreatePostRequest:
+    CreatePostImage:
       type: object
       required:
         - image_path
-        - caption
       properties:
         image_path:
           type: string
+          description: The image_path returned by POST /uploads.
           example: /demo/test.jpg
         thumbnail_path:
           type: string
@@ -520,6 +568,36 @@ components:
           description: >-
             The thumbnail_path returned by POST /uploads for this image_path.
             Anything else is rejected with 400 invalid_thumbnail_path.
+          example: /demo/test_w800.jpg
+
+    CreatePostRequest:
+      type: object
+      description: >-
+        Send images (preferred). The single-image fields image_path and
+        thumbnail_path are still accepted when images is absent or empty.
+        Errors: 400 too_many_images (more than 10), duplicate_image (the same
+        image_path twice), invalid_thumbnail_path, create_post_failed (no
+        image or a blank image_path).
+      required:
+        - caption
+      properties:
+        images:
+          type: array
+          description: The post's images in display order; the first is the cover.
+          minItems: 1
+          maxItems: 10
+          items:
+            $ref: '#/components/schemas/CreatePostImage'
+        image_path:
+          type: string
+          deprecated: true
+          description: Single-image form; ignored when images is set.
+          example: /demo/test.jpg
+        thumbnail_path:
+          type: string
+          nullable: true
+          deprecated: true
+          description: Single-image form; ignored when images is set.
           example: /demo/test_w800.jpg
         caption:
           type: string
@@ -536,6 +614,20 @@ components:
           type: string
           nullable: true
           example: FE 24-70mm F2.8 GM
+
+    PostImage:
+      type: object
+      required:
+        - image_path
+      properties:
+        image_path:
+          type: string
+          example: /demo/test.jpg
+        thumbnail_path:
+          type: string
+          nullable: true
+          description: Small JPEG of this image; omitted when it has none.
+          example: /demo/test_w800.jpg
 
     UpdatePostRequest:
       type: object
@@ -565,6 +657,7 @@ components:
         - user_id
         - username
         - image_path
+        - image_count
         - caption
         - created_at
         - updated_at
@@ -583,14 +676,30 @@ components:
           example: yamato
         image_path:
           type: string
+          description: The cover, i.e. images[0].image_path.
           example: /demo/test.jpg
         thumbnail_path:
           type: string
           nullable: true
           description: >-
-            Small JPEG for the feed and profile grids. Omitted when the post
-            has none; show image_path instead.
+            The cover's small JPEG for the feed and profile grids. Omitted
+            when the cover has none; show image_path instead.
           example: /demo/test_w800.jpg
+        image_count:
+          type: integer
+          minimum: 1
+          maximum: 10
+          description: How many images the post has.
+          example: 3
+        images:
+          type: array
+          description: >-
+            All of the post's images in display order (1 to 10). Present on a
+            single post (GET /posts/{id}, create, update); omitted from GET
+            /posts, where image_count and the cover are enough for a card.
+          minItems: 1
+          items:
+            $ref: '#/components/schemas/PostImage'
         caption:
           type: string
           example: Sunset at the beach

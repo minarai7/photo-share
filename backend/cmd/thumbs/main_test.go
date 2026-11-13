@@ -17,25 +17,33 @@ import (
 	"backend/internal/thumbnail"
 )
 
-// fakePosts mirrors the two PostRepository methods: listing returns posts
-// with a NULL thumbnail_path, oldest first; setting a missing post fails.
+// fakePosts mirrors the two PostRepository methods: listing returns images
+// with a NULL thumbnail_path in ID order; setting a missing image fails.
+// Image n is the cover of post n, except those listed in extra, which are
+// later images of another post.
 type fakePosts struct {
-	images map[int64]string
+	images map[int64]string // by image ID
+	extra  map[int64]repository.ImageMissingThumbnail
 	thumbs map[int64]string
 	setErr map[int64]error
 }
 
-func (f *fakePosts) ListPostsMissingThumbnail(context.Context) ([]repository.PostImage, error) {
-	var out []repository.PostImage
+func (f *fakePosts) ListImagesMissingThumbnail(context.Context) ([]repository.ImageMissingThumbnail, error) {
+	var out []repository.ImageMissingThumbnail
 	for id := int64(1); id <= int64(len(f.images)); id++ {
-		if _, done := f.thumbs[id]; !done {
-			out = append(out, repository.PostImage{ID: id, ImagePath: f.images[id]})
+		if _, done := f.thumbs[id]; done {
+			continue
 		}
+		img := repository.ImageMissingThumbnail{ID: id, PostID: id, ImagePath: f.images[id]}
+		if e, ok := f.extra[id]; ok {
+			img.PostID, img.Position = e.PostID, e.Position
+		}
+		out = append(out, img)
 	}
 	return out, nil
 }
 
-func (f *fakePosts) SetThumbnailPath(_ context.Context, id int64, path string) error {
+func (f *fakePosts) SetImageThumbnailPath(_ context.Context, id int64, path string) error {
 	if err := f.setErr[id]; err != nil {
 		return err
 	}
@@ -52,6 +60,7 @@ func TestRun(t *testing.T) {
 		"3_anim.webp":   fixtures.AnimatedWebP(),
 		"4_broken.webp": fixtures.WebP(), // sniffs as WebP but doesn't decode
 		"6_gone.jpg":    fixtures.JPEG(),
+		"8_second.png":  fixtures.EncodePNG(fixtures.Gradient(1000, 1000)),
 	}
 	for name, b := range files {
 		if err := os.WriteFile(filepath.Join(dir, name), b, 0o644); err != nil {
@@ -67,9 +76,12 @@ func TestRun(t *testing.T) {
 			5: "/demo/test.jpg",      // not a stored upload
 			6: "/uploads/6_gone.jpg", // the post disappears before the update
 			7: "/uploads/7_lost.jpg", // file missing from storage
+			8: "/uploads/8_second.png",
 		},
+		// Image 8 is the second image of post 1.
+		extra:  map[int64]repository.ImageMissingThumbnail{8: {PostID: 1, Position: 1}},
 		thumbs: map[int64]string{},
-		setErr: map[int64]error{6: repository.ErrorPostNotFound},
+		setErr: map[int64]error{6: repository.ErrorPostImageNotFound},
 	}
 	st := storage.NewLocalStorage(dir)
 	ctx := context.Background()
@@ -81,11 +93,16 @@ func TestRun(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if sum != (summary{made: 3, skipped: 2, failed: 2}) {
+	if sum != (summary{made: 4, skipped: 2, failed: 2}) {
 		t.Fatalf("dry run summary = %+v\n%s", sum, out.String())
 	}
-	if !strings.Contains(out.String(), "would make  post 1 /uploads/1_wide.png -> /uploads/1_wide_w800.jpg") {
-		t.Errorf("dry run output:\n%s", out.String())
+	for _, line := range []string{
+		"would make  post 1 image 1 /uploads/1_wide.png -> /uploads/1_wide_w800.jpg",
+		"would make  post 1 image 2 /uploads/8_second.png -> /uploads/8_second_w800.jpg",
+	} {
+		if !strings.Contains(out.String(), line) {
+			t.Errorf("dry run output lacks %q:\n%s", line, out.String())
+		}
 	}
 	if len(posts.thumbs) != 0 {
 		t.Errorf("dry run updated posts: %v", posts.thumbs)
@@ -101,23 +118,24 @@ func TestRun(t *testing.T) {
 		t.Fatal(err)
 	}
 	// Post 6 was deleted between listing and updating: skipped, not failed.
-	if sum != (summary{made: 2, skipped: 3, failed: 2}) {
+	if sum != (summary{made: 3, skipped: 3, failed: 2}) {
 		t.Fatalf("apply summary = %+v\n%s", sum, out.String())
 	}
-	if !strings.Contains(out.String(), "skipped     post 6 /uploads/6_gone.jpg: skipped: post was deleted during the run") {
+	if !strings.Contains(out.String(), "skipped     post 6 image 1 /uploads/6_gone.jpg: skipped: post was deleted during the run") {
 		t.Errorf("apply output:\n%s", out.String())
 	}
-	want := map[int64]string{1: "/uploads/1_wide_w800.jpg", 2: "/uploads/2_phone_w800.jpg"}
+	want := map[int64]string{1: "/uploads/1_wide_w800.jpg", 2: "/uploads/2_phone_w800.jpg", 8: "/uploads/8_second_w800.jpg"}
 	for id, p := range want {
 		if posts.thumbs[id] != p {
-			t.Errorf("post %d thumbnail = %q, want %q", id, posts.thumbs[id], p)
+			t.Errorf("image %d thumbnail = %q, want %q", id, posts.thumbs[id], p)
 		}
 	}
-	if len(posts.thumbs) != 2 {
+	if len(posts.thumbs) != 3 {
 		t.Errorf("thumbnails recorded: %v", posts.thumbs)
 	}
 	checkJPEG(t, filepath.Join(dir, "1_wide_w800.jpg"), 800, 400)
 	checkJPEG(t, filepath.Join(dir, "2_phone_w800.jpg"), 800, 1067) // stored 1200x900, Orientation 6 turns it upright
+	checkJPEG(t, filepath.Join(dir, "8_second_w800.jpg"), 800, 800)
 	for _, name := range []string{"1_wide.png", "2_phone.jpg"} {
 		if b, _ := os.ReadFile(filepath.Join(dir, name)); !bytes.Equal(b, files[name]) {
 			t.Errorf("original %s was modified", name)
@@ -192,7 +210,7 @@ func TestRunListError(t *testing.T) {
 
 type failingPosts struct{}
 
-func (failingPosts) ListPostsMissingThumbnail(context.Context) ([]repository.PostImage, error) {
+func (failingPosts) ListImagesMissingThumbnail(context.Context) ([]repository.ImageMissingThumbnail, error) {
 	return nil, errors.New("db down")
 }
-func (failingPosts) SetThumbnailPath(context.Context, int64, string) error { return nil }
+func (failingPosts) SetImageThumbnailPath(context.Context, int64, string) error { return nil }

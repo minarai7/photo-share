@@ -28,9 +28,18 @@ type UserStore interface {
 // Contract (verified against Postgres in internal/repository tests):
 //   - GetPostByID returns qrm.ErrNoRows when no row matches.
 //   - UpdatePost / DeletePostByID return repository.ErrorPostNotFound when no row matches.
-//   - ListPosts returns newest first (created_at DESC, id DESC), never nil.
+//   - ListPosts returns newest first (created_at DESC, id DESC), never nil,
+//     filtered by UserID and to posts strictly before the Before cursor,
+//     at most Limit posts (0 = all). Its posts carry ImageCount (the number
+//     of image rows; 0 for a post without any) and no Images.
+//   - CreatePost stores Images in order (position 0 is also the post's
+//     image_path/thumbnail_path, the cover) atomically, and returns
+//     repository.ErrorNoImages for an empty Images. GetPostByID returns
+//     Images in that order (ImageCount unset); a post without image rows
+//     (written by an older backend) comes back with empty Images. Deleting
+//     a post deletes its images.
 type PostStore interface {
-	ListPosts(ctx context.Context) ([]dto.PostResponse, error)
+	ListPosts(ctx context.Context, p repository.ListPostsParams) ([]dto.PostResponse, error)
 	GetPostByID(ctx context.Context, id int64) (*dto.PostResponse, error)
 	CreatePost(ctx context.Context, p repository.CreatePostParams) (int64, error)
 	UpdatePost(ctx context.Context, p repository.UpdatePostParams) error

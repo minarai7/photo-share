@@ -1,20 +1,29 @@
-import { useState, type ChangeEvent, type SubmitEvent } from "react";
+import { useEffect, useRef, useState, type ChangeEvent, type SubmitEvent } from "react";
 import { useNavigate } from "react-router";
 import { createPost } from "../api/postsApi";
 import { uploadImage } from "../api/uploadsApi";
-import type { CreatePostRequest } from "../types/post";
+import type { CreatePostRequest, PostImage } from "../types/post";
+import type { UploadImageResponse } from "../types/upload";
 import { FormField } from "../components/FormField";
 import { useLanguage } from "../lang/useLanguage";
 import { useApiErrorMessage } from "../hooks/useApiErrorMessage";
-import { MAX_UPLOAD_BYTES, MAX_UPLOAD_MB } from "../config/upload";
+import { MAX_IMAGES_PER_POST, MAX_UPLOAD_BYTES, MAX_UPLOAD_MB } from "../config/upload";
+
+type SelectedPhoto = {
+  key: number;
+  file: File;
+  previewUrl: string;
+};
+
+type UploadProgress = { current: number; total: number };
 
 export function CreatePostPage() {
   const { t } = useLanguage();
   const toApiErrorMessage = useApiErrorMessage();
   const navigate = useNavigate();
 
-  const [photo, setPhoto] = useState<File | null>(null);
-  const [previewUrl, setPreviewUrl] = useState<string | null>(null);
+  // In display order; the first is the cover.
+  const [photos, setPhotos] = useState<SelectedPhoto[]>([]);
   const [caption, setCaption] = useState("");
   const [location, setLocation] = useState("");
   const [cameraBody, setCameraBody] = useState("");
@@ -22,25 +31,69 @@ export function CreatePostPage() {
 
   const [error, setError] = useState<string | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [progress, setProgress] = useState<UploadProgress | null>(null);
+
+  const nextKey = useRef(0);
+  // Uploads that already succeeded, so a retry after a failed create (or a
+  // failed later upload) does not send the same file again.
+  const uploaded = useRef(new Map<File, UploadImageResponse>());
+  // Every preview URL still alive, revoked on removal and on unmount.
+  const previewUrls = useRef(new Set<string>());
+
+  useEffect(() => {
+    const urls = previewUrls.current;
+    return () => {
+      urls.forEach((url) => URL.revokeObjectURL(url));
+      urls.clear();
+    };
+  }, []);
 
   function handlePhotoChange(event: ChangeEvent<HTMLInputElement>) {
-    let selectedFile = event.target.files?.[0] ?? null;
-
-    if (selectedFile && selectedFile.size > MAX_UPLOAD_BYTES) {
-      setError(t.validation.photoTooLarge(MAX_UPLOAD_MB));
-      event.target.value = "";
-      selectedFile = null;
-    } else if (selectedFile) {
-      setError(null);
+    const chosen = Array.from(event.target.files ?? []);
+    // Clear the input so choosing the same file again still fires onChange.
+    event.target.value = "";
+    if (chosen.length === 0) {
+      return;
     }
 
-    setPhoto(selectedFile);
-
-    if (selectedFile) {
-      setPreviewUrl(URL.createObjectURL(selectedFile));
-    } else {
-      setPreviewUrl(null);
+    let nextError: string | null = null;
+    let accepted = chosen.filter((file) => file.size <= MAX_UPLOAD_BYTES);
+    if (accepted.length < chosen.length) {
+      nextError = t.validation.photoTooLarge(MAX_UPLOAD_MB);
     }
+    const room = MAX_IMAGES_PER_POST - photos.length;
+    if (accepted.length > room) {
+      accepted = accepted.slice(0, Math.max(room, 0));
+      nextError = t.validation.tooManyPhotos(MAX_IMAGES_PER_POST);
+    }
+    setError(nextError);
+
+    const added = accepted.map((file) => {
+      const previewUrl = URL.createObjectURL(file);
+      previewUrls.current.add(previewUrl);
+      return { key: nextKey.current++, file, previewUrl };
+    });
+    setPhotos((current) => [...current, ...added]);
+  }
+
+  function removePhoto(index: number) {
+    const removed = photos[index];
+    URL.revokeObjectURL(removed.previewUrl);
+    previewUrls.current.delete(removed.previewUrl);
+    setPhotos((current) => current.filter((photo) => photo.key !== removed.key));
+    setError(null);
+  }
+
+  function movePhoto(index: number, delta: -1 | 1) {
+    setPhotos((current) => {
+      const target = index + delta;
+      if (target < 0 || target >= current.length) {
+        return current;
+      }
+      const next = [...current];
+      [next[index], next[target]] = [next[target], next[index]];
+      return next;
+    });
   }
 
   async function handleSubmit(event: SubmitEvent<HTMLFormElement>) {
@@ -48,7 +101,7 @@ export function CreatePostPage() {
 
     setError("");
 
-    if (!photo) {
+    if (photos.length === 0) {
       setError(t.validation.photoRequired);
       return;
     }
@@ -56,27 +109,42 @@ export function CreatePostPage() {
     try {
       setIsSubmitting(true);
 
-      const uploaded = await uploadImage(photo);
+      // One file at a time: the server decodes one image at a time anyway,
+      // and the user sees which file failed.
+      const results: UploadImageResponse[] = [];
+      for (const [index, photo] of photos.entries()) {
+        setProgress({ current: index + 1, total: photos.length });
+        let result = uploaded.current.get(photo.file);
+        if (!result) {
+          result = await uploadImage(photo.file);
+          uploaded.current.set(photo.file, result);
+        }
+        results.push(result);
+      }
+      setProgress(null);
+
+      const images: PostImage[] = results.map((result) =>
+        result.thumbnail_path
+          ? { image_path: result.image_path, thumbnail_path: result.thumbnail_path }
+          : { image_path: result.image_path },
+      );
 
       const data: CreatePostRequest = {
-        image_path: uploaded.image_path,
+        images,
         caption: caption.trim(),
-      }
-
-      if (uploaded.thumbnail_path) {
-        data.thumbnail_path = uploaded.thumbnail_path;
       }
 
       if (location.trim() !== "") {
         data.location = location.trim();
       }
 
-      // What the user typed wins; blank fields fall back to the photo's EXIF data.
-      const camera = cameraBody.trim() || uploaded.camera_body;
+      // What the user typed wins; blank fields fall back to the EXIF data of
+      // the first photo that records them.
+      const camera = cameraBody.trim() || results.find((r) => r.camera_body)?.camera_body;
       if (camera) {
         data.camera_body = camera;
       }
-      const lensName = lens.trim() || uploaded.lens;
+      const lensName = lens.trim() || results.find((r) => r.lens)?.lens;
       if (lensName) {
         data.lens = lensName;
       }
@@ -91,9 +159,12 @@ export function CreatePostPage() {
         })
       );
     } finally {
+        setProgress(null);
         setIsSubmitting(false);
     }
   }
+
+  const canAddMore = photos.length < MAX_IMAGES_PER_POST;
 
   return (
     <main className="form-page">
@@ -106,36 +177,89 @@ export function CreatePostPage() {
           <div className="form-field">
             <label htmlFor="photo">{t.posts.photo}</label>
 
-            <label className="image-upload-box" htmlFor="photo">
-              {previewUrl ? (
-                <img
-                  src={previewUrl}
-                  alt={t.posts.selectedPreviewAlt}
-                  className="image-upload-preview"
-                />
-              ) : (
-                <>
-                  <span className="image-upload-title">
-                    {t.posts.choosePhoto}
-                  </span>
-                  <span className="image-upload-subtitle">
-                    {t.posts.supportedImageTypes}
-                  </span>
-                  <span className="image-upload-subtitle">
-                    {t.posts.maxImageSize(MAX_UPLOAD_MB)}
-                  </span>
-                </>
-              )
-              }
-            </label>
+            {photos.length === 0 ? (
+              <label className="image-upload-box" htmlFor="photo">
+                <span className="image-upload-title">
+                  {t.posts.choosePhoto}
+                </span>
+                <span className="image-upload-subtitle">
+                  {t.posts.supportedImageTypes}
+                </span>
+                <span className="image-upload-subtitle">
+                  {t.posts.maxImageSize(MAX_UPLOAD_MB)}
+                </span>
+                <span className="image-upload-subtitle">
+                  {t.posts.maxImages(MAX_IMAGES_PER_POST)}
+                </span>
+              </label>
+            ) : (
+              <ol className="photo-picker-grid">
+                {photos.map((photo, index) => (
+                  <li key={photo.key} className="photo-picker-item">
+                    <img
+                      src={photo.previewUrl}
+                      alt={t.posts.selectedPreviewAlt(index + 1)}
+                      className="photo-picker-image"
+                    />
+                    {index === 0 && (
+                      <span className="photo-picker-cover">{t.posts.coverPhoto}</span>
+                    )}
+                    <div className="photo-picker-actions">
+                      <button
+                        type="button"
+                        className="icon-button"
+                        onClick={() => movePhoto(index, -1)}
+                        disabled={isSubmitting || index === 0}
+                        aria-label={t.posts.movePhotoEarlier(index + 1)}
+                        title={t.posts.movePhotoEarlier(index + 1)}
+                      >
+                        ←
+                      </button>
+                      <button
+                        type="button"
+                        className="icon-button"
+                        onClick={() => movePhoto(index, 1)}
+                        disabled={isSubmitting || index === photos.length - 1}
+                        aria-label={t.posts.movePhotoLater(index + 1)}
+                        title={t.posts.movePhotoLater(index + 1)}
+                      >
+                        →
+                      </button>
+                      <button
+                        type="button"
+                        className="icon-button"
+                        onClick={() => removePhoto(index)}
+                        disabled={isSubmitting}
+                        aria-label={t.posts.removePhoto(index + 1)}
+                        title={t.posts.removePhoto(index + 1)}
+                      >
+                        ×
+                      </button>
+                    </div>
+                  </li>
+                ))}
+                {canAddMore && (
+                  <li className="photo-picker-item">
+                    <label className="photo-picker-add" htmlFor="photo">
+                      <span className="image-upload-title">+ {t.posts.addMorePhotos}</span>
+                      <span className="image-upload-subtitle">
+                        {photos.length} / {MAX_IMAGES_PER_POST}
+                      </span>
+                    </label>
+                  </li>
+                )}
+              </ol>
+            )}
 
             <input
               id="photo"
               name="photo"
               type="file"
               accept="image/*"
+              multiple
               className="image-upload-input"
               onChange={handlePhotoChange}
+              disabled={isSubmitting || !canAddMore}
             />
           </div>
 
@@ -174,7 +298,11 @@ export function CreatePostPage() {
           />
 
           <button type="submit" disabled={isSubmitting}>
-            {isSubmitting ? t.posts.creatingPost : t.posts.createPostButton}
+            {progress
+              ? t.posts.uploadingPhotos(progress.current, progress.total)
+              : isSubmitting
+                ? t.posts.creatingPost
+                : t.posts.createPostButton}
           </button>
         </form>
       </section>

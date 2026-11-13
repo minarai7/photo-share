@@ -78,7 +78,7 @@ func NewMux(d Deps) *http.ServeMux {
 }
 
 // NewHandler returns the full production handler:
-// Recovery → Logging → CORS → mux.
+// Recovery → Logging → GzipJSON → CORS → mux.
 func NewHandler(d Deps) http.Handler {
 	return WrapMiddleware(NewMux(d), d.FrontendOrigin)
 }
@@ -98,6 +98,6 @@ func WrapMiddleware(h http.Handler, frontendOrigin string) http.Handler {
 	})
 
 	return middleware.Recovery(
-		middleware.Logging(corsMiddleware.Handler(h)),
+		middleware.Logging(middleware.GzipJSON(corsMiddleware.Handler(h))),
 	)
 }

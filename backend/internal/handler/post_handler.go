@@ -7,6 +7,7 @@ import (
 	"net/http"
 	"strconv"
 	"strings"
+	"time"
 
 	"backend/internal/httpx"
 	"backend/internal/middleware"
@@ -62,9 +63,29 @@ func (h *PostHandler) GetPostByID(w http.ResponseWriter, r *http.Request) {
 	httpx.WriteJSON(w, http.StatusOK, post)
 }
 
+// ListPosts serves GET /posts. Query parameters, all optional:
+//   - user_id: only that user's posts
+//   - limit: page size (1..service.MaxPageSize); without it, every post
+//   - before_created_at (RFC 3339) + before_id: the last post of the
+//     previous page; the response starts after it
 func (h *PostHandler) ListPosts(w http.ResponseWriter, r *http.Request) {
-	posts, err := h.postService.ListPosts(r.Context())
+	params, code, msg := parseListPostsQuery(r)
+	if code != "" {
+		httpx.WriteJSON(w, http.StatusBadRequest, httpx.ErrorResponse{
+			Error: httpx.ErrorDetail{Code: code, Message: msg},
+		})
+		return
+	}
+
+	posts, err := h.postService.ListPosts(r.Context(), params)
 	if err != nil {
+		if errors.Is(err, service.ErrInvalidPagination) {
+			httpx.WriteJSON(w, http.StatusBadRequest, httpx.ErrorResponse{
+				Error: httpx.ErrorDetail{Code: "invalid_pagination", Message: err.Error()},
+			})
+			return
+		}
+		log.Printf("list posts: %v", err)
 		httpx.WriteJSON(w, http.StatusInternalServerError, httpx.ErrorResponse{
 			Error: httpx.ErrorDetail{
 				Code:    "list_posts_failed",
@@ -75,6 +96,44 @@ func (h *PostHandler) ListPosts(w http.ResponseWriter, r *http.Request) {
 	}
 
 	httpx.WriteJSON(w, http.StatusOK, posts)
+}
+
+// parseListPostsQuery reads GET /posts's query. On bad input it returns an
+// error code and message for a 400 instead of params.
+func parseListPostsQuery(r *http.Request) (params service.ListPostsParams, code, msg string) {
+	q := r.URL.Query()
+
+	if v := q.Get("user_id"); v != "" {
+		id, err := strconv.ParseInt(v, 10, 64)
+		if err != nil || id <= 0 {
+			return params, "invalid_user_id", "user_id must be a positive number"
+		}
+		params.UserID = &id
+	}
+
+	invalid := service.ErrInvalidPagination.Error()
+	if v := q.Get("limit"); v != "" {
+		n, err := strconv.Atoi(v)
+		if err != nil || n < 1 {
+			return params, "invalid_pagination", invalid
+		}
+		params.Limit = n
+	}
+
+	createdAt, id := q.Get("before_created_at"), q.Get("before_id")
+	if createdAt != "" || id != "" {
+		at, err := time.Parse(time.RFC3339Nano, createdAt)
+		if err != nil {
+			return params, "invalid_pagination", invalid
+		}
+		postID, err := strconv.ParseInt(id, 10, 64)
+		if err != nil {
+			return params, "invalid_pagination", invalid
+		}
+		params.Before = &service.PostCursor{CreatedAt: at, ID: postID}
+	}
+
+	return params, "", ""
 }
 
 func (h *PostHandler) CreatePost(w http.ResponseWriter, r *http.Request) {
@@ -101,8 +160,14 @@ func (h *PostHandler) CreatePost(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	images := make([]service.CreatePostImage, len(req.Images))
+	for i, img := range req.Images {
+		images[i] = service.CreatePostImage{ImagePath: img.ImagePath, ThumbnailPath: img.ThumbnailPath}
+	}
+
 	post := service.CreatePostParams{
 		UserID:        userID,
+		Images:        images,
 		ImagePath:     req.ImagePath,
 		ThumbnailPath: req.ThumbnailPath,
 		Caption:       req.Caption,
@@ -118,6 +183,24 @@ func (h *PostHandler) CreatePost(w http.ResponseWriter, r *http.Request) {
 				Error: httpx.ErrorDetail{
 					Code:    "invalid_thumbnail_path",
 					Message: "thumbnail_path must be the thumbnail of image_path",
+				},
+			})
+			return
+		}
+		if errors.Is(err, service.ErrTooManyImages) {
+			_ = httpx.WriteJSON(w, http.StatusBadRequest, httpx.ErrorResponse{
+				Error: httpx.ErrorDetail{
+					Code:    "too_many_images",
+					Message: err.Error(),
+				},
+			})
+			return
+		}
+		if errors.Is(err, service.ErrDuplicateImage) {
+			_ = httpx.WriteJSON(w, http.StatusBadRequest, httpx.ErrorResponse{
+				Error: httpx.ErrorDetail{
+					Code:    "duplicate_image",
+					Message: err.Error(),
 				},
 			})
 			return

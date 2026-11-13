@@ -2,19 +2,23 @@ package server
 
 import (
 	"bytes"
+	"compress/gzip"
 	"encoding/binary"
 	"encoding/json"
 	"errors"
 	"fmt"
 	"image/jpeg"
+	"io"
 	"net/http"
 	"net/http/httptest"
+	"net/url"
 	"os"
 	"path/filepath"
 	"strings"
 	"testing"
 
 	"backend/internal/exifmeta"
+	"backend/internal/repository"
 	"backend/internal/testutil/fixtures"
 )
 
@@ -181,12 +185,343 @@ func decodePost(t *testing.T, rec *httptest.ResponseRecorder) map[string]any {
 	t.Helper()
 	var p map[string]any
 	decodeOne(t, rec, &p)
-	for _, k := range []string{"id", "user_id", "username", "image_path", "caption", "created_at", "updated_at"} {
+	for _, k := range []string{"id", "user_id", "username", "image_path", "images", "caption", "created_at", "updated_at"} {
 		if _, ok := p[k]; !ok {
 			t.Errorf("post.%s missing: %v", k, p)
 		}
 	}
 	return p
+}
+
+// postImages returns a decoded post's images as {image_path, thumbnail_path}
+// maps, failing unless every one has exactly the keys the frontend expects.
+func postImages(t *testing.T, p map[string]any) []map[string]any {
+	t.Helper()
+	raw, ok := p["images"].([]any)
+	if !ok {
+		t.Fatalf("images is %T, want an array: %v", p["images"], p)
+	}
+	out := make([]map[string]any, len(raw))
+	for i, r := range raw {
+		img, ok := r.(map[string]any)
+		if !ok {
+			t.Fatalf("images[%d] is %T", i, r)
+		}
+		for k := range img {
+			if k != "image_path" && k != "thumbnail_path" {
+				t.Errorf("images[%d] has unexpected key %q: %v", i, k, img)
+			}
+		}
+		out[i] = img
+	}
+	return out
+}
+
+func TestCreatePostWithMultipleImages(t *testing.T) {
+	app := newTestApp(t)
+	_, alice := app.userWithToken("alice")
+
+	type uploaded struct {
+		ImagePath     string `json:"image_path"`
+		ThumbnailPath string `json:"thumbnail_path"`
+	}
+	var ups []uploaded
+	for i, data := range [][]byte{
+		fixtures.EncodePNG(fixtures.Gradient(1200, 900)),
+		fixtures.JPEG(),
+		fixtures.EncodePNG(fixtures.Gradient(900, 1200)),
+	} {
+		rec := app.upload(alice, fmt.Sprintf("p%d.png", i), data)
+		expectStatus(t, rec, http.StatusCreated)
+		var up uploaded
+		decodeOne(t, rec, &up)
+		ups = append(ups, up)
+	}
+
+	images := []map[string]any{}
+	for _, up := range ups {
+		img := map[string]any{"image_path": up.ImagePath}
+		if up.ThumbnailPath != "" {
+			img["thumbnail_path"] = up.ThumbnailPath
+		}
+		images = append(images, img)
+	}
+	rec := app.do(req{method: http.MethodPost, path: "/posts", token: alice, body: map[string]any{
+		"images": images, "caption": "three",
+	}})
+	expectStatus(t, rec, http.StatusCreated)
+	created := decodePost(t, rec)
+
+	check := func(where string, p map[string]any) {
+		t.Helper()
+		got := postImages(t, p)
+		if len(got) != 3 {
+			t.Fatalf("%s: %d images, want 3: %v", where, len(got), p)
+		}
+		for i, up := range ups {
+			if got[i]["image_path"] != up.ImagePath {
+				t.Errorf("%s: images[%d] = %v, want %s (order kept)", where, i, got[i]["image_path"], up.ImagePath)
+			}
+			if up.ThumbnailPath != "" && got[i]["thumbnail_path"] != up.ThumbnailPath {
+				t.Errorf("%s: images[%d].thumbnail_path = %v, want %s", where, i, got[i]["thumbnail_path"], up.ThumbnailPath)
+			}
+		}
+		// The top-level fields are the cover, for clients that predate images.
+		if p["image_path"] != ups[0].ImagePath || p["thumbnail_path"] != ups[0].ThumbnailPath {
+			t.Errorf("%s: cover = %v / %v, want the first image", where, p["image_path"], p["thumbnail_path"])
+		}
+	}
+	check("create", created)
+
+	rec = app.do(req{method: http.MethodGet, path: fmt.Sprintf("/posts/%v", created["id"])})
+	expectStatus(t, rec, http.StatusOK)
+	check("detail", decodePost(t, rec))
+
+	// The feed carries the cover and the count, not the images.
+	rec = app.do(req{method: http.MethodGet, path: "/posts"})
+	var feed []map[string]any
+	decodeOne(t, rec, &feed)
+	if len(feed) != 1 {
+		t.Fatalf("feed has %d posts, want 1", len(feed))
+	}
+	if _, ok := feed[0]["images"]; ok {
+		t.Errorf("feed post has images: %v", feed[0])
+	}
+	if feed[0]["image_count"] != float64(3) || feed[0]["image_path"] != ups[0].ImagePath {
+		t.Errorf("feed post = %v, want image_count 3 and the first image as cover", feed[0])
+	}
+	if created["image_count"] != float64(3) {
+		t.Errorf("created post image_count = %v, want 3", created["image_count"])
+	}
+
+	// Editing the text keeps the images.
+	rec = app.do(req{method: http.MethodPut, path: fmt.Sprintf("/posts/%v", created["id"]), token: alice, body: map[string]any{"caption": "edited"}})
+	expectStatus(t, rec, http.StatusOK)
+	check("update", decodePost(t, rec))
+}
+
+func TestListPostsPaginationAndUserFilter(t *testing.T) {
+	app := newTestApp(t)
+	aliceID, alice := app.userWithToken("alice")
+	bobID, bob := app.userWithToken("bob")
+
+	var created []map[string]any
+	for i, tok := range []string{alice, bob, alice, alice, bob} {
+		rec := app.do(req{method: http.MethodPost, path: "/posts", token: tok, body: map[string]any{
+			"images": []map[string]string{{"image_path": fmt.Sprintf("/uploads/%d.jpg", i)}}, "caption": fmt.Sprint(i),
+		}})
+		expectStatus(t, rec, http.StatusCreated)
+		created = append(created, decodePost(t, rec))
+	}
+
+	list := func(query string) []map[string]any {
+		t.Helper()
+		rec := app.do(req{method: http.MethodGet, path: "/posts" + query})
+		expectStatus(t, rec, http.StatusOK)
+		var posts []map[string]any
+		decodeOne(t, rec, &posts)
+		return posts
+	}
+
+	// Without parameters: every post, as before pagination existed.
+	all := list("")
+	if len(all) != 5 {
+		t.Fatalf("GET /posts returned %d posts, want 5", len(all))
+	}
+
+	// Page through with the cursor built from the last post of each page,
+	// exactly as the frontend does (created_at is sent back as received).
+	var walked []any
+	query := "?limit=2"
+	for range 10 {
+		page := list(query)
+		for _, p := range page {
+			walked = append(walked, p["id"])
+		}
+		if len(page) < 2 {
+			break
+		}
+		last := page[len(page)-1]
+		query = fmt.Sprintf("?limit=2&before_created_at=%s&before_id=%v", url.QueryEscape(last["created_at"].(string)), last["id"])
+	}
+	if len(walked) != 5 {
+		t.Fatalf("pages visited %v, want all 5 posts once", walked)
+	}
+	for i, p := range all {
+		if walked[i] != p["id"] {
+			t.Fatalf("page order %v differs from the full list", walked)
+		}
+	}
+
+	for _, tc := range []struct {
+		userID int64
+		want   int
+	}{{aliceID, 3}, {bobID, 2}, {999, 0}} {
+		posts := list(fmt.Sprintf("?user_id=%d", tc.userID))
+		if len(posts) != tc.want {
+			t.Errorf("user %d: %d posts, want %d", tc.userID, len(posts), tc.want)
+		}
+		for _, p := range posts {
+			if p["user_id"] != float64(tc.userID) {
+				t.Errorf("user %d's list has post of user %v", tc.userID, p["user_id"])
+			}
+		}
+	}
+	if got := list(fmt.Sprintf("?user_id=%d&limit=1", aliceID)); len(got) != 1 || got[0]["id"] != created[3]["id"] {
+		t.Errorf("alice's first page = %v, want her newest post", got)
+	}
+}
+
+func TestListPostsBadQuery(t *testing.T) {
+	app := newTestApp(t)
+	for _, tc := range []struct {
+		query, code string
+	}{
+		{"?limit=0", "invalid_pagination"},
+		{"?limit=-3", "invalid_pagination"},
+		{"?limit=abc", "invalid_pagination"},
+		{"?limit=101", "invalid_pagination"},
+		{"?before_id=5", "invalid_pagination"},
+		{"?before_created_at=2026-01-01T00:00:00Z", "invalid_pagination"},
+		{"?before_created_at=yesterday&before_id=5", "invalid_pagination"},
+		{"?before_created_at=2026-01-01T00:00:00Z&before_id=0", "invalid_pagination"},
+		{"?user_id=abc", "invalid_user_id"},
+		{"?user_id=0", "invalid_user_id"},
+	} {
+		t.Run(tc.query, func(t *testing.T) {
+			expectError(t, app.do(req{method: http.MethodGet, path: "/posts" + tc.query}), http.StatusBadRequest, tc.code)
+		})
+	}
+}
+
+// JSON is gzipped for clients that ask for it; images and bodyless
+// responses are left alone.
+func TestGzipJSON(t *testing.T) {
+	app := newTestApp(t)
+	_, tok := app.userWithToken("alice")
+	for i := range 3 {
+		app.store.MustAddPost(1, fmt.Sprintf("/uploads/%d.jpg", i), strings.Repeat("caption ", 20))
+	}
+
+	get := func(path, acceptEncoding string) *httptest.ResponseRecorder {
+		r := httptest.NewRequest(http.MethodGet, path, nil)
+		if acceptEncoding != "" {
+			r.Header.Set("Accept-Encoding", acceptEncoding)
+		}
+		rec := httptest.NewRecorder()
+		app.handler.ServeHTTP(rec, r)
+		return rec
+	}
+
+	plain := get("/posts", "")
+	expectStatus(t, plain, http.StatusOK)
+	if ce := plain.Header().Get("Content-Encoding"); ce != "" {
+		t.Errorf("Content-Encoding %q without Accept-Encoding", ce)
+	}
+	if !strings.Contains(strings.Join(plain.Header().Values("Vary"), ","), "Accept-Encoding") {
+		t.Errorf("Vary = %q, want Accept-Encoding", plain.Header().Values("Vary"))
+	}
+
+	for _, ae := range []string{"gzip", "gzip, deflate, br, zstd", "br;q=1.0, gzip;q=0.8", "*"} {
+		rec := get("/posts", ae)
+		if ce := rec.Header().Get("Content-Encoding"); ce != "gzip" {
+			t.Fatalf("Accept-Encoding %q: Content-Encoding = %q, want gzip", ae, ce)
+		}
+		zr, err := gzip.NewReader(rec.Body)
+		if err != nil {
+			t.Fatalf("%q: not gzip: %v", ae, err)
+		}
+		body, err := io.ReadAll(zr)
+		if err != nil {
+			t.Fatal(err)
+		}
+		if !bytes.Equal(body, plain.Body.Bytes()) {
+			t.Errorf("%q: decompressed body differs from the plain one", ae)
+		}
+	}
+	if ce := get("/posts", "gzip;q=0, identity").Header().Get("Content-Encoding"); ce != "" {
+		t.Errorf("gzip;q=0: Content-Encoding = %q, want none", ce)
+	}
+
+	// Errors are JSON too.
+	if ce := get("/posts/999", "gzip").Header().Get("Content-Encoding"); ce != "gzip" {
+		t.Errorf("404 JSON: Content-Encoding = %q, want gzip", ce)
+	}
+
+	// Images are already compressed and must keep Content-Length and ranges.
+	rec := app.upload(tok, "pic.png", fixtures.PNG())
+	var up struct {
+		ImagePath string `json:"image_path"`
+	}
+	decodeOne(t, rec, &up)
+	img := get(up.ImagePath, "gzip")
+	expectStatus(t, img, http.StatusOK)
+	if ce := img.Header().Get("Content-Encoding"); ce != "" || img.Header().Get("Content-Length") == "" {
+		t.Errorf("image: Content-Encoding %q, Content-Length %q; want none and set", ce, img.Header().Get("Content-Length"))
+	}
+
+	// 204 has no body to compress.
+	r := httptest.NewRequest(http.MethodDelete, "/posts/1", nil)
+	r.Header.Set("Authorization", "Bearer "+tok)
+	r.Header.Set("Accept-Encoding", "gzip")
+	del := httptest.NewRecorder()
+	app.handler.ServeHTTP(del, r)
+	expectStatus(t, del, http.StatusNoContent)
+	if del.Header().Get("Content-Encoding") != "" || del.Body.Len() != 0 {
+		t.Errorf("204: Content-Encoding %q, body %d bytes", del.Header().Get("Content-Encoding"), del.Body.Len())
+	}
+}
+
+// The frontend deployed before multi-image posts sends image_path only; its
+// posts get a one-element images array.
+func TestCreatePostLegacyBodyHasImages(t *testing.T) {
+	app := newTestApp(t)
+	_, tok := app.userWithToken("alice")
+
+	rec := app.do(req{method: http.MethodPost, path: "/posts", token: tok, body: map[string]any{"image_path": "/uploads/a.jpg"}})
+	expectStatus(t, rec, http.StatusCreated)
+	got := postImages(t, decodePost(t, rec))
+	if len(got) != 1 || got[0]["image_path"] != "/uploads/a.jpg" {
+		t.Errorf("images = %v", got)
+	}
+}
+
+func TestCreatePostImageErrors(t *testing.T) {
+	app := newTestApp(t)
+	_, tok := app.userWithToken("alice")
+	images := func(paths ...string) []map[string]any {
+		out := []map[string]any{}
+		for _, p := range paths {
+			out = append(out, map[string]any{"image_path": p})
+		}
+		return out
+	}
+	var eleven []string
+	for i := range 11 {
+		eleven = append(eleven, fmt.Sprintf("/uploads/%d.jpg", i))
+	}
+
+	cases := []struct {
+		name string
+		body map[string]any
+		code string
+	}{
+		{"too many", map[string]any{"images": images(eleven...)}, "too_many_images"},
+		{"duplicate", map[string]any{"images": images("/uploads/a.jpg", "/uploads/a.jpg")}, "duplicate_image"},
+		{"blank path", map[string]any{"images": images("/uploads/a.jpg", "")}, "create_post_failed"},
+		{"foreign thumbnail on image 2", map[string]any{"images": []map[string]any{
+			{"image_path": "/uploads/a.jpg"},
+			{"image_path": "/uploads/b.jpg", "thumbnail_path": "/uploads/a_w800.jpg"},
+		}}, "invalid_thumbnail_path"},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			expectError(t, app.do(req{method: http.MethodPost, path: "/posts", token: tok, body: tc.body}), http.StatusBadRequest, tc.code)
+		})
+	}
+	if posts, _ := app.store.Posts().ListPosts(t.Context(), repository.ListPostsParams{}); len(posts) != 0 {
+		t.Errorf("a post was created: %v", posts)
+	}
 }
 
 func TestListPostsEmptyIsArray(t *testing.T) {
@@ -330,7 +665,7 @@ func TestCreatePostRejectsForeignThumbnail(t *testing.T) {
 			expectError(t, rec, http.StatusBadRequest, "invalid_thumbnail_path")
 		})
 	}
-	if posts, _ := app.store.Posts().ListPosts(t.Context()); len(posts) != 0 {
+	if posts, _ := app.store.Posts().ListPosts(t.Context(), repository.ListPostsParams{}); len(posts) != 0 {
 		t.Errorf("a post was created: %v", posts)
 	}
 }
@@ -618,6 +953,7 @@ func TestUnexpectedErrorsDoNotLeakInternals(t *testing.T) {
 		{method: http.MethodGet, path: "/posts"},
 		{method: http.MethodGet, path: "/posts/1"},
 		{method: http.MethodPost, path: "/posts", token: tok, body: map[string]string{"image_path": "/uploads/x.jpg"}},
+		{method: http.MethodPost, path: "/posts", token: tok, body: map[string]any{"images": []map[string]string{{"image_path": "/uploads/y.jpg"}, {"image_path": "/uploads/z.jpg"}}}},
 		{method: http.MethodPut, path: "/posts/1", token: tok, body: map[string]string{"caption": "x"}},
 		{method: http.MethodDelete, path: "/posts/1", token: tok},
 		{method: http.MethodPut, path: "/users/me/settings/language", token: tok, body: map[string]string{"preferred_language": "ja"}},

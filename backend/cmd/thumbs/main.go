@@ -1,7 +1,8 @@
-// Command thumbs makes the grid thumbnails (see internal/thumbnail) for posts
-// created before uploads started making them, and records each one in
-// posts.thumbnail_path. It only looks at posts whose thumbnail_path is NULL,
-// so running it again is harmless.
+// Command thumbs makes the grid thumbnails (see internal/thumbnail) for post
+// images stored before uploads started making them, and records each one in
+// post_images.thumbnail_path (and, for a post's cover, posts.thumbnail_path).
+// It only looks at images whose thumbnail_path is NULL, so running it again
+// is harmless.
 //
 // It reads the same settings as the server: DATABASE_URL plus the storage
 // ones (STORAGE_DRIVER, UPLOAD_DIR, S3_BUCKET_NAME, AWS_REGION), from the
@@ -14,7 +15,7 @@
 // -max-mp on a small machine.
 //
 //	go run ./cmd/thumbs           # dry run
-//	go run ./cmd/thumbs -apply    # save thumbnails and update the posts
+//	go run ./cmd/thumbs -apply    # save thumbnails and update the images
 package main
 
 import (
@@ -38,8 +39,8 @@ import (
 
 // postSource is the part of repository.PostRepository the backfill needs.
 type postSource interface {
-	ListPostsMissingThumbnail(ctx context.Context) ([]repository.PostImage, error)
-	SetThumbnailPath(ctx context.Context, id int64, thumbnailPath string) error
+	ListImagesMissingThumbnail(ctx context.Context) ([]repository.ImageMissingThumbnail, error)
+	SetImageThumbnailPath(ctx context.Context, imageID int64, thumbnailPath string) error
 }
 
 // Uploads are capped at MAX_UPLOAD_BYTES (32 MiB by default); anything far
@@ -57,12 +58,12 @@ type options struct {
 	limits thumbnail.Limits
 }
 
-// errSkip marks posts that can't have a thumbnail by design (not a stored
+// errSkip marks images that can't have a thumbnail by design (not a stored
 // upload, animated, too large); they keep showing their original.
 var errSkip = errors.New("skipped")
 
 func main() {
-	apply := flag.Bool("apply", false, "save thumbnails and update posts (default: dry run, report only)")
+	apply := flag.Bool("apply", false, "save thumbnails and update post images (default: dry run, report only)")
 	maxMB := flag.Int64("max-mb", 2048, "skip images whose decode needs more than this many MiB (server: 512)")
 	maxMP := flag.Int64("max-mp", 250, "skip images over this many megapixels (server: 100)")
 	flag.Parse()
@@ -114,28 +115,30 @@ func main() {
 
 func run(ctx context.Context, posts postSource, st storage.Storage, opts options, out io.Writer) (summary, error) {
 	apply := opts.apply
-	missing, err := posts.ListPostsMissingThumbnail(ctx)
+	missing, err := posts.ListImagesMissingThumbnail(ctx)
 	if err != nil {
-		return summary{}, fmt.Errorf("list posts without a thumbnail: %w", err)
+		return summary{}, fmt.Errorf("list images without a thumbnail: %w", err)
 	}
 
 	var sum summary
 	for _, p := range missing {
+		// "post 12 image 2": images are numbered from 1, as shown to users.
+		label := fmt.Sprintf("post %d image %d %s", p.PostID, p.Position+1, p.ImagePath)
 		thumbPath, before, after, err := thumbOne(ctx, posts, st, p, opts)
 		switch {
 		case errors.Is(err, errSkip):
 			sum.skipped++
-			fmt.Fprintf(out, "skipped     post %d %s: %v\n", p.ID, p.ImagePath, err)
+			fmt.Fprintf(out, "skipped     %s: %v\n", label, err)
 		case err != nil:
 			sum.failed++
-			fmt.Fprintf(out, "FAILED      post %d %s: %v\n", p.ID, p.ImagePath, err)
+			fmt.Fprintf(out, "FAILED      %s: %v\n", label, err)
 		default:
 			sum.made++
 			verb := "would make "
 			if apply {
 				verb = "made       "
 			}
-			fmt.Fprintf(out, "%s post %d %s -> %s (%d -> %d bytes)\n", verb, p.ID, p.ImagePath, thumbPath, before, after)
+			fmt.Fprintf(out, "%s %s -> %s (%d -> %d bytes)\n", verb, label, thumbPath, before, after)
 		}
 	}
 
@@ -143,15 +146,15 @@ func run(ctx context.Context, posts postSource, st storage.Storage, opts options
 	if apply {
 		verb = "made"
 	}
-	fmt.Fprintf(out, "%d posts without a thumbnail: %d %s, %d skipped, %d failed\n",
+	fmt.Fprintf(out, "%d images without a thumbnail: %d %s, %d skipped, %d failed\n",
 		len(missing), sum.made, verb, sum.skipped, sum.failed)
 	return sum, nil
 }
 
-// thumbOne makes the thumbnail for one post and, with apply, stores it and
-// records it on the post. It returns the thumbnail's path and the sizes of
-// the original and the thumbnail.
-func thumbOne(ctx context.Context, posts postSource, st storage.Storage, p repository.PostImage, opts options) (string, int, int, error) {
+// thumbOne makes the thumbnail for one post image and, with apply, stores it
+// and records it on the image. It returns the thumbnail's path and the sizes
+// of the original and the thumbnail.
+func thumbOne(ctx context.Context, posts postSource, st storage.Storage, p repository.ImageMissingThumbnail, opts options) (string, int, int, error) {
 	name, ok := strings.CutPrefix(p.ImagePath, uploadsPrefix)
 	if !ok || name == "" || strings.ContainsAny(name, `/\`) {
 		return "", 0, 0, fmt.Errorf("%w: not a stored upload", errSkip)
@@ -184,13 +187,13 @@ func thumbOne(ctx context.Context, posts postSource, st storage.Storage, p repos
 		if err := st.Save(ctx, bytesFile{bytes.NewReader(thumb)}, thumbName, "image/jpeg"); err != nil {
 			return "", 0, 0, fmt.Errorf("save %s: %w", thumbName, err)
 		}
-		if err := posts.SetThumbnailPath(ctx, p.ID, thumbPath); err != nil {
-			if errors.Is(err, repository.ErrorPostNotFound) {
+		if err := posts.SetImageThumbnailPath(ctx, p.ID, thumbPath); err != nil {
+			if errors.Is(err, repository.ErrorPostImageNotFound) {
 				// Deleted during the run. Storage has no Delete, so the file
 				// stays, like the original of any deleted post.
 				return "", 0, 0, fmt.Errorf("%w: post was deleted during the run (%s left in storage)", errSkip, thumbName)
 			}
-			return "", 0, 0, fmt.Errorf("update post: %w", err)
+			return "", 0, 0, fmt.Errorf("update image: %w", err)
 		}
 	}
 	return thumbPath, len(data), len(thumb), nil

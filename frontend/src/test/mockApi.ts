@@ -8,6 +8,8 @@ type Handler = Reply | ((call: RecordedCall) => Reply | Promise<Reply>);
 export type RecordedCall = {
   method: string;
   path: string;
+  /** The query string; routes match on the path alone. */
+  query: URLSearchParams;
   headers: Headers;
   body: BodyInit | null | undefined;
   json: () => unknown;
@@ -54,6 +56,7 @@ export function mockApi(routes: Record<string, Handler>) {
     const call: RecordedCall = {
       method,
       path: url.pathname,
+      query: url.searchParams,
       headers: new Headers(init.headers),
       body: init.body,
       json: () => JSON.parse(String(init.body)),

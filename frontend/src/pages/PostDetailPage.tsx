@@ -1,6 +1,6 @@
 import { useEffect, useState, type SubmitEvent  } from "react";
 import { Link, useParams, useLocation, useNavigate } from "react-router";
-import { getImageUrl } from "../utils/imageUrl";
+import { ImageCarousel } from "../components/ImageCarousel";
 import { deletePostById, getPostById, updatePostById } from "../api/postsApi";
 import { ApiError } from "../api/apiError";
 import type { Post, UpdatePostRequest } from "../types/post";
@@ -258,12 +258,13 @@ export function PostDetailPage() {
     return (
         <main className="page">
         <article className="post-detail-card">
-            <img
-                className="post-detail-image"
-                src={getImageUrl(post.image_path)}
+            <ImageCarousel
+                key={post.id}
+                // The feed's copy (router state) has only the cover and the
+                // count; the carousel shows placeholders until the fetch lands.
+                images={post.images?.length ? post.images : [{ image_path: post.image_path, thumbnail_path: post.thumbnail_path }]}
+                total={post.image_count}
                 alt={post.caption || t.posts.postImageAlt}
-                // The page's main image (its LCP element): fetch it first.
-                fetchPriority="high"
             />
 
             <div className="post-detail-content">

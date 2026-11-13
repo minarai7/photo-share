@@ -82,7 +82,7 @@ func setup(dsn string) (*sql.DB, error) {
 // Truncate empties every application table and resets id sequences.
 func Truncate(t *testing.T, db *sql.DB) {
 	t.Helper()
-	if _, err := db.Exec(`TRUNCATE users, posts RESTART IDENTITY CASCADE`); err != nil {
+	if _, err := db.Exec(`TRUNCATE users, posts, post_images RESTART IDENTITY CASCADE`); err != nil {
 		t.Fatalf("truncate: %v", err)
 	}
 }
@@ -94,11 +94,31 @@ func ResetSchema(db *sql.DB) error {
 
 // MigrateUp applies every "-- +goose Up" section in filename order.
 func MigrateUp(db *sql.DB) error {
+	return migrateUp(db, func(string) bool { return true })
+}
+
+// MigrateUpTo applies the Up sections of the migrations up to and including
+// version (the file name's numeric prefix), e.g. to seed data that a later
+// migration has to carry over.
+func MigrateUpTo(db *sql.DB, version string) error {
+	return migrateUp(db, func(v string) bool { return v <= version })
+}
+
+// MigrateUpAfter applies the Up sections of the migrations after version.
+func MigrateUpAfter(db *sql.DB, version string) error {
+	return migrateUp(db, func(v string) bool { return v > version })
+}
+
+func migrateUp(db *sql.DB, include func(version string) bool) error {
 	files, err := migrationFiles()
 	if err != nil {
 		return err
 	}
 	for _, f := range files {
+		version, _, _ := strings.Cut(filepath.Base(f), "_")
+		if !include(version) {
+			continue
+		}
 		up, _, err := parseMigration(f)
 		if err != nil {
 			return err

@@ -1,53 +1,14 @@
-import { useEffect, useState } from "react";
-import { getPosts } from "../api/postsApi";
 import { PostCard } from "../components/PostCard";
-import type { GetPostsResponse } from "../types/post";
+import { LoadMore } from "../components/LoadMore";
 import { useLanguage } from "../lang/useLanguage";
 import { useApiErrorMessage } from "../hooks/useApiErrorMessage";
+import { usePostPages } from "../hooks/usePostPages";
 import { EAGER_GRID_IMAGES } from "../config/images";
 
 export function FeedPage() {
     const { t } = useLanguage();
     const toApiErrorMessage = useApiErrorMessage();
-
-    const [posts, setPosts] = useState<GetPostsResponse>([]);
-    const [isLoading, setIsLoading] = useState(true);
-    const [error, setError] = useState<string | null>(null);
-
-    useEffect(() => {
-        let isMounted = true;
-
-        async function loadPosts() {
-            try {
-                setIsLoading(true);
-                setError(null);
-
-                const posts = await getPosts();
-
-                if (isMounted) {
-                    setPosts(posts);
-                }
-            } catch (err) {
-                if (isMounted) {
-                    setError(
-                        toApiErrorMessage(err, {
-                        fallbackMessage: t.posts.loadPostsFailed,
-                        })
-                    );
-                }
-            } finally {
-                if (isMounted) {
-                    setIsLoading(false);
-                }
-            }
-        }
-
-        loadPosts();
-
-        return () => {
-            isMounted = false;
-        }
-    }, [toApiErrorMessage, t.posts.loadPostsFailed]);
+    const { posts, isLoading, error, hasMore, isLoadingMore, loadMoreError, loadMore } = usePostPages();
 
     if(isLoading) {
         return (
@@ -57,10 +18,12 @@ export function FeedPage() {
         )
     }
 
-    if (error) {
+    if (error != null) {
         return (
             <main className="feed-page">
-                <p className="feed-error">{error}</p>
+                <p className="feed-error">
+                    {toApiErrorMessage(error, { fallbackMessage: t.posts.loadPostsFailed, shouldLog: false })}
+                </p>
             </main>
         )
     }
@@ -75,19 +38,27 @@ export function FeedPage() {
             {posts.length === 0 ? (
                 <p className="feed-status">{t.posts.noPosts}</p>
             ) : (
-                <div className="post-grid">
-                    {posts.map((post, index) => (
-                        <PostCard
-                            key={post.id}
-                            post={post}
-                            eager={index < EAGER_GRID_IMAGES}
-                            returnTo={{
-                                pathname: "/",
-                                labelKey: "backToFeed",
-                            }}
-                        />
-                    ))}
-                </div>
+                <>
+                    <div className="post-grid">
+                        {posts.map((post, index) => (
+                            <PostCard
+                                key={post.id}
+                                post={post}
+                                eager={index < EAGER_GRID_IMAGES}
+                                returnTo={{
+                                    pathname: "/",
+                                    labelKey: "backToFeed",
+                                }}
+                            />
+                        ))}
+                    </div>
+                    <LoadMore
+                        hasMore={hasMore}
+                        isLoading={isLoadingMore}
+                        error={loadMoreError}
+                        onLoadMore={loadMore}
+                    />
+                </>
             )}
         </main>
     )

@@ -1,7 +1,7 @@
-import { act, screen, waitFor, within } from "@testing-library/react";
+import { act, fireEvent, screen, waitFor, within } from "@testing-library/react";
 import { describe, expect, it, vi } from "vitest";
 import { en } from "../lang";
-import { makePost, makeUser, seedSession } from "../test/fixtures";
+import { makeListPost, makePost, makeUser, seedSession } from "../test/fixtures";
 import { apiError, deferred, mockApi, noContent, ok } from "../test/mockApi";
 import { renderApp } from "../test/renderApp";
 
@@ -28,6 +28,120 @@ describe("PostDetailPage", () => {
     mockApi({ "GET /posts/10": ok(post) });
     renderApp("/posts/10");
     expect(await screen.findByRole("img", { name: "Morning light" })).toHaveAttribute("fetchpriority", "high");
+  });
+
+  describe("with several images", () => {
+    const multi = makePost({
+      id: 10,
+      caption: "Morning light",
+      images: [
+        { image_path: "/uploads/1.jpg", thumbnail_path: "/uploads/1_w800.jpg" },
+        { image_path: "/uploads/2.png" },
+        { image_path: "/uploads/3.webp" },
+      ],
+      image_path: "/uploads/1.jpg",
+      thumbnail_path: "/uploads/1_w800.jpg",
+    });
+    const shownSrc = () => screen.getByRole("img", { name: "Morning light" }).getAttribute("src");
+
+    it("starts at the first original and steps with the buttons", async () => {
+      mockApi({ "GET /posts/10": ok(multi) });
+      const { user } = renderApp("/posts/10");
+
+      await screen.findByRole("heading", { name: "Morning light" });
+      expect(shownSrc()).toBe("http://api.test/uploads/1.jpg");
+      expect(screen.getByText(en.posts.imagePosition(1, 3))).toBeInTheDocument();
+      expect(screen.getByRole("button", { name: en.posts.previousImage })).toBeDisabled();
+
+      await user.click(screen.getByRole("button", { name: en.posts.nextImage }));
+      expect(shownSrc()).toBe("http://api.test/uploads/2.png");
+      expect(screen.getByText(en.posts.imagePosition(2, 3))).toBeInTheDocument();
+
+      await user.click(screen.getByRole("button", { name: en.posts.nextImage }));
+      expect(shownSrc()).toBe("http://api.test/uploads/3.webp");
+      expect(screen.getByRole("button", { name: en.posts.nextImage })).toBeDisabled();
+
+      await user.click(screen.getByRole("button", { name: en.posts.previousImage }));
+      expect(shownSrc()).toBe("http://api.test/uploads/2.png");
+    });
+
+    it("steps with the arrow keys and jumps with the dots", async () => {
+      mockApi({ "GET /posts/10": ok(multi) });
+      const { user } = renderApp("/posts/10");
+
+      await screen.findByRole("heading", { name: "Morning light" });
+      screen.getByRole("region", { name: "Morning light" }).focus();
+      await user.keyboard("{ArrowRight}");
+      expect(shownSrc()).toBe("http://api.test/uploads/2.png");
+      await user.keyboard("{ArrowLeft}{ArrowLeft}");
+      expect(shownSrc()).toBe("http://api.test/uploads/1.jpg");
+
+      const dots = within(screen.getByRole("region", { name: "Morning light" }));
+      await user.click(dots.getByRole("button", { name: en.posts.imagePosition(3, 3) }));
+      expect(shownSrc()).toBe("http://api.test/uploads/3.webp");
+    });
+
+    it("follows a swipe: the slide scrolled into view becomes the current one", async () => {
+      mockApi({ "GET /posts/10": ok(multi) });
+      renderApp("/posts/10");
+      await screen.findByRole("heading", { name: "Morning light" });
+
+      // jsdom has no layout: give the track a width, then scroll it like a
+      // finger would (scroll-snap ends on a whole slide).
+      const track = document.querySelector(".image-carousel-track") as HTMLElement;
+      Object.defineProperty(track, "clientWidth", { configurable: true, value: 400 });
+      track.scrollLeft = 400;
+      fireEvent.scroll(track);
+      expect(screen.getByText(en.posts.imagePosition(2, 3))).toBeInTheDocument();
+      expect(shownSrc()).toBe("http://api.test/uploads/2.png");
+
+      track.scrollLeft = 800;
+      fireEvent.scroll(track);
+      expect(screen.getByText(en.posts.imagePosition(3, 3))).toBeInTheDocument();
+      expect(screen.getByRole("button", { name: en.posts.nextImage })).toBeDisabled();
+    });
+
+    it("loads a slide's image only once it is shown or next in line", async () => {
+      mockApi({ "GET /posts/10": ok(multi) });
+      const { user } = renderApp("/posts/10");
+      await screen.findByRole("heading", { name: "Morning light" });
+
+      const loaded = () =>
+        Array.from(document.querySelectorAll(".image-carousel-slide img")).map((img) => img.getAttribute("src"));
+      expect(loaded()).toEqual(["http://api.test/uploads/1.jpg", "http://api.test/uploads/2.png"]);
+
+      await user.click(screen.getByRole("button", { name: en.posts.nextImage }));
+      expect(loaded()).toHaveLength(3);
+      // Going back keeps what was loaded.
+      await user.click(screen.getByRole("button", { name: en.posts.previousImage }));
+      expect(loaded()).toHaveLength(3);
+    });
+
+    it("opened from the feed, shows every slide's place at once and fills them in when the post arrives", async () => {
+      const refresh = deferred();
+      mockApi({ "GET /posts/10": refresh.handler });
+      // The feed's copy: the cover and the count, no images.
+      const listed = makeListPost({ id: 10, caption: "Morning light", image_path: "/uploads/1.jpg", image_count: 3 });
+      const { user } = renderApp({ pathname: "/posts/10", state: { post: listed } });
+
+      expect(screen.getByText(en.posts.imagePosition(1, 3))).toBeInTheDocument();
+      expect(shownSrc()).toBe("http://api.test/uploads/1.jpg");
+      expect(document.querySelectorAll(".image-carousel-slide")).toHaveLength(3);
+      await user.click(screen.getByRole("button", { name: en.posts.nextImage }));
+      expect(screen.getByText(en.posts.imagePosition(2, 3))).toBeInTheDocument();
+
+      await act(async () => refresh.resolve(ok(multi)));
+      expect(await screen.findByRole("img", { name: "Morning light" })).toHaveAttribute("src", "http://api.test/uploads/2.png");
+    });
+
+    it("shows a single image without carousel controls", async () => {
+      mockApi({ "GET /posts/10": ok(post) });
+      renderApp("/posts/10");
+
+      await screen.findByRole("heading", { name: "Morning light" });
+      expect(screen.queryByRole("button", { name: en.posts.nextImage })).not.toBeInTheDocument();
+      expect(screen.queryByRole("region", { name: "Morning light" })).not.toBeInTheDocument();
+    });
   });
 
   describe("opened from a card (post in router state)", () => {

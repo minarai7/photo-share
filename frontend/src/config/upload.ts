@@ -3,3 +3,7 @@
 export const MAX_UPLOAD_BYTES = 32 * 1024 * 1024;
 
 export const MAX_UPLOAD_MB = MAX_UPLOAD_BYTES / (1024 * 1024);
+
+// Most images one post can have (POST /posts).
+// Keep in sync with MaxImagesPerPost in backend/internal/service/post_service.go.
+export const MAX_IMAGES_PER_POST = 10;

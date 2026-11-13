@@ -1,7 +1,8 @@
 import { expect, test } from '@playwright/test'
 import { en } from '../src/lang/en'
 
-// Full-stack smoke test: signup → login → upload + create post → edit → delete.
+// Full-stack smoke test: signup → login → upload 2 photos + create post →
+// step through them → edit → delete.
 // Needs the Go backend + Postgres running (e.g. `docker compose up`, or
 // `go run ./cmd/server`). Skips when the API isn't reachable.
 // Creates a throwaway user (e2e_<timestamp>) in whatever DB that backend uses;
@@ -44,19 +45,36 @@ test('user can sign up, post a photo, edit it and delete it', async ({ page }) =
     await expect(page.getByRole('link', { name: en.nav.profile(id) })).toBeVisible()
   })
 
-  await test.step('create a post', async () => {
+  await test.step('create a post with two photos', async () => {
     await page.getByRole('link', { name: en.nav.createPost }).click()
-    await page.getByLabel(en.posts.photo).setInputFiles({ name: 'tiny.jpg', mimeType: 'image/jpeg', buffer: TINY_JPEG })
+    await expect(page.getByRole('heading', { name: en.posts.createPostTitle })).toBeVisible()
+    // exact: "Photos" would also match feed badges labelled "3 photos".
+    await page.getByLabel(en.posts.photo, { exact: true }).setInputFiles([
+      { name: 'first.jpg', mimeType: 'image/jpeg', buffer: TINY_JPEG },
+      { name: 'second.jpg', mimeType: 'image/jpeg', buffer: TINY_JPEG },
+    ])
+    await expect(page.getByAltText(en.posts.selectedPreviewAlt(2))).toBeVisible()
     await page.getByLabel(en.posts.title).fill(caption)
     await page.getByLabel(en.posts.location).fill('Playwright Park')
     await page.getByRole('button', { name: en.posts.createPostButton }).click()
     await page.waitForURL((url) => url.pathname === '/')
     await expect(page.getByText(caption)).toBeVisible()
+    // The feed lists image_count, not the images.
+    await expect(page.getByLabel(en.posts.imageCount(2))).toHaveText('1/2')
+  })
+
+  await test.step('step through its photos', async () => {
+    await page.getByRole('img', { name: caption }).click()
+    await expect(page.getByRole('heading', { name: caption })).toBeVisible()
+    const shown = page.getByRole('img', { name: caption })
+    const first = await shown.getAttribute('src')
+    await expect(page.getByText(en.posts.imagePosition(1, 2))).toBeVisible()
+    await page.getByRole('button', { name: en.posts.nextImage }).click()
+    await expect(page.getByText(en.posts.imagePosition(2, 2))).toBeVisible()
+    await expect(shown).not.toHaveAttribute('src', first ?? '')
   })
 
   await test.step('edit the post', async () => {
-    await page.getByRole('img', { name: caption }).click()
-    await expect(page.getByRole('heading', { name: caption })).toBeVisible()
     await page.getByRole('button', { name: en.posts.edit }).click()
     await page.getByLabel(en.posts.title).fill(edited)
     await page.getByRole('button', { name: en.posts.save }).click()

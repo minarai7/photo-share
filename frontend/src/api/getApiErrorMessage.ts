@@ -47,6 +47,9 @@ export function getApiErrorMessage(
     case "list_posts_failed":
       return t.apiErrors.listPostsFailed;
 
+    case "invalid_pagination":
+      return t.apiErrors.invalidPagination;
+
     case "unauthorized":
       return t.apiErrors.unauthorized;
 
@@ -55,6 +58,12 @@ export function getApiErrorMessage(
 
     case "invalid_thumbnail_path":
       return t.apiErrors.invalidThumbnailPath;
+
+    case "too_many_images":
+      return t.apiErrors.tooManyImages;
+
+    case "duplicate_image":
+      return t.apiErrors.duplicateImage;
 
     case "forbidden":
       return t.apiErrors.forbidden;

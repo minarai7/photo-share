@@ -25,8 +25,13 @@ export function makeUser(overrides: Partial<UserResponse> = {}): UserResponse {
   };
 }
 
+/**
+ * A single post like GET /posts/{id} returns. Without an `images` override it
+ * has one image, its cover (image_path / thumbnail_path). image_count follows
+ * the images unless overridden. For a list item (no images), use makeListPost.
+ */
 export function makePost(overrides: Partial<Post> = {}): Post {
-  return {
+  const post: Omit<Post, "images" | "image_count"> = {
     id: 10,
     user_id: 1,
     username: "alice",
@@ -39,6 +44,18 @@ export function makePost(overrides: Partial<Post> = {}): Post {
     updated_at: "2026-10-20T08:00:00Z",
     ...overrides,
   };
+  const cover = post.thumbnail_path
+    ? { image_path: post.image_path, thumbnail_path: post.thumbnail_path }
+    : { image_path: post.image_path };
+  const images = overrides.images ?? [cover];
+  return { ...post, images, image_count: overrides.image_count ?? images.length };
+}
+
+/** A post as GET /posts lists it: the cover and image_count, no images. */
+export function makeListPost(overrides: Partial<Post> = {}): Post {
+  const post = makePost(overrides);
+  delete post.images;
+  return post;
 }
 
 /** Puts a session in localStorage exactly like authStorage.saveAuth does. */

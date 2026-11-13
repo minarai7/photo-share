@@ -47,6 +47,8 @@ export type TranslationDictionary = {
     loadingPosts: string;
     loadPostsFailed: string;
     noPosts: string;
+    loadMore: string;
+    loadingMore: string;
     backToFeed: string;
     backToProfile: string;
 
@@ -63,10 +65,17 @@ export type TranslationDictionary = {
     created: string;
 
     photo: string;
-    selectedPreviewAlt: string;
+    selectedPreviewAlt: (position: number) => string;
     choosePhoto: string;
+    addMorePhotos: string;
     supportedImageTypes: string;
     maxImageSize: (sizeMb: number) => string;
+    maxImages: (count: number) => string;
+    coverPhoto: string;
+    removePhoto: (position: number) => string;
+    movePhotoEarlier: (position: number) => string;
+    movePhotoLater: (position: number) => string;
+    uploadingPhotos: (current: number, total: number) => string;
     creatingPost: string;
     createPostButton: string;
     createPostFailed: string;
@@ -87,12 +96,18 @@ export type TranslationDictionary = {
     deleteConfirm: string;
     notSpecified: string;
     postImageAlt: string;
+    previousImage: string;
+    nextImage: string;
+    imagePosition: (current: number, total: number) => string;
+    imageCount: (count: number) => string;
   };
 
   profile: {
     title: string;
     userPostsTitle: (username: string) => string;
     postCount: (count: number) => string;
+    // When more posts exist than are loaded: "20+ posts".
+    postCountAtLeast: (count: number) => string;
     ownEmptyPostsMessage: string;
     createFirstPost: string;
     loadProfileFailed: string;
@@ -128,6 +143,7 @@ export type TranslationDictionary = {
     passwordTooShort: string;
     photoRequired: string;
     photoTooLarge: (sizeMb: number) => string;
+    tooManyPhotos: (max: number) => string;
     userIdMissing: string;
     invalidUserId: string;
   };
@@ -153,9 +169,12 @@ export type TranslationDictionary = {
     invalidPreferredLanguage: string;
     postNotFound: string;
     listPostsFailed: string;
+    invalidPagination: string;
     unauthorized: string;
     createPostFailed: string;
     invalidThumbnailPath: string;
+    tooManyImages: string;
+    duplicateImage: string;
     forbidden: string;
     invalidMultipartForm: string;
     imageRequired: string;

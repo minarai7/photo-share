@@ -21,7 +21,7 @@ func TestMigrationsRoundTrip(t *testing.T) {
 		t.Fatalf("down: %v", err)
 	}
 	var n int
-	if err := db.QueryRow(`SELECT count(*) FROM information_schema.tables WHERE table_schema='public' AND table_name IN ('users','posts')`).Scan(&n); err != nil {
+	if err := db.QueryRow(`SELECT count(*) FROM information_schema.tables WHERE table_schema='public' AND table_name IN ('users','posts','post_images')`).Scan(&n); err != nil {
 		t.Fatal(err)
 	}
 	if n != 0 {
@@ -40,8 +40,9 @@ func TestGeneratedModelsMatchSchema(t *testing.T) {
 	db := testdb.Open(t)
 
 	for table, m := range map[string]any{
-		"users": model.Users{},
-		"posts": model.Posts{},
+		"users":       model.Users{},
+		"posts":       model.Posts{},
+		"post_images": model.PostImages{},
 	} {
 		t.Run(table, func(t *testing.T) {
 			rows, err := db.Query(`SELECT column_name FROM information_schema.columns WHERE table_schema='public' AND table_name=$1`, table)

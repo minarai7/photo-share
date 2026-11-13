@@ -1,13 +1,15 @@
 import { useEffect, useState } from "react";
 import { Link, useParams } from "react-router";
-import { getPostsByUserId } from "../api/postsApi";
 import { PostCard } from "../components/PostCard";
+import { LoadMore } from "../components/LoadMore";
 import { useAuth } from "../auth/useAuth";
-import type { GetPostsResponse } from "../types/post";
 import { getUserById } from "../api";
 import { useLanguage } from "../lang/useLanguage";
 import { useApiErrorMessage } from "../hooks/useApiErrorMessage";
+import { usePostPages } from "../hooks/usePostPages";
 import { EAGER_GRID_IMAGES } from "../config/images";
+
+type ForUser<T> = { userId: number; value: T };
 
 export function ProfilePage() {
   const { t } = useLanguage();
@@ -15,13 +17,8 @@ export function ProfilePage() {
   const { userId } = useParams<{userId: string}>();
   const { user } = useAuth();
 
-  const [posts, setPosts] = useState<GetPostsResponse>([]);
-  const [isLoading, setIsLoading] = useState(true);
-  const [username, setUsername] = useState<string | null>(null);
-  const [error, setError] = useState<string | null>(null);
-
   // Derived during render (not stored in state) so they always match the
-  // current URL and session; the effect only fetches.
+  // current URL and session; the effects only fetch.
   const numericUserId = userId ? Number(userId) : NaN;
   const idError = !userId
     ? t.validation.userIdMissing
@@ -31,60 +28,58 @@ export function ProfilePage() {
   const isOwnProfile = user !== null && user.id === numericUserId;
   const ownUsername = isOwnProfile ? user.username : null;
 
+  // Only this user's posts, a page at a time (GET /posts?user_id=).
+  const { posts, isLoading, error, hasMore, isLoadingMore, loadMoreError, loadMore } = usePostPages({
+    userId: idError ? undefined : numericUserId,
+    enabled: !idError,
+  });
+
+  // Another user's name comes from GET /users/{id}; your own from the session.
+  // Results are tagged with the id they belong to, so after navigating to
+  // another profile the previous user's name or error is never shown.
+  const [fetchedUser, setFetchedUser] = useState<ForUser<string> | null>(null);
+  const [userError, setUserError] = useState<ForUser<unknown> | null>(null);
+
   useEffect(() => {
-    if (idError) {
+    if (idError || ownUsername) {
       return
     }
 
     let isMounted = true;
 
-    async function loadProfilePosts() {
-      try {
-        setIsLoading(true);
-        setError(null);
-
-        const [profilePosts, profileUsername] = await Promise.all([
-          getPostsByUserId(numericUserId),
-          ownUsername ?? getUserById(numericUserId).then((u) => u.username),
-        ]);
-
+    getUserById(numericUserId)
+      .then((u) => {
         if (isMounted) {
-          setPosts(profilePosts);
-          setUsername(profileUsername);
+          setFetchedUser({ userId: numericUserId, value: u.username });
         }
-      } catch (err) {
+      })
+      .catch((err: unknown) => {
         if (isMounted) {
-          setError(
-            toApiErrorMessage(err, {
-              fallbackMessage: t.profile.loadProfileFailed,
-            })
-          )
+          console.error(err);
+          setUserError({ userId: numericUserId, value: err });
         }
-      } finally {
-        if (isMounted) {
-          setIsLoading(false);
-        }
-      }
-    }
-
-    loadProfilePosts();
+      });
 
     return () => {
       isMounted = false;
     };
-  }, [idError, numericUserId, ownUsername, toApiErrorMessage, t.profile.loadProfileFailed])
+  }, [idError, numericUserId, ownUsername])
 
-  const shownError = idError ?? error;
+  const username = ownUsername ?? (fetchedUser?.userId === numericUserId ? fetchedUser.value : null);
+  const lookupError = userError?.userId === numericUserId ? userError.value : null;
+  const loadError = lookupError ?? error;
 
-  if (shownError) {
+  if (idError || loadError != null) {
     return (
       <main className="feed-page">
-        <p className="feed-error">{shownError}</p>
+        <p className="feed-error">
+          {idError ?? toApiErrorMessage(loadError, { fallbackMessage: t.profile.loadProfileFailed, shouldLog: false })}
+        </p>
       </main>
     )
   }
 
-  if (isLoading) {
+  if (isLoading || username === null) {
     return (
       <main className="feed-page">
         <p className="feed-status">{t.posts.loadingPosts}</p>
@@ -96,8 +91,8 @@ export function ProfilePage() {
   return (
     <main className="feed-page">
       <header className="feed-header">
-        <h1>{username ?  t.profile.userPostsTitle(username) : t.profile.title}</h1>
-        <p>{t.profile.postCount(posts.length)}</p>
+        <h1>{t.profile.userPostsTitle(username)}</h1>
+        <p>{hasMore ? t.profile.postCountAtLeast(posts.length) : t.profile.postCount(posts.length)}</p>
       </header>
 
       {posts.length === 0 ? (
@@ -115,20 +110,28 @@ export function ProfilePage() {
           </p>
         </>
       ) : (
-        <div className="post-grid">
-          {posts.map((post, index) => (
-            <PostCard
-              key={post.id}
-              post={post}
-              eager={index < EAGER_GRID_IMAGES}
-              showAuthor={false}
-              returnTo={{
-                pathname: `/users/${userId}`,
-                labelKey: "backToProfile",
-              }}
-            />
-          ))}
-        </div>
+        <>
+          <div className="post-grid">
+            {posts.map((post, index) => (
+              <PostCard
+                key={post.id}
+                post={post}
+                eager={index < EAGER_GRID_IMAGES}
+                showAuthor={false}
+                returnTo={{
+                  pathname: `/users/${userId}`,
+                  labelKey: "backToProfile",
+                }}
+              />
+            ))}
+          </div>
+          <LoadMore
+            hasMore={hasMore}
+            isLoading={isLoadingMore}
+            error={loadMoreError}
+            onLoadMore={loadMore}
+          />
+        </>
       )}
     </main>
   );

@@ -31,6 +31,7 @@ export function PostCard({ post, showAuthor = true, returnTo, eager = false }: P
     // the card is reused for another post.
     const [failedThumbnail, setFailedThumbnail] = useState<string | null>(null);
     const thumbnail = post.thumbnail_path && post.thumbnail_path !== failedThumbnail ? post.thumbnail_path : null;
+    const imageCount = post.image_count ?? post.images?.length ?? 1;
 
     return (
         <article className="post-card">
@@ -48,6 +49,11 @@ export function PostCard({ post, showAuthor = true, returnTo, eager = false }: P
                     loading={eager ? "eager" : "lazy"}
                     decoding="async"
                 />
+                {imageCount > 1 && (
+                    <span className="post-card-count" aria-label={t.posts.imageCount(imageCount)}>
+                        1/{imageCount}
+                    </span>
+                )}
             </Link>
 
             <div className="post-card-body">
