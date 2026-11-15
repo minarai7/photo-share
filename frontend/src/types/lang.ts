@@ -1,156 +1,226 @@
 export type LanguageCode = "en" | "ja";
 
+// Copy is written in sentence case; uppercase comes from CSS (DESIGN-SYSTEM.md
+// §3.2, §10). Functions take strings and numbers only.
 export type TranslationDictionary = {
   app: {
     title: string;
   };
 
-  nav: {
-    feed: string;
-    createPost: string;
-    profile: (username: string) => string;
+  /** The fixed header and the one Close. */
+  header: {
+    newPost: string;
+    newPostLabel: string;
     login: string;
-    logout: string;
+    close: string;
+    closeToFeed: string;
+    closeToProfile: string;
+    closeToPost: string;
+    /** The Index link: "All 10 works". */
+    allWorks: (total: number) => string;
+    /** The Index link while a filter narrows the set: "4 of 10 works". */
+    someWorks: (count: number, total: number) => string;
+    /** Its spoken label: "4 of 10 works: index, sort and filter". */
+    indexLabel: (visible: string) => string;
+  };
+
+  /** The landing hero and the person hero. */
+  hero: {
+    tagline: string;
+    scroll: string;
+    newPost: string;
+    yourProfile: string;
+    allWorks: string;
+    login: string;
     signup: string;
+    logout: string;
+    /** "12 works · 31 photographs". */
+    stats: (works: number, photos: number) => string;
   };
 
-  auth: {
-    email: string;
-    username: string;
-    password: string;
-
-    loginTitle: string;
-    signupTitle: string;
-
-    loginButton: string;
-    signupButton: string;
-
-    loginFailed: string;
-    signupFailed: string;
-
-    loggingIn: string;
-    creatingAccount: string;
-
-    signupSuccess: string;
-
-    alreadyHaveAccountLogin: string;
-    dontHaveAccountSignup: string;
-
-    emailPlaceholder: string;
-    usernamePlaceholder: string;
-    passwordPlaceholder: string;
+  /** The feed / profile reel. */
+  reel: {
+    loading: string;
+    loadFailed: string;
+    retry: string;
+    endHere: string;
+    endBy: (username: string) => string;
+    allWorks: string;
+    backToTop: string;
+    noWorksYet: string;
+    noMatch: string;
+    clearFilters: string;
+    openWork: (caption: string) => string;
+    photos: (caption: string, count: number) => string;
+    untitled: string;
   };
 
-  posts: {
-    feedTitle: string;
-    feedSubtitle: string;
-    loadingPosts: string;
-    loadPostsFailed: string;
-    noPosts: string;
-    loadMore: string;
-    loadingMore: string;
-    backToFeed: string;
-    backToProfile: string;
+  /** The Index: contact sheet + sort and filter. */
+  index: {
+    title: string;
+    works: (count: number) => string;
+    someWorks: (count: number, total: number) => string;
+    rules: string;
+    worksLabel: string;
+    sort: string;
+    by: string;
+    only: string;
+    newest: string;
+    oldest: string;
+    most: string;
+    single: string;
+    series: string;
+    clearAll: string;
+    nothing: string;
+    photoCount: (count: number) => string;
+    loadingPeople: string;
+  };
 
-    createPostTitle: string;
-    editPostTitle: string;
-    postDetailTitle: string;
+  /** The line under the wordmark naming the active filters. */
+  filterLine: {
+    byOne: (name: string) => string;
+    byTwo: (first: string, second: string) => string;
+    /** "by a, b and" — followed by the "3 others" trigger. */
+    byManyStart: (first: string, second: string) => string;
+    others: (count: number) => string;
+    othersLabel: (count: number, names: string) => string;
+    by: string;
+    seriesOnly: string;
+    singleOnly: string;
+    clear: string;
+  };
 
+  /** The post view, its wall label and lights out. */
+  post: {
+    loading: string;
+    loadFailed: string;
+    info: string;
+    infoDown: string;
+    infoUp: string;
+    previousPhoto: string;
+    nextPhoto: string;
+    photoOf: (caption: string, position: number, total: number) => string;
+    photoPosition: (position: number, total: number) => string;
+    viewFull: (alt: string) => string;
+    lightsOut: (caption: string) => string;
+    about: string;
+    manage: string;
+    edit: string;
+    delete: string;
+  };
+
+  editPost: {
     title: string;
     caption: string;
-    location: string;
+    place: string;
     camera: string;
     lens: string;
-    gearFromPhotoPlaceholder: string;
-    created: string;
-
-    photo: string;
-    selectedPreviewAlt: (position: number) => string;
-    choosePhoto: string;
-    addMorePhotos: string;
-    supportedImageTypes: string;
-    maxImageSize: (sizeMb: number) => string;
-    maxImages: (count: number) => string;
-    coverPhoto: string;
-    removePhoto: (position: number) => string;
-    movePhotoEarlier: (position: number) => string;
-    movePhotoLater: (position: number) => string;
-    uploadingPhotos: (current: number, total: number) => string;
-    creatingPost: string;
-    createPostButton: string;
-    createPostFailed: string;
-
-    submit: string;
+    cancel: string;
     save: string;
     saving: string;
-    delete: string;
-    deleting: string;
-    edit: string;
-
-    loadingPost: string;
-    loadPostFailed: string;
-    updatePostFailed: string;
-    deletePostFailed: string;
-    postIdMissing: string;
-    invalidPostId: string;
-    deleteConfirm: string;
-    notSpecified: string;
-    postImageAlt: string;
-    previousImage: string;
-    nextImage: string;
-    imagePosition: (current: number, total: number) => string;
-    imageCount: (count: number) => string;
+    failed: string;
   };
 
-  profile: {
+  deletePost: {
     title: string;
-    userPostsTitle: (username: string) => string;
-    postCount: (count: number) => string;
-    // When more posts exist than are loaded: "20+ posts".
-    postCountAtLeast: (count: number) => string;
-    ownEmptyPostsMessage: string;
-    createFirstPost: string;
-    loadProfileFailed: string;
+    description: (caption: string, photos: number) => string;
+    cancel: string;
+    confirm: string;
+    deleting: string;
+    failed: string;
   };
 
-  aiGear: {
+  gear: {
+    find: string;
+    findLabel: (name: string) => string;
     finding: string;
-    findProduct: string;
-    modalKicker: string;
-    productSuggestions: string;
-    findFailed: string;
+    kicker: string;
     noReliableLinks: string;
-    confidence: string;
     confidenceHigh: string;
     confidenceMedium: string;
     confidenceLow: string;
-    confidenceUnknown: string;
-    warning: string;
+    findFailed: string;
+    note: string;
+    close: string;
+  };
+
+  auth: {
+    loginTitle: string;
+    signupTitle: string;
+    loginSubtitle: string;
+    signupSubtitle: string;
+    email: string;
+    username: string;
+    password: string;
+    passwordHint: string;
+    loginButton: string;
+    signupButton: string;
+    pending: string;
+    noAccount: string;
+    haveAccount: string;
+    signupLink: string;
+    loginLink: string;
+    loginFailed: string;
+    signupFailed: string;
+  };
+
+  compose: {
+    title: string;
+    preview: string;
+    untitled: string;
+    choosePhotos: string;
+    limits: (maxPhotos: number, maxMb: number) => string;
+    reorderHint: string;
+    gearHint: string;
+    caption: string;
+    place: string;
+    camera: string;
+    lens: string;
+    optional: string;
+    fromPhoto: string;
+    publish: string;
+    publishing: string;
+    uploading: string;
+    addPhotos: string;
+    cover: string;
+    coverAlt: (name: string) => string;
+    photoLabel: (position: number, total: number, name: string) => string;
+    removePhoto: (position: number) => string;
+    failed: string;
+  };
+
+  toast: {
+    published: string;
+    updated: string;
+    deleted: string;
+    signedOut: string;
+    welcomeBack: string;
+    welcome: string;
+    signedInAs: (username: string) => string;
+    signedUpAs: (username: string) => string;
   };
 
   settings: {
     language: string;
     english: string;
     japanese: string;
-    savingLanguage: string;
     languageSaveFailed: string;
   };
 
   validation: {
     usernameRequired: string;
-    emailRequired: string;
+    emailInvalid: string;
     passwordRequired: string;
     passwordTooShort: string;
     photoRequired: string;
     photoTooLarge: (sizeMb: number) => string;
+    photoWrongType: string;
     tooManyPhotos: (max: number) => string;
-    userIdMissing: string;
-    invalidUserId: string;
   };
 
   notFound: {
-    title: string;
     message: string;
+    userMessage: string;
     backToFeed: string;
   };
 
@@ -170,6 +240,8 @@ export type TranslationDictionary = {
     postNotFound: string;
     listPostsFailed: string;
     invalidPagination: string;
+    invalidSort: string;
+    invalidPhotosFilter: string;
     unauthorized: string;
     createPostFailed: string;
     invalidThumbnailPath: string;
@@ -183,15 +255,5 @@ export type TranslationDictionary = {
     invalidImage: string;
     uploadFailed: string;
     unknown: string;
-  };
-
-  common: {
-    loading: string;
-    error: string;
-    cancel: string;
-    confirm: string;
-    back: string;
-    retry: string;
-    close: string;
   };
 };

@@ -1,0 +1,50 @@
+/* New post: a live preview of the slide it will become, the fields in a side panel. */
+.compose { display: grid; grid-template-columns: minmax(0, 1fr) var(--panel-w); min-height: 100svh; }
+.compose-stage {
+  position: relative; min-height: 100svh; padding: var(--s-96) var(--rail) var(--s-36);
+  display: grid; grid-template-rows: auto minmax(0, 1fr) auto auto; gap: var(--s-18);
+}
+.compose-kicker { margin: 0; font: 400 var(--fs-label-xs)/1 var(--display); letter-spacing: var(--track-wide); text-transform: uppercase; color: var(--muted); }
+.compose-work { margin: 0; display: grid; place-items: center; min-height: 0; }
+.compose-work img { width: auto; height: auto; max-width: 100%; max-height: calc(100svh - 360px); }
+.compose-stage .credit-line .is-plain { border-bottom: 0; }
+.compose-empty { display: grid; place-content: center; gap: var(--s-12); min-height: 0; border: var(--line) solid var(--rule); text-align: center; transition: background-color var(--t-hover); }
+.compose-empty-title { font: 400 var(--fs-mark)/1 var(--display); letter-spacing: var(--track-mark); text-transform: uppercase; }
+.compose-empty-sub { font: italic 400 var(--fs-body)/1.4 var(--serif); color: var(--muted); }
+:lang(ja) :is(.compose-kicker, .compose-empty-title, .compose-empty-sub, .hint) { font-family: var(--jp); font-style: normal; letter-spacing: var(--track-ja); }
+.filmstrip { display: grid; gap: var(--s-10); }
+/* Sortable photos: 88px thumbnails on --wash; COVER band; remove ×; + add tile. */
+.sortable { list-style: none; margin: 0; display: flex; gap: var(--s-10); overflow-x: auto; padding: var(--s-6) var(--s-4); }
+.sp-item { position: relative; flex: 0 0 88px; height: 88px; background: var(--wash); touch-action: none; cursor: grab; outline-offset: 3px; }
+.sp-item[data-dragging] { z-index: 2; cursor: grabbing; outline: var(--line) solid var(--ink); outline-offset: var(--s-4); }
+.sp-img { width: 100%; height: 100%; object-fit: cover; pointer-events: none; user-select: none; -webkit-user-select: none; }
+.sp-cover { position: absolute; left: 0; right: 0; bottom: 0; pointer-events: none; padding: var(--s-4); background: var(--ink); color: var(--on-dark); font: 400 var(--fs-micro)/1 var(--display); letter-spacing: var(--track-label); text-transform: uppercase; text-align: center; }
+:lang(ja) .sp-cover { font-family: var(--jp); letter-spacing: var(--track-ja); }
+/* Remove ×: a small light square on the photo; it inverts on hover. */
+.sp-remove {
+  position: absolute; top: var(--s-4); right: var(--s-4); width: 22px; height: 22px; font-size: var(--fs-hint); line-height: 1;
+  background: color-mix(in srgb, var(--on-dark) 90%, transparent); color: var(--ink);
+  transition: background-color var(--t-color), color var(--t-color);
+}
+.add-tile { flex: 0 0 88px; }
+.add-tile button { width: 88px; height: 88px; border: var(--line) dashed var(--faint); font: 300 var(--fs-title)/1 var(--serif); transition: border-color var(--t-color), background-color var(--t-color); }
+.hint { margin: 0; font: italic 400 var(--fs-hint)/1.4 var(--serif); color: var(--muted); }
+.compose-panel {
+  display: grid; align-content: start; gap: var(--s-22); padding: calc(var(--header-h) + var(--s-22)) var(--s-36) var(--s-150);
+  background: color-mix(in srgb, var(--page) 92%, var(--on-dark)); border-left: var(--line) solid var(--hair);
+  transition: background-color var(--t-tint);
+}
+.inline-count { margin-left: var(--s-8); gap: var(--s-4); }
+@media (hover: hover) and (pointer: fine) {
+  .compose-empty:hover { background-color: color-mix(in srgb, var(--on-dark) 40%, transparent); }
+  .sp-remove:hover { background: var(--ink); color: var(--on-dark); }
+  .add-tile button:hover { border-color: var(--ink); background-color: var(--wash); }
+}
+
+@media (max-width: 760px) {
+  .compose { grid-template-columns: 1fr; }
+  .compose-stage { min-height: auto; padding: calc(var(--header-h) + var(--s-6)) var(--rail) var(--s-22); grid-template-rows: none; gap: var(--s-14); }
+  .compose-work img { max-height: 46svh; }
+  .compose-empty { min-height: 46svh; }
+  .compose-panel { padding: var(--s-28) var(--s-22) var(--s-150); border-left: 0; border-top: var(--line) solid var(--hair); }
+}

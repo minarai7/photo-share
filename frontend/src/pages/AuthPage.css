@@ -1,0 +1,21 @@
+/* Log in / sign up: a feed slide with the form in its right-hand room. The work
+   keeps the slide's margins, vertical title and credit line. */
+.door {
+  position: relative; min-height: 100svh; padding: var(--s-96) var(--rail) var(--s-36);
+  display: grid; grid-template-columns: minmax(0, 1fr) var(--form-w); gap: var(--s-64); align-items: center;
+}
+.door-work { margin: 0; display: grid; justify-items: center; gap: var(--s-18); min-width: 0; }
+.door-work img { width: auto; height: auto; max-width: 100%; max-height: calc(100svh - var(--feed-reserve)); }
+.door-work figcaption { justify-self: stretch; }
+.auth-form { width: 100%; display: grid; gap: var(--s-22); }
+.form-sub { margin: calc(-1 * var(--s-8)) 0 var(--s-6); font: italic 400 var(--fs-field)/1.4 var(--serif); }
+.form-alt { margin: 0; font-size: var(--fs-body); }
+.form-alt .textlink { margin-left: var(--s-6); }
+:lang(ja) :is(.form-title, .form-sub, .form-alt) { font-family: var(--jp); font-style: normal; letter-spacing: var(--track-ja); }
+:lang(ja) .form-sub { font-size: var(--fs-body); }
+
+@media (max-width: 760px) {
+  .door { grid-template-columns: 1fr; gap: var(--s-18); align-items: start; padding: calc(var(--header-h) + var(--s-6)) var(--rail) var(--s-150); }
+  .door-work img { max-height: 34svh; }
+  .auth-form { padding-top: var(--s-18); }
+}

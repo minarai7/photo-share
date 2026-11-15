@@ -1,10 +1,8 @@
 import { Route, Routes } from "react-router"
-import { SignupPage } from "./pages/SignupPage"
-import { LoginPage } from "./pages/LoginPage"
-import { FeedPage } from "./pages/FeedPage"
+import { AuthPage } from "./pages/AuthPage"
+import { FeedPage, ProfilePage } from "./pages/FeedPage"
 import { CreatePostPage } from "./pages/CreatePostPage"
 import { PostDetailPage } from "./pages/PostDetailPage"
-import { ProfilePage } from "./pages/ProfilePage"
 import { NotFoundPage } from "./pages/NotFoundPage"
 import { Layout } from "./components/Layout"
 import { ProtectedRoute } from "./routes/ProtectedRoute"
@@ -17,13 +15,13 @@ export default function App() {
         <Route path="/" element={<FeedPage />} />
         <Route path="/signup" element={
           <PublicOnlyRoute>
-            <SignupPage />
+            <AuthPage mode="signup" key="signup" />
           </PublicOnlyRoute>
           }
         />
         <Route path="/login" element={
           <PublicOnlyRoute>
-            <LoginPage />
+            <AuthPage mode="login" key="login" />
           </PublicOnlyRoute>
           }
         />
@@ -31,7 +29,7 @@ export default function App() {
           <ProtectedRoute>
             <CreatePostPage />
           </ProtectedRoute>
-          } 
+          }
         />
         <Route path="/posts/:postId" element={<PostDetailPage />} />
         <Route path="/users/:userId" element={<ProfilePage />} />

@@ -7,9 +7,12 @@
 //   - GetPostByID returns qrm.ErrNoRows when missing
 //   - UpdatePost / DeletePostByID return repository.ErrorPostNotFound on 0 rows
 //   - CreatePost needs at least one image (repository.ErrorNoImages), copies
-//     image 0 onto the post as its cover, and GetPostByID returns images in
-//     order; ListPosts filters/pages like the SQL and returns ImageCount
-//     instead of Images; deleting a post deletes its images
+//     image 0 onto the post as its cover, stores image_count and tint, and
+//     GetPostByID returns images in order; ListPosts sorts, filters and
+//     pages like the SQL (each sort's keyset cursor) and returns the stored
+//     ImageCount instead of Images; CountPosts and UserWork count the same
+//     posts; ListAuthors lists only users with posts, by username; deleting
+//     a post deletes its images
 //   - users.username and users.email are unique; deleting is not supported
 //
 // Those conventions are asserted against a real database in
@@ -20,6 +23,7 @@ package memstore
 import (
 	"context"
 	"fmt"
+	"slices"
 	"sort"
 	"sync"
 	"time"
@@ -144,6 +148,30 @@ func (u *UserStore) UpdatePreferredLanguage(_ context.Context, id int64, lang st
 	return nil
 }
 
+func (u *UserStore) ListAuthors(_ context.Context) ([]dto.Author, error) {
+	s := u.s
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	if s.Err != nil {
+		return nil, s.Err
+	}
+	counts := map[int64]int{}
+	for _, m := range s.posts {
+		counts[m.UserID]++
+	}
+	out := make([]dto.Author, 0, len(counts))
+	for id, n := range counts {
+		out = append(out, dto.Author{ID: id, Username: s.users[id].Username, PostCount: n})
+	}
+	sort.Slice(out, func(i, j int) bool {
+		if out[i].Username != out[j].Username {
+			return out[i].Username < out[j].Username
+		}
+		return out[i].ID < out[j].ID
+	})
+	return out, nil
+}
+
 // ---- posts ----
 
 type PostStore struct{ s *Store }
@@ -163,6 +191,7 @@ func (p *PostStore) toDTO(m model.Posts) dto.PostResponse {
 		Username:      p.s.users[m.UserID].Username,
 		ImagePath:     m.ImagePath,
 		ThumbnailPath: m.ThumbnailPath,
+		Tint:          m.Tint,
 		Images:        images,
 		Caption:       m.Caption,
 		Location:      m.Location,
@@ -180,35 +209,101 @@ func (p *PostStore) ListPosts(_ context.Context, in repository.ListPostsParams) 
 	if s.Err != nil {
 		return nil, s.Err
 	}
-	// before reports whether a is ordered before b: newer first, then higher id.
-	before := func(aAt time.Time, aID int64, bAt time.Time, bID int64) bool {
-		if !aAt.Equal(bAt) {
-			return aAt.After(bAt)
+	// key is a post's position in the sort: before(a, b) reports whether a
+	// comes first, exactly like the SQL ORDER BY and its ROW(...) cursor.
+	type key struct {
+		count int
+		at    time.Time
+		id    int64
+	}
+	newer := func(a, b key) bool {
+		if !a.at.Equal(b.at) {
+			return a.at.After(b.at)
 		}
-		return aID > bID
+		return a.id > b.id
+	}
+	before := newer
+	switch in.Sort {
+	case repository.SortOldest:
+		before = func(a, b key) bool { return newer(b, a) }
+	case repository.SortMost:
+		before = func(a, b key) bool {
+			if a.count != b.count {
+				return a.count > b.count
+			}
+			return newer(a, b)
+		}
 	}
 
 	out := make([]dto.PostResponse, 0, len(s.posts))
+	keys := map[int64]key{}
 	for _, m := range s.posts {
-		if in.UserID != nil && m.UserID != *in.UserID {
+		if !matches(m, in.PostFilter) {
 			continue
 		}
-		// Keyset: only posts after the cursor in feed order.
-		if in.Before != nil && !before(in.Before.CreatedAt, in.Before.ID, m.CreatedAt, m.ID) {
+		k := key{int(m.ImageCount), m.CreatedAt, m.ID}
+		// Keyset: only posts after the cursor in this order.
+		if c := in.After; c != nil && !before(key{c.ImageCount, c.CreatedAt, c.ID}, k) {
 			continue
 		}
 		d := p.toDTO(m)
-		d.ImageCount = len(d.Images)
+		d.ImageCount = int(m.ImageCount)
 		d.Images = nil // lists carry the count, not the images
 		out = append(out, d)
+		keys[m.ID] = k
 	}
-	sort.Slice(out, func(i, j int) bool {
-		return before(out[i].CreatedAt, out[i].ID, out[j].CreatedAt, out[j].ID)
-	})
+	sort.Slice(out, func(i, j int) bool { return before(keys[out[i].ID], keys[out[j].ID]) })
 	if in.Limit > 0 && len(out) > in.Limit {
 		out = out[:in.Limit]
 	}
 	return out, nil
+}
+
+// matches is repository.PostFilter for one post.
+func matches(m model.Posts, f repository.PostFilter) bool {
+	if len(f.UserIDs) > 0 && !slices.Contains(f.UserIDs, m.UserID) {
+		return false
+	}
+	switch f.Photos {
+	case repository.PhotosSingle:
+		return m.ImageCount == 1
+	case repository.PhotosSeries:
+		return m.ImageCount >= 2
+	}
+	return true
+}
+
+func (p *PostStore) CountPosts(_ context.Context, f repository.PostFilter) (int, error) {
+	s := p.s
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	if s.Err != nil {
+		return 0, s.Err
+	}
+	n := 0
+	for _, m := range s.posts {
+		if matches(m, f) {
+			n++
+		}
+	}
+	return n, nil
+}
+
+func (p *PostStore) UserWork(_ context.Context, userID int64) (dto.UserWork, error) {
+	s := p.s
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	if s.Err != nil {
+		return dto.UserWork{}, s.Err
+	}
+	var w dto.UserWork
+	for _, m := range s.posts {
+		if m.UserID == userID {
+			w.PostCount++
+			w.PhotoCount += int(m.ImageCount)
+		}
+	}
+	return w, nil
 }
 
 func (p *PostStore) GetPostByID(_ context.Context, id int64) (*dto.PostResponse, error) {
@@ -249,6 +344,8 @@ func (p *PostStore) CreatePost(_ context.Context, in repository.CreatePostParams
 		Location:      in.Location,
 		CameraBody:    in.CameraBody,
 		Lens:          in.Lens,
+		ImageCount:    int16(len(in.Images)),
+		Tint:          in.Tint,
 		CreatedAt:     now,
 		UpdatedAt:     now,
 	}

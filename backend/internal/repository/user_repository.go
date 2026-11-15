@@ -10,6 +10,7 @@ import (
 
 	model "backend/internal/db/gen/photoshare/public/model"
 	table "backend/internal/db/gen/photoshare/public/table"
+	"backend/internal/dto"
 )
 
 var ErrorUserNotFound = errors.New("user not found")
@@ -98,6 +99,29 @@ func (r *UserRepository) Create(ctx context.Context, p CreateUserParams) (*model
 	}
 
 	return &user, nil
+}
+
+// ListAuthors returns every user who has at least one post, with their post
+// count, ordered by username (then id, for a stable order).
+func (r *UserRepository) ListAuthors(ctx context.Context) ([]dto.Author, error) {
+	stmt := postgres.SELECT(
+		table.Users.ID.AS("author.id"),
+		table.Users.Username.AS("author.username"),
+		postgres.COUNT(table.Posts.ID).AS("author.post_count"),
+	).FROM(
+		table.Users.INNER_JOIN(table.Posts, table.Posts.UserID.EQ(table.Users.ID)),
+	).GROUP_BY(
+		table.Users.ID,
+	).ORDER_BY(
+		table.Users.Username.ASC(),
+		table.Users.ID.ASC(),
+	)
+
+	authors := make([]dto.Author, 0)
+	if err := stmt.QueryContext(ctx, r.db, &authors); err != nil {
+		return nil, err
+	}
+	return authors, nil
 }
 
 func (r *UserRepository) UpdatePreferredLanguage(ctx context.Context, id int64, preferredLanguage string) error {

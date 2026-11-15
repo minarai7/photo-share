@@ -1,0 +1,42 @@
+/* Drift hero: the landing hero and the person hero (DESIGN-SYSTEM.md §6). */
+.hero { --link-strong: var(--on-dark); position: relative; height: 100svh; overflow: hidden; background: var(--night); color: var(--on-dark); scroll-snap-align: start; }
+.hero-media { position: absolute; inset: 0; overflow: hidden; }
+.hero-img { position: absolute; top: 0; left: 0; width: 120%; max-width: none; height: 100%; object-fit: cover; }
+/* Corner shade: deepest exactly where the words are (bottom left), eased to
+   nothing by the middle of the picture; the letters carry a soft halo. */
+.hero-media::after { content: ""; position: absolute; inset: 0; pointer-events: none; background: var(--hero-shade); }
+.hero-body { position: absolute; z-index: 1; left: var(--gutter); bottom: var(--s-64); max-width: 34em; text-shadow: var(--halo); }
+.hero-mark { margin: 0; font: 400 var(--fs-hero)/1.1 var(--display); letter-spacing: var(--track-label); text-transform: uppercase; overflow-wrap: anywhere; }
+.hero-mark.is-ja { font-family: var(--jp); letter-spacing: var(--track-ja); text-transform: none; }
+.hero-sub { margin: var(--s-8) 0 0; font: italic 400 var(--fs-lead)/1.4 var(--serif); }
+:lang(ja) .hero-sub { font: 400 var(--fs-field)/1.6 var(--jp); letter-spacing: var(--track-ja); }
+.hero-stats { margin: var(--s-14) 0 0; font: 400 var(--fs-label)/1 var(--display); letter-spacing: var(--track-label); text-transform: uppercase; opacity: 0.85; }
+:lang(ja) .hero-stats { font-family: var(--jp); letter-spacing: var(--track-ja); }
+.hero-actions { margin-top: var(--s-28); display: flex; flex-wrap: wrap; align-items: center; gap: var(--s-16) var(--s-28); }
+
+/* Scroll cue: "Scroll" over a hairline that draws itself down and fades, on repeat. */
+.scroll-cue { display: grid; justify-items: start; gap: var(--s-12); margin-top: var(--s-48); font: 400 var(--fs-label-sm)/1 var(--display); letter-spacing: var(--track-wide); text-transform: uppercase; }
+:lang(ja) .scroll-cue { font-family: var(--jp); letter-spacing: var(--track-ja); }
+.scroll-cue::after { content: ""; display: block; width: var(--line); height: 56px; background: currentColor; }
+.scroll-cue.is-drawn::after { transform-origin: top; animation: draw var(--t-cue) ease-in-out infinite; }
+@keyframes draw {
+  0% { transform: scaleY(0); opacity: 1; }
+  55% { transform: scaleY(1); opacity: 1; }
+  100% { transform: scaleY(1); opacity: 0; }
+}
+@keyframes draw-once { from { transform: scaleY(0); } }
+
+/* EN / JA: the language not in use is grey, and darkens on hover like every grey control. */
+.lang { display: inline-flex; align-items: center; gap: var(--s-8); }
+.lang-item { font: 400 var(--fs-label-sm)/1 var(--display); letter-spacing: var(--track-meta); opacity: 0.45; transition: opacity var(--t-color); }
+.lang-item[data-pressed] { opacity: 1; }
+@media (hover: hover) and (pointer: fine) { .lang-item:hover { opacity: 1; } }
+
+@media (max-width: 760px) {
+  .hero-body { right: var(--gutter); bottom: var(--s-48); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  /* The scroll line draws once and stays, instead of looping. */
+  .scroll-cue.is-drawn::after { animation: draw-once 1.2s ease-out both; }
+}

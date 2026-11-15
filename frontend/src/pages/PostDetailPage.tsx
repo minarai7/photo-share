@@ -1,388 +1,324 @@
-import { useEffect, useState, type SubmitEvent  } from "react";
-import { Link, useParams, useLocation, useNavigate } from "react-router";
-import { ImageCarousel } from "../components/ImageCarousel";
-import { deletePostById, getPostById, updatePostById } from "../api/postsApi";
+import { useEffect, useRef, useState, type CSSProperties, type KeyboardEvent, type ReactNode, type RefObject, type UIEvent } from "react";
+import clsx from "clsx";
+import { motion, useScroll, useTransform } from "motion/react";
+import { useLocation, useNavigate, useParams } from "react-router";
+import { toast } from "sonner";
 import { ApiError } from "../api/apiError";
-import type { Post, UpdatePostRequest } from "../types/post";
+import { getPostById } from "../api/postsApi";
 import { useAuth } from "../auth/useAuth";
-import { FormField } from "../components/FormField";
-import { GearLinkAction } from "../components/GearLinkAction";
-import { useLanguage } from "../lang/useLanguage";
+import { useFeedState } from "../feed/useFeedState";
 import { useApiErrorMessage } from "../hooks/useApiErrorMessage";
-import { getLocaleFromLanguage } from "../utils/locale";
+import { useDocumentKeys, useWheelToPage } from "../hooks/useReelKeys";
+import { useSnapTrack } from "../hooks/useSnapTrack";
+import { useLanguage } from "../lang/useLanguage";
+import { morph, useGo } from "../navigation/viewTransition";
+import type { Post, PostImage } from "../types/post";
+import { getImageUrl } from "../utils/imageUrl";
+import { IDLE_FADE_MS, isJa, scrollBehavior, workPhoto } from "../utils/motion";
+import { AuthorLink } from "../components/AuthorLink";
+import { CloseButton, Header } from "../components/Header";
+import { LightsOut } from "../components/LightsOut";
+import { Pager } from "../components/Pager";
+import { forgetImages, imageTotal, knownImages, rememberImages } from "../components/postImages";
+import type { PostRouteState } from "../components/Reel";
+import { WallLabel, type OwnerHandlers } from "../components/WallLabel";
+import "./PostDetailPage.css";
 
-type ReturnToLabelKey = "backToFeed" | "backToProfile";
-
-type ReturnTo = {
-    pathname: string;
-    labelKey: ReturnToLabelKey;
-};
-
+/**
+ * A post (/posts/:postId): two snapped screens, the photograph and then its
+ * wall label. It renders at once from the post a reel passed in router state
+ * (cover + image_count, placeholders for the rest) and refreshes it from the
+ * API.
+ */
 export function PostDetailPage() {
-    const { t, language } = useLanguage();
+    const { t } = useLanguage();
     const toApiErrorMessage = useApiErrorMessage();
-
-    function getReturnToLabel(labelKey: ReturnToLabelKey): string {
-        switch (labelKey) {
-            case "backToFeed":
-            return t.posts.backToFeed;
-
-            case "backToProfile":
-            return t.posts.backToProfile;
-        }
-    }
-
-    const { postId } = useParams<{postId: string}>();
+    const { postId } = useParams<{ postId: string }>();
     const location = useLocation();
     const navigate = useNavigate();
-    const { user, isAuthenticated } = useAuth();
+    const go = useGo();
+    const { user } = useAuth();
+    const { patchPost, invalidate } = useFeedState();
 
-    const returnTo: ReturnTo = location.state?.returnTo ?? {
-        pathname: "/",
-        labelKey: "backToFeed",
-    };
+    const routeState = (location.state ?? {}) as PostRouteState;
+    const id = Number(postId);
+    const validId = Number.isInteger(id) && id > 0;
 
-    // Validate the URL param during render; the effect only fetches.
-    const numericPostId = postId ? Number(postId) : NaN;
-    const idError = !postId
-        ? t.posts.postIdMissing
-        : Number.isNaN(numericPostId)
-            ? t.posts.invalidPostId
-            : null;
-
-    // A PostCard passes the post it showed, so the page can render at once.
-    // Deep links and new tabs have no state and show the loading state.
-    const statePost: Post | undefined = location.state?.post;
-    const previewPost = statePost?.id === numericPostId ? statePost : null;
-    const hasPreview = previewPost !== null;
-
-    // The latest copy from the API or from a save. It wins over the preview,
-    // so re-running the fetch effect (e.g. on a language switch) can only
-    // refresh the post, never put the older router-state copy back.
-    const [loadedPost, setLoadedPost] = useState<Post | null>(null);
-    const post = loadedPost?.id === numericPostId ? loadedPost : previewPost;
-
-    const [error, setError] = useState<string | null>(null);
-
-    const [isEditing, setIsEditing] = useState(false);
-    const [isSaving, setIsSaving] = useState(false);
-    const [editError, setEditError] = useState<string | null>(null);
-
-    const [isDeleting, setIsDeleting] = useState(false);
-    const [deleteError, setDeleteError] = useState<string | null>(null);
-
-    const [caption, setCaption] = useState("");
-    const [photoLocation, setPhotoLocation] = useState("");
-    const [cameraBody, setCameraBody] = useState("");
-    const [lens, setLens] = useState("");
+    const preview = routeState.post?.id === id ? routeState.post : null;
+    const hasPreview = preview !== null;
+    // The latest copy from the API or from a save; it wins over the preview.
+    const [loaded, setLoaded] = useState<Post | null>(null);
+    const post = loaded?.id === id ? loaded : preview;
+    const [error, setError] = useState<unknown>(null);
 
     useEffect(() => {
-        if (idError) {
-            return
-        }
-
-        let isMounted = true;
-
-        async function loadPost() {
-            try {
+        if (!validId) return;
+        let live = true;
+        getPostById(id)
+            .then((p) => {
+                if (!live) return;
+                rememberImages(p);
+                setLoaded(p);
                 setError(null);
-                const post = await getPostById(numericPostId);
-                if (isMounted) {
-                    setLoadedPost(post);
-                }
-            }  catch (err) {
+            })
+            .catch((err: unknown) => {
                 // A failed background refresh keeps the post on screen, unless
-                // the post is gone (deleted since the feed loaded).
-                if (isMounted && (!hasPreview || (err instanceof ApiError && err.status === 404))) {
-                    setError(
-                        toApiErrorMessage(err, {
-                            fallbackMessage: t.posts.loadPostFailed,
-                        })
-                    );
-                }
-            }
-        }
-
-        loadPost();
-
-        return () => {
-            isMounted = false;
-        };
-    }, [
-        idError,
-        numericPostId,
-        hasPreview,
-        t.posts.loadPostFailed,
-        toApiErrorMessage
-    ]);
-
-    function startEditing() {
-        if (!isAuthenticated) {
-            navigate("/login", {
-                replace: true,
-                state: { from: location },
+                // the post is gone (deleted since the reel loaded).
+                if (live && (!hasPreview || (err instanceof ApiError && err.status === 404))) setError(err);
             });
-            return
-        }
-        if (!post) {
-            return
-        }
+        return () => {
+            live = false;
+        };
+    }, [id, validId, hasPreview]);
 
-        setCaption(post.caption ?? "");
-        setPhotoLocation(post.location ?? "");
-        setCameraBody(post.camera_body ?? "");
-        setLens(post.lens ?? "");
-        setEditError(null);
-        setIsEditing(true);
-    }
+    const returnTo = routeState.returnTo;
+    const toProfile = returnTo?.startsWith("/users/") ?? false;
+    // Back through history when the visitor came from a reel, so it lands on the
+    // same work; otherwise to the feed.
+    const leave = () => (returnTo && location.key !== "default" ? go(-1) : go(returnTo ?? "/"));
 
-    function cancelEditing() {
-        setIsEditing(false);
-        setEditError(null);
-    }
+    const owner: OwnerHandlers = {
+        onSaved: (updated) => {
+            setLoaded(updated);
+            patchPost(updated);
+            // Keep the history entry in step, so Back to this page previews the edited post.
+            if (hasPreview) navigate(location, { replace: true, state: { ...routeState, post: updated } });
+            toast(t.toast.updated, { description: updated.caption || undefined });
+        },
+        onDeleted: () => {
+            const caption = post?.caption;
+            forgetImages(id);
+            invalidate();
+            toast(t.toast.deleted, { description: caption || undefined });
+            go(returnTo ?? (user ? `/users/${user.id}` : "/"), { replace: true });
+        },
+    };
 
-    async function handleUpdatePost(event: SubmitEvent<HTMLFormElement>) {
-        event.preventDefault();
+    const header = <Header right={<CloseButton onClick={leave} aria-label={toProfile ? t.header.closeToProfile : t.header.closeToFeed} />} />;
 
-        if (!postId) {
-            setEditError(t.posts.postIdMissing);
-            return
-        }
-
-        const numericPostId = Number(postId);
-
-        if (Number.isNaN(numericPostId)) {
-            setEditError(t.posts.invalidPostId);
-            return
-        }
-
-        try {
-            setIsSaving(true);
-            setEditError(null);
-
-            const data: UpdatePostRequest = {
-                caption: caption.trim()
-            }
-
-            if (photoLocation.trim() !== "") {
-                data.location = photoLocation.trim();
-            }
-            if (cameraBody.trim() !== "") {
-                data.camera_body = cameraBody.trim();
-            }
-            if (lens.trim() !== "") {
-                data.lens = lens.trim();
-            }
-
-            const updatedPost = await updatePostById(numericPostId, data)
-
-            setLoadedPost(updatedPost);
-            setIsEditing(false);
-            // Keep the history entry in step, so Back to this page or a reload
-            // previews the edited post rather than the one the feed passed in.
-            if (hasPreview) {
-                navigate(
-                    { pathname: location.pathname, search: location.search, hash: location.hash },
-                    { replace: true, state: { ...location.state, post: updatedPost } },
-                );
-            }
-        } catch (err) {
-            setEditError(
-                toApiErrorMessage(err, {
-                    fallbackMessage: t.posts.updatePostFailed,
-                })
-            );
-        } finally {
-            setIsSaving(false);
-        }
-    }
-
-    async function handleDeletePost() {
-        if (!post) {
-            return
-        }
-
-        const confirmed = window.confirm(t.posts.deleteConfirm);
-
-        if (!confirmed) {
-            return;
-        }
-
-        try {
-            setDeleteError(null);
-            setIsDeleting(true);
-
-            await deletePostById(post.id);
-
-            navigate(returnTo.pathname, { replace: true });
-        } catch (err) {
-            setDeleteError(
-                toApiErrorMessage(err, {
-                    fallbackMessage: t.posts.deletePostFailed,
-                })
-            );
-        } finally {
-            setIsDeleting(false);
-        }
-    }
-
-    const shownError = idError ?? error;
-
-    if (shownError) {
+    // Gone (also when a preview was on screen), a bad id, or a first load that failed.
+    const notFound = !validId || (error instanceof ApiError && error.status === 404);
+    if (notFound || (error != null && !post)) {
         return (
-            <main className="page">
-                <p className="error-message">{shownError}</p>
-                <Link to={returnTo.pathname}>
-                    {getReturnToLabel(returnTo.labelKey)}
-                </Link>
-            </main>
-        )
+            <div className="page is-paper">
+                {header}
+                <main className="notice">
+                    <p className="notice-text" role="alert">
+                        {notFound ? t.apiErrors.postNotFound : toApiErrorMessage(error, { fallbackMessage: t.post.loadFailed, shouldLog: false })}
+                    </p>
+                </main>
+            </div>
+        );
     }
-
-    // No post yet and no error: the first fetch is still in flight (there was
-    // no matching post in the router state). A missing post arrives as a 404 error.
     if (!post) {
         return (
-            <main className="page">
-                <p>{t.posts.loadingPost}</p>
-            </main>
-        )
+            <div className="page">
+                {header}
+                <main className="notice">
+                    <p className="notice-text" role="status">{t.post.loading}</p>
+                </main>
+            </div>
+        );
     }
 
-    const isOwner = user?.id === post.user_id;
+    return <PostView key={post.id} post={post} header={header} start={routeState.image ?? 0} onLeave={leave} owner={owner} />;
+}
 
-    const createdAt = new Date(post.created_at).toLocaleString(
-        getLocaleFromLanguage(language)
-    );
-    
+/**
+ * The post view: two screens on a snapped reel. Top: the photograph between
+ * the header band and a caption bar (title and author | Info, ‹ 1/n ›), no
+ * text on the picture; the controls fade after a few idle seconds. Bottom:
+ * the wall label, alone. Info, I or one swipe move between them; Esc comes
+ * back up, and Esc at the top (or Close) leaves. A click on the photo (or F)
+ * turns the lights out.
+ */
+function PostView({ post, header, start, onLeave, owner }: { post: Post; header: ReactNode; start: number; onLeave: () => void; owner: OwnerHandlers }) {
+    const { t } = useLanguage();
+    const reelRef = useRef<HTMLDivElement>(null);
+    const detailsRef = useRef<HTMLElement>(null);
+    const total = imageTotal(post);
+    const images = knownImages(post);
+    const { index: shown, go: show, trackRef, onScroll, onKeyDown } = useSnapTrack(total, start);
+    const [idle, setIdle] = useState(false);
+    const [atTop, setAtTop] = useState(true);
+    const [reading, setReading] = useState(false);
+    const [full, setFull] = useState(false);
+    const caption = post.caption || t.reel.untitled;
+
+    // A vertical swipe the photo track latched still turns the page (photo ↔ label).
+    useWheelToPage(trackRef, total > 1, reelRef);
+
+    // The bar's caption gives way to the label's title as it comes up the screen.
+    const { scrollYProgress: arrive } = useScroll({ container: reelRef, target: detailsRef, offset: ["start end", "start start"] });
+    const capOut = useTransform(arrive, [0, 0.3], [1, 0]);
+    const capVisibility = useTransform(capOut, (v) => (v < 0.02 ? "hidden" : "visible"));
+    const titleIn = useTransform(arrive, [0.2, 0.55], [0, 1]);
+
+    useEffect(() => {
+        const reel = reelRef.current;
+        if (!reel) return;
+        const sync = () => {
+            setAtTop(reel.scrollTop < 8);
+            setReading(reel.scrollTop > reel.clientHeight * 0.4);
+        };
+        reel.addEventListener("scroll", sync, { passive: true });
+        window.addEventListener("resize", sync);
+        return () => {
+            reel.removeEventListener("scroll", sync);
+            window.removeEventListener("resize", sync);
+        };
+    }, []);
+
+    // Idle at the top: the header and bar fade, and return on any input.
+    useEffect(() => {
+        const reel = reelRef.current;
+        let timer = window.setTimeout(() => setIdle(true), IDLE_FADE_MS);
+        function wake() {
+            setIdle(false);
+            window.clearTimeout(timer);
+            timer = window.setTimeout(() => setIdle(true), IDLE_FADE_MS);
+        }
+        const events = ["pointermove", "pointerdown", "keydown", "wheel"] as const;
+        events.forEach((ev) => window.addEventListener(ev, wake, { passive: true }));
+        reel?.addEventListener("scroll", wake, { passive: true });
+        return () => {
+            window.clearTimeout(timer);
+            events.forEach((ev) => window.removeEventListener(ev, wake));
+            reel?.removeEventListener("scroll", wake);
+        };
+    }, []);
+
+    function openFull() {
+        if (!images[shown]) return; // still a placeholder
+        morph(() => setFull(true));
+    }
+
+    function closeFull(at: number) {
+        // Land on the photo the view ended on, without a slide behind the scenes.
+        const track = trackRef.current;
+        if (track) track.scrollTo({ left: at * track.clientWidth, behavior: "instant" });
+        show(at);
+        morph(() => setFull(false));
+        window.requestAnimationFrame(() => trackRef.current?.querySelectorAll<HTMLElement>(".post-open")[at]?.focus({ preventScroll: true }));
+    }
+
+    const backToPhoto = () => reelRef.current?.scrollTo({ top: 0, behavior: scrollBehavior() });
+    const toggleInfo = () => (reading ? backToPhoto() : detailsRef.current?.scrollIntoView({ behavior: scrollBehavior() }));
+
+    useDocumentKeys((e) => {
+        if (document.querySelector("[role=dialog], [role=alertdialog]")) return;
+        if (e.key === "i" || e.key === "I") {
+            e.preventDefault();
+            toggleInfo();
+        } else if (e.key === "f" || e.key === "F") {
+            e.preventDefault();
+            openFull();
+        } else if (e.key === "Escape" && !e.defaultPrevented) {
+            e.preventDefault();
+            if (reading) backToPhoto();
+            else onLeave();
+        } else if (!e.defaultPrevented && (e.key === "ArrowLeft" || e.key === "ArrowRight")) {
+            // The focused track already handled it (React's listener runs before the document's).
+            e.preventDefault();
+            show(shown + (e.key === "ArrowRight" ? 1 : -1));
+        }
+    });
+
+    const page = { "--page": post.tint ?? "var(--tint-default)" } as CSSProperties;
     return (
-        <main className="page">
-        <article className="post-detail-card">
-            <ImageCarousel
-                key={post.id}
-                // The feed's copy (router state) has only the cover and the
-                // count; the carousel shows placeholders until the fetch lands.
-                images={post.images?.length ? post.images : [{ image_path: post.image_path, thumbnail_path: post.thumbnail_path }]}
-                total={post.image_count}
-                alt={post.caption || t.posts.postImageAlt}
-            />
-
-            <div className="post-detail-content">
-            <p className="post-detail-author">{post.username}</p>
-            {isEditing ? (
-                <>
-                    {editError && <div className="form-error">{editError}</div>}
-            
-                    <form className="create-post-form" onSubmit={handleUpdatePost}>
-                        <FormField
-                            id="caption"
-                            label={t.posts.title}
-                            type="text"
-                            value={caption}
-                            setValue={setCaption}
+        <div className={clsx("page is-scroll is-post", idle && atTop && "is-idle", reading && "is-reading")} style={page}>
+            {header}
+            <div className="reel is-stop post-reel" ref={reelRef}>
+                <div className="post-screen">
+                    <div className="post-stage">
+                        <Photos
+                            post={post} images={images} total={total} shown={shown} trackRef={trackRef}
+                            onScroll={onScroll} onKeyDown={onKeyDown} onOpen={openFull} named={!full}
                         />
-            
-                        <FormField
-                            id="location"
-                            label={t.posts.location}
-                            type="text"
-                            value={photoLocation}
-                            setValue={setPhotoLocation}
-                        />
-            
-                        <FormField
-                            id="camera-body"
-                            label={t.posts.camera}
-                            type="text"
-                            value={cameraBody}
-                            setValue={setCameraBody}
-                        />
-            
-                        <FormField
-                            id="lens"
-                            label={t.posts.lens}
-                            type="text"
-                            value={lens}
-                            setValue={setLens}
-                        />
-
-                        <div className="post-detail-actions">
+                    </div>
+                    <div className="post-bar">
+                        <motion.div className="post-caption" style={{ opacity: capOut, visibility: capVisibility }}>
+                            <h1 className={clsx(isJa(caption) && "is-ja")}>{caption}</h1>
+                            <AuthorLink userId={post.user_id} username={post.username} />
+                        </motion.div>
+                        <div className="post-tools">
                             <button
                                 type="button"
-                                className="text-button"
-                                onClick={cancelEditing}
-                                disabled={isSaving || isDeleting}
+                                className="hlink info-link"
+                                onClick={toggleInfo}
+                                aria-controls="post-details"
+                                aria-label={reading ? t.post.infoUp : t.post.infoDown}
                             >
-                                {t.common.cancel}
+                                {t.post.info}
+                                <span className={clsx("info-chev", reading && "is-up")} aria-hidden="true" />
                             </button>
-                            <button
-                                type="button"
-                                className="danger-button"
-                                onClick={handleDeletePost}
-                                disabled={isSaving || isDeleting}
-                            >
-                                {isDeleting ? t.posts.deleting : t.posts.delete}
-                            </button>
-                            <button
-                                type="submit"
-                                className="text-button"
-                                disabled={isSaving || isDeleting}>
-                                {isSaving ? t.posts.saving : t.posts.save}
-                            </button>
+                            <Pager shown={shown} total={total} show={show} />
                         </div>
-                    </form>
-                </>
-            ) : (
-            <>
-                {deleteError && <div className="form-error">{deleteError}</div>}
-
-                <h1 className="post-detail-caption">{post.caption}</h1>
-
-                <dl className="post-detail-meta">
-                    <div>
-                    <dt>{t.posts.location}</dt>
-                    <dd>{post.location || t.posts.notSpecified}</dd>
                     </div>
-
-                    <div>
-                    <dt>{t.posts.camera}</dt>
-                    <dd>
-                        {post.camera_body ? <GearLinkAction kind="camera" name={post.camera_body}/> : t.posts.notSpecified}
-                    </dd>
-                    </div>
-
-                    <div>
-                    <dt>{t.posts.lens}</dt>
-                    <dd>
-                        {post.lens ? <GearLinkAction kind="lens" name={post.lens}/> : t.posts.notSpecified}
-                    </dd>
-                    </div>
-
-                    <div>
-                    <dt>{t.posts.created}</dt>
-                    <dd>{createdAt}</dd>
-                    </div>
-                </dl>
-                <div className="post-detail-actions">
-                    <Link className="post-detail-return-link" to={returnTo.pathname}>
-                        {getReturnToLabel(returnTo.labelKey)}
-                    </Link>
-
-                    {isOwner && (
-                        <button
-                            type="button"
-                            className="text-button"
-                            onClick={startEditing}
-                            disabled={isDeleting}
-                        >
-                            {t.posts.edit}
-                        </button>
-                    )}
                 </div>
-            </>
-        )}
+                <section className="post-label" id="post-details" ref={detailsRef} aria-label={t.post.about}>
+                    <WallLabel post={post} titleStyle={{ opacity: titleIn }} owner={owner} />
+                </section>
+            </div>
+            {full && <LightsOut post={post} images={images} start={shown} onClose={closeFull} owner={owner} />}
         </div>
-        </article>
-        </main>
-    )
+    );
+}
+
+/**
+ * The post view's photo track. Each photo is a button into lights out.
+ * `named` is off while lights out is up, so the photo's transition name is
+ * never on the page twice. Photos not known yet are placeholders.
+ */
+function Photos({
+    post, images, total, shown, trackRef, onScroll, onKeyDown, onOpen, named,
+}: {
+    post: Post;
+    images: PostImage[];
+    total: number;
+    shown: number;
+    trackRef: RefObject<HTMLDivElement | null>;
+    onScroll: (e: UIEvent) => void;
+    onKeyDown: (e: KeyboardEvent) => void;
+    onOpen: () => void;
+    named: boolean;
+}) {
+    const { t } = useLanguage();
+    const caption = post.caption || t.reel.untitled;
+    // A photo loads once it is shown or next in line.
+    const [reached, setReached] = useState(shown);
+    if (shown > reached) setReached(shown);
+    return (
+        <div
+            className="track post-track is-stop"
+            ref={trackRef}
+            onScroll={onScroll}
+            onKeyDown={onKeyDown}
+            tabIndex={total > 1 ? 0 : -1}
+            aria-roledescription={total > 1 ? "carousel" : undefined}
+            aria-label={total > 1 ? t.reel.photos(caption, total) : undefined}
+        >
+            {Array.from({ length: total }, (_, i) => {
+                const image = images[i];
+                const alt = total > 1 ? t.post.photoOf(caption, i + 1, total) : caption;
+                return (
+                    <figure key={i} className="post-frame" aria-hidden={i !== shown}>
+                        {image && i <= reached + 1 ? (
+                            <button type="button" className="post-open" onClick={onOpen} tabIndex={i === shown ? 0 : -1} aria-label={t.post.viewFull(alt)}>
+                                <img
+                                    src={getImageUrl(image.image_path)}
+                                    alt={alt}
+                                    decoding="async"
+                                    fetchPriority={i === shown ? "high" : undefined}
+                                    style={i === shown && named ? workPhoto(post.id) : undefined}
+                                />
+                            </button>
+                        ) : (
+                            <span className="frame-wait" />
+                        )}
+                    </figure>
+                );
+            })}
+        </div>
+    );
 }

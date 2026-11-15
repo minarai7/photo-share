@@ -30,7 +30,8 @@ func NewPostRepository(db *sql.DB) *PostRepository {
 }
 
 // CreatePostParams creates a post with its images in display order.
-// Images[0] is the cover and is also stored on the posts row.
+// Images[0] is the cover and is also stored on the posts row, with the
+// number of images. Tint is the post's page colour, nil when unknown.
 type CreatePostParams struct {
 	UserID     int64
 	Images     []CreatePostImageParams
@@ -38,6 +39,7 @@ type CreatePostParams struct {
 	Location   *string
 	CameraBody *string
 	Lens       *string
+	Tint       *string
 }
 
 type CreatePostImageParams struct {
@@ -54,43 +56,104 @@ type UpdatePostParams struct {
 	Lens       *string
 }
 
-// PostCursor is the position after which a page of posts starts: the
-// created_at and id of the last post the client already has.
-type PostCursor struct {
-	CreatedAt time.Time
-	ID        int64
+// PostSort is the order of a list of posts.
+type PostSort string
+
+const (
+	// SortNewest: created_at DESC, id DESC (the default).
+	SortNewest PostSort = "newest"
+	// SortOldest: created_at ASC, id ASC.
+	SortOldest PostSort = "oldest"
+	// SortMost: most images first (image_count DESC), then newest first.
+	SortMost PostSort = "most"
+)
+
+// PhotosFilter keeps posts by their number of images.
+type PhotosFilter string
+
+const (
+	PhotosAny    PhotosFilter = "any"    // every post (also the zero value "")
+	PhotosSingle PhotosFilter = "single" // exactly one image
+	PhotosSeries PhotosFilter = "series" // two or more
+)
+
+// PostFilter selects which posts a list or a count covers.
+type PostFilter struct {
+	// UserIDs, when non-empty, keeps only those users' posts.
+	UserIDs []int64
+	Photos  PhotosFilter
 }
 
-// ListPostsParams selects a page of posts, newest first.
+// PostCursor is the position after which a page of posts starts: the last
+// post the client already has. ImageCount is used by SortMost only.
+type PostCursor struct {
+	CreatedAt  time.Time
+	ID         int64
+	ImageCount int
+}
+
+// ListPostsParams selects a page of posts.
 type ListPostsParams struct {
-	// UserID, when set, keeps only that user's posts.
-	UserID *int64
-	// Before, when set, keeps only posts older than the cursor (by
-	// created_at, then id), i.e. the page after the one that ended there.
-	Before *PostCursor
+	PostFilter
+	// Sort is the order; "" means SortNewest.
+	Sort PostSort
+	// After, when set, keeps only posts after the cursor in Sort's order,
+	// i.e. the page after the one that ended there.
+	After *PostCursor
 	// Limit caps the number of posts; 0 means no limit.
 	Limit int
 }
 
-// ListPosts returns posts newest first (created_at DESC, id DESC) with their
-// cover and image count but without Images: one row per post, so LIMIT pages
-// by post. The order and the cursor match the posts_*_created_at_id indexes.
-func (r *PostRepository) ListPosts(ctx context.Context, p ListPostsParams) ([]dto.PostResponse, error) {
-	imageCount := postgres.IntExp(
-		postgres.SELECT(postgres.COUNT(postgres.STAR)).
-			FROM(table.PostImages).
-			WHERE(table.PostImages.PostID.EQ(table.Posts.ID)),
-	)
-
+// filterConditions is PostFilter as SQL.
+func filterConditions(f PostFilter) []postgres.BoolExpression {
 	var conditions []postgres.BoolExpression
-	if p.UserID != nil {
-		conditions = append(conditions, table.Posts.UserID.EQ(postgres.Int64(*p.UserID)))
+	if len(f.UserIDs) > 0 {
+		ids := make([]postgres.Expression, len(f.UserIDs))
+		for i, id := range f.UserIDs {
+			ids[i] = postgres.Int64(id)
+		}
+		conditions = append(conditions, table.Posts.UserID.IN(ids...))
 	}
-	if p.Before != nil {
-		conditions = append(conditions,
-			postgres.ROW(table.Posts.CreatedAt, table.Posts.ID).
-				LT(postgres.ROW(postgres.TimestampzT(p.Before.CreatedAt), postgres.Int64(p.Before.ID))),
-		)
+	switch f.Photos {
+	case PhotosSingle:
+		conditions = append(conditions, table.Posts.ImageCount.EQ(postgres.Int(1)))
+	case PhotosSeries:
+		conditions = append(conditions, table.Posts.ImageCount.GT_EQ(postgres.Int(2)))
+	}
+	return conditions
+}
+
+// ListPosts returns a page of posts in p.Sort's order, with their cover and
+// image count but without Images: one row per post, so LIMIT pages by post.
+// Each order has an index (posts_created_at_id_idx, read backwards for
+// oldest; posts_image_count_created_at_id_idx) and a keyset cursor on the
+// same columns, so every page is an index range scan.
+func (r *PostRepository) ListPosts(ctx context.Context, p ListPostsParams) ([]dto.PostResponse, error) {
+	conditions := filterConditions(p.PostFilter)
+
+	var orderBy []postgres.OrderByClause
+	switch p.Sort {
+	case SortOldest:
+		orderBy = []postgres.OrderByClause{table.Posts.CreatedAt.ASC(), table.Posts.ID.ASC()}
+		if c := p.After; c != nil {
+			conditions = append(conditions,
+				postgres.ROW(table.Posts.CreatedAt, table.Posts.ID).
+					GT(postgres.ROW(postgres.TimestampzT(c.CreatedAt), postgres.Int64(c.ID))))
+		}
+	case SortMost:
+		orderBy = []postgres.OrderByClause{table.Posts.ImageCount.DESC(), table.Posts.CreatedAt.DESC(), table.Posts.ID.DESC()}
+		if c := p.After; c != nil {
+			conditions = append(conditions,
+				postgres.ROW(table.Posts.ImageCount, table.Posts.CreatedAt, table.Posts.ID).
+					LT(postgres.ROW(postgres.Int(int64(c.ImageCount)), postgres.TimestampzT(c.CreatedAt), postgres.Int64(c.ID))))
+		}
+	default: // newest
+		orderBy = []postgres.OrderByClause{table.Posts.CreatedAt.DESC(), table.Posts.ID.DESC()}
+		if c := p.After; c != nil {
+			conditions = append(conditions,
+				postgres.ROW(table.Posts.CreatedAt, table.Posts.ID).
+					LT(postgres.ROW(postgres.TimestampzT(c.CreatedAt), postgres.Int64(c.ID))))
+		}
 	}
 
 	stmt := postgres.SELECT(
@@ -99,7 +162,8 @@ func (r *PostRepository) ListPosts(ctx context.Context, p ListPostsParams) ([]dt
 		table.Users.Username.AS("post_response.username"),
 		table.Posts.ImagePath.AS("post_response.image_path"),
 		table.Posts.ThumbnailPath.AS("post_response.thumbnail_path"),
-		imageCount.AS("post_response.image_count"),
+		table.Posts.ImageCount.AS("post_response.image_count"),
+		table.Posts.Tint.AS("post_response.tint"),
 		table.Posts.Caption.AS("post_response.caption"),
 		table.Posts.Location.AS("post_response.location"),
 		table.Posts.CameraBody.AS("post_response.camera_body"),
@@ -112,10 +176,7 @@ func (r *PostRepository) ListPosts(ctx context.Context, p ListPostsParams) ([]dt
 	if len(conditions) > 0 {
 		stmt = stmt.WHERE(postgres.AND(conditions...))
 	}
-	stmt = stmt.ORDER_BY(
-		table.Posts.CreatedAt.DESC(), // Newest posts come first
-		table.Posts.ID.DESC(),
-	)
+	stmt = stmt.ORDER_BY(orderBy...)
 	if p.Limit > 0 {
 		stmt = stmt.LIMIT(int64(p.Limit))
 	}
@@ -125,6 +186,38 @@ func (r *PostRepository) ListPosts(ctx context.Context, p ListPostsParams) ([]dt
 		return nil, err
 	}
 	return posts, nil
+}
+
+// postCount receives CountPosts' row. go-jet maps an alias onto a struct by
+// its type name ("post_count.n"), so this can't be an anonymous struct.
+type postCount struct{ N int64 }
+
+// CountPosts returns how many posts match f.
+func (r *PostRepository) CountPosts(ctx context.Context, f PostFilter) (int, error) {
+	stmt := postgres.SELECT(postgres.COUNT(postgres.STAR).AS("post_count.n")).FROM(table.Posts)
+	if conditions := filterConditions(f); len(conditions) > 0 {
+		stmt = stmt.WHERE(postgres.AND(conditions...))
+	}
+	var count postCount
+	if err := stmt.QueryContext(ctx, r.db, &count); err != nil {
+		return 0, err
+	}
+	return int(count.N), nil
+}
+
+// UserWork counts the user's posts and the images in them. A user without
+// posts (or without an account) has zeros.
+func (r *PostRepository) UserWork(ctx context.Context, userID int64) (dto.UserWork, error) {
+	stmt := postgres.SELECT(
+		postgres.COUNT(postgres.STAR).AS("user_work.post_count"),
+		postgres.COALESCE(postgres.SUM(table.Posts.ImageCount), postgres.Int(0)).AS("user_work.photo_count"),
+	).FROM(table.Posts).
+		WHERE(table.Posts.UserID.EQ(postgres.Int64(userID)))
+	var work dto.UserWork
+	if err := stmt.QueryContext(ctx, r.db, &work); err != nil {
+		return dto.UserWork{}, err
+	}
+	return work, nil
 }
 
 // GetPostByID returns one post with all its images. go-jet groups the joined
@@ -138,6 +231,7 @@ func (r *PostRepository) GetPostByID(ctx context.Context, id int64) (*dto.PostRe
 		table.Users.Username.AS("post_response.username"),
 		table.Posts.ImagePath.AS("post_response.image_path"),
 		table.Posts.ThumbnailPath.AS("post_response.thumbnail_path"),
+		table.Posts.Tint.AS("post_response.tint"),
 		table.Posts.Caption.AS("post_response.caption"),
 		table.Posts.Location.AS("post_response.location"),
 		table.Posts.CameraBody.AS("post_response.camera_body"),
@@ -190,7 +284,9 @@ func (r *PostRepository) CreatePost(ctx context.Context, p CreatePostParams) (id
 			table.Posts.Caption,
 			table.Posts.Location,
 			table.Posts.CameraBody,
-			table.Posts.Lens).
+			table.Posts.Lens,
+			table.Posts.ImageCount,
+			table.Posts.Tint).
 		MODEL(model.Posts{
 			UserID:        p.UserID,
 			ImagePath:     cover.ImagePath,
@@ -199,6 +295,8 @@ func (r *PostRepository) CreatePost(ctx context.Context, p CreatePostParams) (id
 			Location:      p.Location,
 			CameraBody:    p.CameraBody,
 			Lens:          p.Lens,
+			ImageCount:    int16(len(p.Images)),
+			Tint:          p.Tint,
 		}).
 		RETURNING(table.Posts.ID)
 
@@ -342,6 +440,56 @@ func (r *PostRepository) SetImageThumbnailPath(ctx context.Context, imageID int6
 	}
 
 	return tx.Commit()
+}
+
+// PostMissingTint is a post without a page colour, for the tint backfill:
+// its cover and the cover's thumbnail (nil when it has none).
+type PostMissingTint struct {
+	ID            int64
+	ImagePath     string
+	ThumbnailPath *string
+}
+
+// ListPostsMissingTint returns the posts whose tint is NULL, oldest first.
+// Used by cmd/tints only, so it is not on service.PostStore.
+func (r *PostRepository) ListPostsMissingTint(ctx context.Context) ([]PostMissingTint, error) {
+	stmt := table.Posts.
+		SELECT(
+			table.Posts.ID.AS("post_missing_tint.id"),
+			table.Posts.ImagePath.AS("post_missing_tint.image_path"),
+			table.Posts.ThumbnailPath.AS("post_missing_tint.thumbnail_path"),
+		).
+		FROM(table.Posts).
+		WHERE(table.Posts.Tint.IS_NULL()).
+		ORDER_BY(table.Posts.ID.ASC())
+
+	posts := make([]PostMissingTint, 0)
+	if err := stmt.QueryContext(ctx, r.db, &posts); err != nil {
+		return nil, err
+	}
+	return posts, nil
+}
+
+// SetPostTint records a post's page colour. It is not an edit by the user,
+// so updated_at is left alone. Returns ErrorPostNotFound when no post has
+// the ID (e.g. it was deleted meanwhile). Used by cmd/tints only.
+func (r *PostRepository) SetPostTint(ctx context.Context, postID int64, tint string) error {
+	stmt := table.Posts.
+		UPDATE(table.Posts.Tint).
+		SET(postgres.String(tint)).
+		WHERE(table.Posts.ID.EQ(postgres.Int64(postID)))
+	result, err := stmt.ExecContext(ctx, r.db)
+	if err != nil {
+		return err
+	}
+	n, err := result.RowsAffected()
+	if err != nil {
+		return err
+	}
+	if n == 0 {
+		return ErrorPostNotFound
+	}
+	return nil
 }
 
 func (r *PostRepository) DeletePostByID(ctx context.Context, id int64) error {

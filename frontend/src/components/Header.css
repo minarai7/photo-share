@@ -1,0 +1,35 @@
+/* Header (DESIGN-SYSTEM.md §5.3, §6): fixed, transparent, the same on every screen. */
+.header {
+  position: fixed; inset: 0 0 auto 0; z-index: var(--z-header);
+  display: flex; justify-content: space-between; align-items: center;
+  padding: var(--s-28) var(--gutter); pointer-events: none;
+  view-transition-name: header; /* the same on every screen, so it holds still through screen changes */
+}
+.header > * { pointer-events: auto; }
+/* Over a hero: plain white with a soft halo, no shade on the photo. */
+.header.is-on-image { color: var(--on-dark); text-shadow: var(--halo); }
+.header.is-on-image .grid-icon { filter: var(--halo-mark); }
+/* Pages that scroll normally: the header takes the page colour so content passes under it cleanly. */
+.page.is-scroll .header:not(.is-on-image) { background-color: var(--page); transition: background-color var(--t-tint); padding-block: var(--s-22); }
+.wordmark { font: 400 var(--fs-mark)/1 var(--display); letter-spacing: var(--track-mark); text-transform: uppercase; transition: opacity var(--t-hover); }
+.header-nav { display: flex; align-items: center; gap: var(--s-28); }
+.indexlink.is-on { font-weight: 500; }
+.grid-icon {
+  display: inline-block; width: 10px; height: 10px; margin-right: var(--s-8); border: var(--line) solid currentColor;
+  background:
+    linear-gradient(currentColor, currentColor) center / var(--line) 100% no-repeat,
+    linear-gradient(currentColor, currentColor) center / 100% var(--line) no-repeat;
+}
+/* "− Close": a header link like "+ New", at the end of whatever row it is in. */
+.close { margin-left: auto; min-height: 32px; white-space: nowrap; }
+.header .close { margin: 0; }
+
+@media (hover: hover) and (pointer: fine) {
+  .wordmark:hover { opacity: var(--hover-opacity); }
+}
+
+@media (max-width: 760px) {
+  .header { padding: var(--s-18) var(--gutter); }
+  .header-nav { gap: var(--s-16); }
+  .wordmark { font-size: var(--fs-label-lg); letter-spacing: var(--track-label); }
+}

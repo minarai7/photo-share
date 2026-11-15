@@ -1,99 +1,87 @@
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { getPosts } from "../api/postsApi";
 import { FEED_PAGE_SIZE } from "../config/images";
-import type { Post } from "../types/post";
-
-type Options = {
-    /** Only this user's posts (a profile); all posts when undefined. */
-    userId?: number;
-    /** When false nothing is fetched (e.g. the profile's id is invalid). */
-    enabled?: boolean;
-};
+import { filterKey, toPostQuery, type FeedFilter } from "../feed/filter";
+import { useFeedState } from "../feed/useFeedState";
 
 /**
- * Pages through GET /posts newest first: the first page on mount (and when
- * userId changes), the next one on loadMore(). Errors are kept raw, so the
- * caller translates them at render and a language switch doesn't refetch.
+ * Pages through GET /posts for the rules in `filter` (memoize it per rules):
+ * the first page when the rules change, the next one on loadMore(), which
+ * the reel calls as its end nears. The loaded pages live in the feed state
+ * above the routes, so coming back from a post shows them at once, with no
+ * refetch. Errors are kept raw, so the caller translates them at render and
+ * a language switch doesn't refetch and drop loaded pages.
  */
-export function usePostPages({ userId, enabled = true }: Options = {}) {
-    const [posts, setPosts] = useState<Post[]>([]);
-    const [isLoading, setIsLoading] = useState(enabled);
-    const [error, setError] = useState<unknown>(null);
-    const [hasMore, setHasMore] = useState(false);
-    const [isLoadingMore, setIsLoadingMore] = useState(false);
-    const [loadMoreError, setLoadMoreError] = useState<unknown>(null);
+export function usePostPages(filter: FeedFilter, { enabled = true } = {}) {
+    const { pages, setPages, generation } = useFeedState();
+    const key = filterKey(filter);
+    const loaded = pages?.key === key ? pages : null;
+    const have = loaded !== null;
 
-    // Bumped whenever the list starts over, so a response for an older list
-    // (another profile, or a load-more still in flight) is dropped.
-    const generation = useRef(0);
+    const [error, setError] = useState<{ key: string; error: unknown } | null>(null);
+    const [attempt, setAttempt] = useState(0);
+    const [more, setMore] = useState<{ key: string; loading: boolean; error: unknown } | null>(null);
 
     useEffect(() => {
-        if (!enabled) {
+        if (!enabled || have) {
             return;
         }
-        const current = ++generation.current;
-
-        async function loadFirstPage() {
-            try {
-                setIsLoading(true);
-                setError(null);
-                setLoadMoreError(null);
-                setIsLoadingMore(false);
-
-                const page = await getPosts({ userId, limit: FEED_PAGE_SIZE });
-
-                if (generation.current === current) {
-                    setPosts(page);
-                    setHasMore(page.length === FEED_PAGE_SIZE);
+        let live = true;
+        getPosts({ ...toPostQuery(filter), sort: filter.sort, limit: FEED_PAGE_SIZE })
+            .then((page) => {
+                if (live) {
+                    setPages(() => ({ key, posts: page, hasMore: page.length === FEED_PAGE_SIZE }));
                 }
-            } catch (err) {
-                if (generation.current === current) {
+            })
+            .catch((err: unknown) => {
+                if (live) {
                     console.error(err);
-                    setPosts([]);
-                    setError(err);
+                    setError({ key, error: err });
                 }
-            } finally {
-                if (generation.current === current) {
-                    setIsLoading(false);
-                }
-            }
-        }
+            });
+        return () => {
+            live = false;
+        };
+    }, [filter, key, enabled, have, attempt, generation, setPages]);
 
-        loadFirstPage();
-    }, [userId, enabled]);
+    const currentError = error?.key === key ? error.error : null;
+    const moreState = more?.key === key ? more : null;
+    const loadingMore = moreState?.loading ?? false;
 
     const loadMore = useCallback(async () => {
-        const last = posts[posts.length - 1];
-        if (!last || isLoadingMore) {
+        const last = loaded?.posts[loaded.posts.length - 1];
+        if (!loaded?.hasMore || !last || loadingMore) {
             return;
         }
-        const current = generation.current;
-
+        setMore({ key, loading: true, error: null });
         try {
-            setIsLoadingMore(true);
-            setLoadMoreError(null);
-
-            const page = await getPosts({ userId, limit: FEED_PAGE_SIZE, after: last });
-
-            if (generation.current === current) {
-                setPosts((loaded) => {
-                    // The cursor never repeats a post; this only guards the keys.
-                    const seen = new Set(loaded.map((p) => p.id));
-                    return [...loaded, ...page.filter((p) => !seen.has(p.id))];
-                });
-                setHasMore(page.length === FEED_PAGE_SIZE);
-            }
+            const page = await getPosts({ ...toPostQuery(filter), sort: filter.sort, limit: FEED_PAGE_SIZE, after: last });
+            setPages((current) => {
+                if (current?.key !== key) return current;
+                // The cursor never repeats a post; this only guards the keys.
+                const seen = new Set(current.posts.map((p) => p.id));
+                return { key, posts: [...current.posts, ...page.filter((p) => !seen.has(p.id))], hasMore: page.length === FEED_PAGE_SIZE };
+            });
+            setMore({ key, loading: false, error: null });
         } catch (err) {
-            if (generation.current === current) {
-                console.error(err);
-                setLoadMoreError(err);
-            }
-        } finally {
-            if (generation.current === current) {
-                setIsLoadingMore(false);
-            }
+            console.error(err);
+            setMore({ key, loading: false, error: err });
         }
-    }, [posts, isLoadingMore, userId]);
+    }, [loaded, loadingMore, key, filter, setPages]);
 
-    return { posts, isLoading, error, hasMore, isLoadingMore, loadMoreError, loadMore };
+    const retry = useCallback(() => {
+        setError(null);
+        setAttempt((a) => a + 1);
+    }, []);
+
+    return {
+        posts: loaded?.posts ?? [],
+        isLoading: enabled && !have && currentError == null,
+        error: currentError,
+        hasMore: loaded?.hasMore ?? false,
+        isLoadingMore: loadingMore,
+        loadMoreError: moreState?.error ?? null,
+        loadMore,
+        retry,
+    };
 }

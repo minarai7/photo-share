@@ -1,311 +1,294 @@
-import { useEffect, useRef, useState, type ChangeEvent, type SubmitEvent } from "react";
-import { useNavigate } from "react-router";
+import { useEffect, useRef, useState, type ChangeEvent, type CSSProperties, type DragEvent, type FormEvent } from "react";
+import clsx from "clsx";
+import { arrayMove } from "@dnd-kit/sortable";
+import { useLocation } from "react-router";
+import { toast } from "sonner";
 import { createPost } from "../api/postsApi";
 import { uploadImage } from "../api/uploadsApi";
+import { useAuth } from "../auth/useAuth";
+import { MAX_IMAGES_PER_POST, MAX_UPLOAD_BYTES, MAX_UPLOAD_MB } from "../config/upload";
+import { useFeedState } from "../feed/useFeedState";
+import { useApiErrorMessage } from "../hooks/useApiErrorMessage";
+import { useDocumentKeys } from "../hooks/useReelKeys";
+import { useLanguage } from "../lang/useLanguage";
+import { useGo } from "../navigation/viewTransition";
 import type { CreatePostRequest, PostImage } from "../types/post";
 import type { UploadImageResponse } from "../types/upload";
-import { FormField } from "../components/FormField";
-import { useLanguage } from "../lang/useLanguage";
-import { useApiErrorMessage } from "../hooks/useApiErrorMessage";
-import { MAX_IMAGES_PER_POST, MAX_UPLOAD_BYTES, MAX_UPLOAD_MB } from "../config/upload";
+import { readGear, type Gear } from "../utils/exif";
+import { previewTint } from "../utils/previewTint";
+import { Count } from "../components/Count";
+import { CloseButton, Header } from "../components/Header";
+import { VerticalTitle } from "../components/Reel";
+import { SortablePhotos } from "../components/SortablePhotos";
+import { FormError, TextField } from "../components/TextField";
+import "./CreatePostPage.css";
 
 type SelectedPhoto = {
-  key: number;
-  file: File;
-  previewUrl: string;
+    key: string;
+    file: File;
+    previewUrl: string;
+    /** Camera and lens read from the photo in the browser; null until read. */
+    gear: Gear | null;
 };
 
-type UploadProgress = { current: number; total: number };
+type Progress = { current: number; total: number };
 
+const ACCEPTED_TYPES = ["image/jpeg", "image/png", "image/webp"];
+
+/**
+ * New post: a live preview of the slide it will become. The typed title runs
+ * up the margin, the cover sits on its own colour, your name, place and gear
+ * form the credit line beneath, and the page turns the cover's colour. The
+ * fields sit in a side panel. Photos upload one at a time at Publish (a retry
+ * doesn't re-upload what already went through); camera and lens are read
+ * from the photos in the browser, so the placeholders show them at once.
+ */
 export function CreatePostPage() {
-  const { t } = useLanguage();
-  const toApiErrorMessage = useApiErrorMessage();
-  const navigate = useNavigate();
+    const { t } = useLanguage();
+    const toApiErrorMessage = useApiErrorMessage();
+    const { user } = useAuth();
+    const { invalidate } = useFeedState();
+    const location = useLocation();
+    const go = useGo();
 
-  // In display order; the first is the cover.
-  const [photos, setPhotos] = useState<SelectedPhoto[]>([]);
-  const [caption, setCaption] = useState("");
-  const [location, setLocation] = useState("");
-  const [cameraBody, setCameraBody] = useState("");
-  const [lens, setLens] = useState("");
+    // In display order; the first is the cover.
+    const [photos, setPhotos] = useState<SelectedPhoto[]>([]);
+    const [caption, setCaption] = useState("");
+    const [place, setPlace] = useState("");
+    const [camera, setCamera] = useState("");
+    const [lens, setLens] = useState("");
+    const [error, setError] = useState<string | null>(null);
+    const [publishing, setPublishing] = useState(false);
+    const [progress, setProgress] = useState<Progress | null>(null);
+    const [coverTint, setCoverTint] = useState<{ url: string; tint: string } | null>(null);
 
-  const [error, setError] = useState<string | null>(null);
-  const [isSubmitting, setIsSubmitting] = useState(false);
-  const [progress, setProgress] = useState<UploadProgress | null>(null);
+    const fileInput = useRef<HTMLInputElement>(null);
+    const nextKey = useRef(0);
+    // Uploads that already succeeded, so a retry after a failed create (or a
+    // failed later upload) does not send the same file again.
+    const uploaded = useRef(new Map<File, UploadImageResponse>());
+    // Every preview URL still alive, revoked on removal and on unmount.
+    const previewUrls = useRef(new Set<string>());
 
-  const nextKey = useRef(0);
-  // Uploads that already succeeded, so a retry after a failed create (or a
-  // failed later upload) does not send the same file again.
-  const uploaded = useRef(new Map<File, UploadImageResponse>());
-  // Every preview URL still alive, revoked on removal and on unmount.
-  const previewUrls = useRef(new Set<string>());
+    useEffect(() => {
+        const urls = previewUrls.current;
+        return () => {
+            urls.forEach((url) => URL.revokeObjectURL(url));
+            urls.clear();
+        };
+    }, []);
 
-  useEffect(() => {
-    const urls = previewUrls.current;
-    return () => {
-      urls.forEach((url) => URL.revokeObjectURL(url));
-      urls.clear();
-    };
-  }, []);
-
-  function handlePhotoChange(event: ChangeEvent<HTMLInputElement>) {
-    const chosen = Array.from(event.target.files ?? []);
-    // Clear the input so choosing the same file again still fires onChange.
-    event.target.value = "";
-    if (chosen.length === 0) {
-      return;
-    }
-
-    let nextError: string | null = null;
-    let accepted = chosen.filter((file) => file.size <= MAX_UPLOAD_BYTES);
-    if (accepted.length < chosen.length) {
-      nextError = t.validation.photoTooLarge(MAX_UPLOAD_MB);
-    }
-    const room = MAX_IMAGES_PER_POST - photos.length;
-    if (accepted.length > room) {
-      accepted = accepted.slice(0, Math.max(room, 0));
-      nextError = t.validation.tooManyPhotos(MAX_IMAGES_PER_POST);
-    }
-    setError(nextError);
-
-    const added = accepted.map((file) => {
-      const previewUrl = URL.createObjectURL(file);
-      previewUrls.current.add(previewUrl);
-      return { key: nextKey.current++, file, previewUrl };
-    });
-    setPhotos((current) => [...current, ...added]);
-  }
-
-  function removePhoto(index: number) {
-    const removed = photos[index];
-    URL.revokeObjectURL(removed.previewUrl);
-    previewUrls.current.delete(removed.previewUrl);
-    setPhotos((current) => current.filter((photo) => photo.key !== removed.key));
-    setError(null);
-  }
-
-  function movePhoto(index: number, delta: -1 | 1) {
-    setPhotos((current) => {
-      const target = index + delta;
-      if (target < 0 || target >= current.length) {
-        return current;
-      }
-      const next = [...current];
-      [next[index], next[target]] = [next[target], next[index]];
-      return next;
-    });
-  }
-
-  async function handleSubmit(event: SubmitEvent<HTMLFormElement>) {
-    event.preventDefault();
-
-    setError("");
-
-    if (photos.length === 0) {
-      setError(t.validation.photoRequired);
-      return;
-    }
-
-    try {
-      setIsSubmitting(true);
-
-      // One file at a time: the server decodes one image at a time anyway,
-      // and the user sees which file failed.
-      const results: UploadImageResponse[] = [];
-      for (const [index, photo] of photos.entries()) {
-        setProgress({ current: index + 1, total: photos.length });
-        let result = uploaded.current.get(photo.file);
-        if (!result) {
-          result = await uploadImage(photo.file);
-          uploaded.current.set(photo.file, result);
+    // Close (and Esc): back to wherever the visitor came from (the links to
+    // this page pass returnTo), else the feed.
+    const returnTo = (location.state as { returnTo?: string } | null)?.returnTo;
+    const cameFrom = returnTo != null && location.key !== "default";
+    const leave = () => (cameFrom ? go(-1) : go("/"));
+    const closeLabel = !cameFrom
+        ? t.header.closeToFeed
+        : returnTo.startsWith("/posts/")
+          ? t.header.closeToPost
+          : returnTo.startsWith("/users/")
+            ? t.header.closeToProfile
+            : t.header.closeToFeed;
+    useDocumentKeys((e) => {
+        // Esc also cancels a keyboard drag in the filmstrip: never leave mid-drag.
+        if (e.key === "Escape" && !e.defaultPrevented && !document.querySelector("[role=dialog], [data-dragging]")) {
+            e.preventDefault();
+            leave();
         }
-        results.push(result);
-      }
-      setProgress(null);
+    });
 
-      const images: PostImage[] = results.map((result) =>
-        result.thumbnail_path
-          ? { image_path: result.image_path, thumbnail_path: result.thumbnail_path }
-          : { image_path: result.image_path },
-      );
+    function addFiles(chosen: File[]) {
+        if (chosen.length === 0) return;
+        let nextError: string | null = null;
+        let accepted = chosen.filter((file) => ACCEPTED_TYPES.includes(file.type));
+        if (accepted.length < chosen.length) nextError = t.validation.photoWrongType;
+        const small = accepted.filter((file) => file.size <= MAX_UPLOAD_BYTES);
+        if (small.length < accepted.length) nextError = t.validation.photoTooLarge(MAX_UPLOAD_MB);
+        accepted = small;
+        const room = MAX_IMAGES_PER_POST - photos.length;
+        if (accepted.length > room) {
+            accepted = accepted.slice(0, Math.max(room, 0));
+            nextError = t.validation.tooManyPhotos(MAX_IMAGES_PER_POST);
+        }
+        setError(nextError);
 
-      const data: CreatePostRequest = {
-        images,
-        caption: caption.trim(),
-      }
-
-      if (location.trim() !== "") {
-        data.location = location.trim();
-      }
-
-      // What the user typed wins; blank fields fall back to the EXIF data of
-      // the first photo that records them.
-      const camera = cameraBody.trim() || results.find((r) => r.camera_body)?.camera_body;
-      if (camera) {
-        data.camera_body = camera;
-      }
-      const lensName = lens.trim() || results.find((r) => r.lens)?.lens;
-      if (lensName) {
-        data.lens = lensName;
-      }
-
-      await createPost(data);
-
-      navigate("/", {replace: true});
-    } catch (error) {
-      setError(
-        toApiErrorMessage(error, {
-          fallbackMessage: t.posts.createPostFailed
-        })
-      );
-    } finally {
-        setProgress(null);
-        setIsSubmitting(false);
+        const added = accepted.map((file) => {
+            const previewUrl = URL.createObjectURL(file);
+            previewUrls.current.add(previewUrl);
+            return { key: String(nextKey.current++), file, previewUrl, gear: null };
+        });
+        setPhotos((current) => [...current, ...added]);
+        for (const photo of added) {
+            void readGear(photo.file).then((gear) =>
+                setPhotos((current) => current.map((p) => (p.key === photo.key ? { ...p, gear } : p))),
+            );
+        }
     }
-  }
 
-  const canAddMore = photos.length < MAX_IMAGES_PER_POST;
+    function onPick(e: ChangeEvent<HTMLInputElement>) {
+        const chosen = Array.from(e.target.files ?? []);
+        // Clear the input so choosing the same file again still fires onChange.
+        e.target.value = "";
+        addFiles(chosen);
+    }
 
-  return (
-    <main className="form-page">
-      <section className="form-card">
-        <h1>{t.posts.createPostTitle}</h1>
+    function onDrop(e: DragEvent) {
+        e.preventDefault();
+        if (!publishing) addFiles(Array.from(e.dataTransfer.files));
+    }
 
-        {error && <div className="form-error">{error}</div>}
+    function remove(key: string) {
+        const removed = photos.find((p) => p.key === key);
+        if (removed) {
+            URL.revokeObjectURL(removed.previewUrl);
+            previewUrls.current.delete(removed.previewUrl);
+        }
+        setPhotos((current) => current.filter((p) => p.key !== key));
+        setError(null);
+    }
 
-        <form className="create-post-form" onSubmit={handleSubmit}>
-          <div className="form-field">
-            <label htmlFor="photo">{t.posts.photo}</label>
+    function reorder(activeKey: string, overKey: string) {
+        setPhotos((current) => {
+            const from = current.findIndex((p) => p.key === activeKey);
+            const to = current.findIndex((p) => p.key === overKey);
+            return from < 0 || to < 0 ? current : arrayMove(current, from, to);
+        });
+    }
 
-            {photos.length === 0 ? (
-              <label className="image-upload-box" htmlFor="photo">
-                <span className="image-upload-title">
-                  {t.posts.choosePhoto}
-                </span>
-                <span className="image-upload-subtitle">
-                  {t.posts.supportedImageTypes}
-                </span>
-                <span className="image-upload-subtitle">
-                  {t.posts.maxImageSize(MAX_UPLOAD_MB)}
-                </span>
-                <span className="image-upload-subtitle">
-                  {t.posts.maxImages(MAX_IMAGES_PER_POST)}
-                </span>
-              </label>
-            ) : (
-              <ol className="photo-picker-grid">
-                {photos.map((photo, index) => (
-                  <li key={photo.key} className="photo-picker-item">
-                    <img
-                      src={photo.previewUrl}
-                      alt={t.posts.selectedPreviewAlt(index + 1)}
-                      className="photo-picker-image"
-                    />
-                    {index === 0 && (
-                      <span className="photo-picker-cover">{t.posts.coverPhoto}</span>
+    async function publish(e: FormEvent) {
+        e.preventDefault();
+        if (photos.length === 0) {
+            setError(t.validation.photoRequired);
+            return;
+        }
+        setError(null);
+        setPublishing(true);
+        try {
+            // One file at a time: the server decodes one image at a time anyway,
+            // and the user sees which file failed.
+            const results: UploadImageResponse[] = [];
+            for (const [i, photo] of photos.entries()) {
+                setProgress({ current: i + 1, total: photos.length });
+                let result = uploaded.current.get(photo.file);
+                if (!result) {
+                    result = await uploadImage(photo.file);
+                    uploaded.current.set(photo.file, result);
+                }
+                results.push(result);
+            }
+            setProgress(null);
+
+            const images: PostImage[] = results.map((r) =>
+                r.thumbnail_path ? { image_path: r.image_path, thumbnail_path: r.thumbnail_path } : { image_path: r.image_path },
+            );
+            const data: CreatePostRequest = { images, caption: caption.trim() };
+            if (place.trim()) data.location = place.trim();
+            // What the user typed wins; blank fields fall back to the photos'
+            // EXIF data (read here, else as the server read it).
+            const cameraName = camera.trim() || detected.camera || results.find((r) => r.camera_body)?.camera_body;
+            if (cameraName) data.camera_body = cameraName;
+            const lensName = lens.trim() || detected.lens || results.find((r) => r.lens)?.lens;
+            if (lensName) data.lens = lensName;
+
+            const post = await createPost(data);
+            invalidate();
+            toast(t.toast.published, { description: post.caption || undefined });
+            go(`/posts/${post.id}`, { replace: true, state: { post, returnTo: user ? `/users/${user.id}` : "/" } });
+        } catch (err) {
+            setError(toApiErrorMessage(err, { fallbackMessage: t.compose.failed }));
+        } finally {
+            setProgress(null);
+            setPublishing(false);
+        }
+    }
+
+    // The first photo that records a camera (and lens) gives the placeholders.
+    const withGear = photos.find((p) => p.gear?.camera || p.gear?.lens)?.gear;
+    const detected: Gear = { camera: withGear?.camera ?? null, lens: withGear?.lens ?? null };
+    const cover = photos[0];
+    const title = caption.trim() || t.compose.untitled;
+    const gearLine = [camera.trim() || detected.camera, lens.trim() || detected.lens].filter(Boolean).join(" · ");
+    const canAddMore = photos.length < MAX_IMAGES_PER_POST && !publishing;
+    const tint = cover && coverTint?.url === cover.previewUrl ? coverTint.tint : null;
+    const pageStyle = { "--page": tint ?? "var(--paper)" } as CSSProperties;
+
+    return (
+        <div className="page is-compose" style={pageStyle}>
+            <Header right={<CloseButton onClick={leave} aria-label={closeLabel} />} />
+            <form className="compose" onSubmit={publish} noValidate>
+                <section className="compose-stage" aria-label={t.compose.preview} onDragOver={(e) => e.preventDefault()} onDrop={onDrop}>
+                    <VerticalTitle as="p" caption={title} year={new Date().getFullYear()} />
+                    <p className="compose-kicker">{t.compose.preview}</p>
+                    {cover ? (
+                        <figure className="compose-work">
+                            <img
+                                src={cover.previewUrl}
+                                alt={t.compose.coverAlt(cover.file.name)}
+                                onLoad={(e) => {
+                                    const tinted = previewTint(e.currentTarget);
+                                    if (tinted) setCoverTint({ url: cover.previewUrl, tint: tinted });
+                                }}
+                            />
+                        </figure>
+                    ) : (
+                        <button type="button" className="compose-empty" onClick={() => fileInput.current?.click()}>
+                            <span className="compose-empty-title">{t.compose.choosePhotos}</span>
+                            <span className="compose-empty-sub">{t.compose.limits(MAX_IMAGES_PER_POST, MAX_UPLOAD_MB)}</span>
+                        </button>
                     )}
-                    <div className="photo-picker-actions">
-                      <button
-                        type="button"
-                        className="icon-button"
-                        onClick={() => movePhoto(index, -1)}
-                        disabled={isSubmitting || index === 0}
-                        aria-label={t.posts.movePhotoEarlier(index + 1)}
-                        title={t.posts.movePhotoEarlier(index + 1)}
-                      >
-                        ←
-                      </button>
-                      <button
-                        type="button"
-                        className="icon-button"
-                        onClick={() => movePhoto(index, 1)}
-                        disabled={isSubmitting || index === photos.length - 1}
-                        aria-label={t.posts.movePhotoLater(index + 1)}
-                        title={t.posts.movePhotoLater(index + 1)}
-                      >
-                        →
-                      </button>
-                      <button
-                        type="button"
-                        className="icon-button"
-                        onClick={() => removePhoto(index)}
-                        disabled={isSubmitting}
-                        aria-label={t.posts.removePhoto(index + 1)}
-                        title={t.posts.removePhoto(index + 1)}
-                      >
-                        ×
-                      </button>
-                    </div>
-                  </li>
-                ))}
-                {canAddMore && (
-                  <li className="photo-picker-item">
-                    <label className="photo-picker-add" htmlFor="photo">
-                      <span className="image-upload-title">+ {t.posts.addMorePhotos}</span>
-                      <span className="image-upload-subtitle">
-                        {photos.length} / {MAX_IMAGES_PER_POST}
-                      </span>
-                    </label>
-                  </li>
-                )}
-              </ol>
-            )}
-
-            <input
-              id="photo"
-              name="photo"
-              type="file"
-              accept="image/*"
-              multiple
-              className="image-upload-input"
-              onChange={handlePhotoChange}
-              disabled={isSubmitting || !canAddMore}
-            />
-          </div>
-
-          <FormField
-              id="caption"
-              label={t.posts.title}
-              type="text"
-              value={caption}
-              setValue={setCaption}
-          />
-
-          <FormField
-              id="location"
-              label={t.posts.location}
-              type="text"
-              value={location}
-              setValue={setLocation}
-          />
-
-          <FormField
-              id="camera-body"
-              label={t.posts.camera}
-              type="text"
-              value={cameraBody}
-              setValue={setCameraBody}
-              placeholder={t.posts.gearFromPhotoPlaceholder}
-          />
-
-          <FormField
-              id="lens"
-              label={t.posts.lens}
-              type="text"
-              value={lens}
-              setValue={setLens}
-              placeholder={t.posts.gearFromPhotoPlaceholder}
-          />
-
-          <button type="submit" disabled={isSubmitting}>
-            {progress
-              ? t.posts.uploadingPhotos(progress.current, progress.total)
-              : isSubmitting
-                ? t.posts.creatingPost
-                : t.posts.createPostButton}
-          </button>
-        </form>
-      </section>
-    </main>
-  )
+                    <p className="credit-line">
+                        {user && <span className="author is-plain">{user.username}</span>}
+                        {place.trim() && <span>{place.trim()}</span>}
+                        {gearLine && <span className="gear">{gearLine}</span>}
+                    </p>
+                    {photos.length > 0 && (
+                        <div className="filmstrip">
+                            <SortablePhotos
+                                photos={photos.map((p) => ({ key: p.key, name: p.file.name, previewUrl: p.previewUrl }))}
+                                onReorder={reorder}
+                                onRemove={remove}
+                                disabled={publishing}
+                                addSlot={
+                                    canAddMore ? (
+                                        <li className="add-tile">
+                                            <button type="button" onClick={() => fileInput.current?.click()} aria-label={t.compose.addPhotos}>+</button>
+                                        </li>
+                                    ) : undefined
+                                }
+                            />
+                            <p className="hint">{t.compose.reorderHint}</p>
+                        </div>
+                    )}
+                    <input
+                        ref={fileInput}
+                        type="file"
+                        accept={ACCEPTED_TYPES.join(",")}
+                        multiple
+                        hidden
+                        onChange={onPick}
+                        disabled={!canAddMore}
+                        aria-label={t.compose.choosePhotos}
+                    />
+                </section>
+                <section className="compose-panel" aria-label={t.compose.title}>
+                    <h1 className="form-title">{t.compose.title}</h1>
+                    {error && <FormError>{error}</FormError>}
+                    <TextField label={t.compose.caption} value={caption} onChange={setCaption} placeholder={t.compose.untitled} disabled={publishing} name="caption" />
+                    <TextField label={t.compose.place} value={place} onChange={setPlace} placeholder={t.compose.optional} disabled={publishing} name="location" />
+                    <TextField label={t.compose.camera} value={camera} onChange={setCamera} placeholder={detected.camera ?? t.compose.fromPhoto} disabled={publishing} name="camera" />
+                    <TextField label={t.compose.lens} value={lens} onChange={setLens} placeholder={detected.lens ?? t.compose.fromPhoto} disabled={publishing} name="lens" />
+                    {(detected.camera || detected.lens) && <p className="hint">{t.compose.gearHint}</p>}
+                    <button type="submit" className={clsx("btn is-block")} disabled={publishing}>
+                        {progress ? (
+                            <>
+                                {t.compose.uploading}
+                                <Count value={progress.current} total={progress.total} className="inline-count" label={`${progress.current} / ${progress.total}`} />
+                            </>
+                        ) : publishing ? t.compose.publishing : t.compose.publish}
+                    </button>
+                </section>
+            </form>
+        </div>
+    );
 }

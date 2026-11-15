@@ -1,0 +1,77 @@
+/* Text field, form error and dialogs (DESIGN-SYSTEM.md §6). */
+.form-title { margin: 0; font: 400 var(--fs-mark-lg)/1 var(--display); letter-spacing: var(--track-mark); text-transform: uppercase; }
+:lang(ja) .form-title { font-family: var(--jp); letter-spacing: var(--track-ja); }
+.tf { display: grid; gap: var(--s-6); }
+.tf-label { font: 400 var(--fs-label-xs)/1 var(--display); letter-spacing: var(--track-label); text-transform: uppercase; }
+.tf-input {
+  width: 100%; border: 0; border-bottom: var(--line) solid var(--rule); border-radius: 0; background: transparent; outline: 0;
+  padding: var(--s-8) 0; color: var(--ink); font: 400 var(--fs-field)/1.3 var(--serif); transition: border-color var(--t-overlay), box-shadow var(--t-overlay);
+}
+.tf-input::placeholder { color: var(--faint); font-style: italic; }
+.tf-input:focus-visible { border-color: var(--ink); box-shadow: inset 0 calc(-1 * var(--line)) 0 var(--ink); }
+.tf[data-invalid] .tf-input { border-color: var(--danger); }
+.tf[data-disabled] .tf-input { opacity: var(--disabled-opacity); }
+.tf-error { color: var(--danger); font: italic 400 var(--fs-hint)/1.4 var(--serif); }
+.tf-hint { color: var(--muted); font: italic 400 var(--fs-hint)/1.4 var(--serif); }
+.form-error { margin: 0; padding-left: var(--s-12); border-left: var(--line) solid var(--danger); color: var(--danger); font: italic 400 var(--fs-body)/1.4 var(--serif); }
+:lang(ja) :is(.tf-label, .tf-input, .tf-error, .tf-hint, .form-error) { font-family: var(--jp); font-style: normal; letter-spacing: var(--track-ja); }
+:lang(ja) .tf-input::placeholder { font-style: normal; }
+
+/* Dialogs: Base UI Dialog / AlertDialog on --sheet over --scrim, square, no border. */
+.dialog-backdrop { position: fixed; inset: 0; z-index: var(--z-dialog); background: var(--scrim); transition: opacity var(--t-overlay); }
+.dialog-backdrop[data-starting-style], .dialog-backdrop[data-ending-style] { opacity: 0; }
+.dialog {
+  position: fixed; z-index: calc(var(--z-dialog) + 1); top: 50%; left: 50%;
+  width: min(520px, calc(100vw - 2 * var(--s-16))); max-height: calc(100dvh - var(--s-64)); overflow-y: auto;
+  transform: translate(-50%, -50%);
+  background: var(--sheet); color: var(--ink); padding: var(--s-36); outline: 0;
+  transition: opacity var(--t-dialog) var(--ease-out), transform var(--t-dialog) var(--ease-out);
+}
+.dialog.is-narrow { width: min(420px, calc(100vw - 2 * var(--s-16))); }
+.dialog[data-starting-style], .dialog[data-ending-style] { opacity: 0; transform: translate(-50%, calc(-50% + var(--s-8))) scale(0.98); }
+.dialog-kicker { margin: 0; font: 400 var(--fs-label-xs)/1 var(--display); letter-spacing: var(--track-label); text-transform: uppercase; color: var(--muted); }
+.dialog-title { margin: var(--s-10) 0 var(--s-14); font: italic 400 var(--fs-title)/1.15 var(--serif); }
+.dialog-desc { margin: 0; font-size: var(--fs-body); }
+:lang(ja) :is(.dialog-kicker, .dialog-title, .dialog-desc) { font-family: var(--jp); font-style: normal; letter-spacing: var(--track-ja); }
+:lang(ja) .dialog-title { font-size: var(--fs-field); }
+.dialog-form { display: grid; gap: var(--s-18); }
+.dialog-actions { margin-top: var(--s-28); display: flex; justify-content: flex-end; align-items: center; gap: var(--s-28); }
+.dialog-link {
+  font: 400 var(--fs-label)/1 var(--display); letter-spacing: var(--track-label); text-transform: uppercase;
+  border-bottom: var(--line) solid currentColor; padding-bottom: var(--s-4); transition: opacity var(--t-hover);
+}
+.dialog-confirm {
+  background: var(--ink); color: var(--on-dark); padding: var(--s-14) var(--s-22);
+  font: 400 var(--fs-label)/1 var(--display); letter-spacing: var(--track-label); text-transform: uppercase; transition: opacity var(--t-hover);
+}
+.dialog-confirm.is-danger { background: var(--danger); }
+.dialog-confirm:disabled { opacity: var(--disabled-opacity); cursor: progress; }
+:lang(ja) :is(.dialog-link, .dialog-confirm) { font-family: var(--jp); letter-spacing: var(--track-ja); }
+@media (hover: hover) and (pointer: fine) {
+  .dialog-link:hover { opacity: var(--hover-opacity); }
+  .dialog-confirm:hover:not(:disabled) { opacity: var(--hover-opacity-solid); }
+}
+
+/* Gear lookup */
+.gl-list { list-style: none; margin: var(--s-22) 0; padding: 0; display: grid; gap: var(--s-14); }
+.gl-item { display: grid; grid-template-columns: 1fr auto; gap: var(--s-4) var(--s-12); align-items: baseline; border-top: var(--line) solid var(--hair); padding-top: var(--s-14); }
+.gl-link { color: var(--ink); font-size: var(--fs-option); border-bottom: var(--line) solid currentColor; transition: opacity var(--t-hover); }
+.gl-confidence { font: 400 var(--fs-label-xs)/1 var(--display); letter-spacing: var(--track-meta); text-transform: uppercase; color: var(--muted); }
+.gl-reason { grid-column: 1 / -1; margin: 0; font-style: italic; color: var(--muted); }
+.gl-note { margin: 0 0 var(--s-22); font: italic 400 var(--fs-hint)/1.5 var(--serif); color: var(--muted); }
+@media (hover: hover) and (pointer: fine) { .gl-link:hover { opacity: var(--hover-opacity); } }
+
+/* Toasts (Sonner, unstyled): top centre, --sheet with a 1px ink border. */
+.toast { display: grid; gap: var(--s-2); width: 100%; background: var(--sheet); color: var(--ink); border: var(--line) solid var(--ink); padding: var(--s-12) var(--s-18); }
+.toast-title { font: 400 var(--fs-label)/1.4 var(--display); letter-spacing: var(--track-label); text-transform: uppercase; }
+.toast-desc { font: italic 400 var(--fs-hint)/1.4 var(--serif); color: var(--muted); }
+:lang(ja) :is(.toast-title, .toast-desc) { font-family: var(--jp); font-style: normal; letter-spacing: var(--track-ja); }
+
+@media (max-width: 760px) {
+  .dialog { padding: var(--s-28) var(--s-22); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .dialog-backdrop, .dialog { transition: opacity var(--t-color); }
+  .dialog[data-starting-style], .dialog[data-ending-style] { transform: translate(-50%, -50%); }
+}

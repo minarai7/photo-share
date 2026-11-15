@@ -1,0 +1,73 @@
+/* Index: contact sheet + sort/filter (DESIGN-SYSTEM.md §5.5, §6). */
+.index {
+  position: fixed; inset: 0; z-index: var(--z-sheet); overflow-y: auto;
+  background: var(--sheet); color: var(--ink); padding: var(--s-28) var(--gutter) var(--s-150);
+  transition: opacity var(--t-overlay); outline: 0;
+}
+.index[data-starting-style], .index[data-ending-style] { opacity: 0; }
+.index-head { display: flex; align-items: baseline; gap: var(--s-18); margin-bottom: var(--s-48); }
+.index-title { margin: 0; font: 400 var(--fs-mark)/1 var(--display); letter-spacing: var(--track-mark); text-transform: uppercase; }
+.index-count { font: italic 400 var(--fs-body)/1 var(--serif); color: var(--muted); }
+:lang(ja) :is(.index-title, .index-count) { font-family: var(--jp); font-style: normal; letter-spacing: var(--track-ja); }
+/* Rules on the left (sticky), works on the right. */
+.index-body { display: grid; grid-template-columns: 280px minmax(0, 1fr); gap: var(--s-64); align-items: start; }
+.index-rules { position: sticky; top: 0; }
+.index-sub { margin: 0 0 var(--s-22); font: 400 var(--fs-label)/1 var(--display); letter-spacing: var(--track-wide); text-transform: uppercase; }
+.index-grid { list-style: none; margin: 0; padding: 0; display: grid; grid-template-columns: repeat(auto-fill, minmax(180px, 1fr)); gap: var(--s-36) var(--s-22); }
+.index-item { width: 100%; display: grid; gap: var(--s-6); text-align: left; }
+.index-item img { width: 100%; aspect-ratio: 1; object-fit: cover; background: var(--wash); transition: opacity var(--t-hover); }
+@media (hover: hover) and (pointer: fine) { .index-item:hover img { opacity: 0.7; } }
+.index-no { font: 400 var(--fs-label-sm)/1 var(--display); letter-spacing: var(--track-meta); color: var(--muted); }
+.index-cap { font: italic 400 var(--fs-body)/1.2 var(--serif); }
+.index-cap.is-ja { font: 400 var(--fs-small)/1.4 var(--jp); }
+.index-by { font: 400 var(--fs-label-xs)/1 var(--display); letter-spacing: var(--track-meta); text-transform: uppercase; color: var(--muted); }
+.index-empty, .index-wait, .fwait { margin: 0; font: italic 400 var(--fs-field)/1.4 var(--serif); color: var(--muted); }
+.fwait { font-size: var(--fs-option); }
+.index-empty .textlink { margin-left: var(--s-10); }
+:lang(ja) :is(.index-sub, .index-empty, .index-wait, .fwait, .flabel) { font-family: var(--jp); font-style: normal; letter-spacing: var(--track-ja); }
+
+/* Filter panel: rows of label + options (Base UI ToggleGroup). Options are grey and darken. */
+.filters { display: grid; gap: var(--s-22); }
+.frow { display: grid; grid-template-columns: 1fr; align-items: baseline; gap: var(--s-8); }
+.flabel { font: 400 var(--fs-label-xs)/1 var(--display); letter-spacing: var(--track-label); text-transform: uppercase; color: var(--muted); }
+.fopts { display: flex; flex-wrap: wrap; gap: var(--s-2) var(--s-16); }
+.fopt {
+  padding: var(--s-2) 0; color: var(--muted); border-bottom: var(--line) solid transparent;
+  font: italic 400 var(--fs-option)/1.3 var(--serif); transition: color var(--t-color), border-color var(--t-color);
+}
+:lang(ja) .fopt { font: 400 var(--fs-body)/1.5 var(--jp); letter-spacing: var(--track-ja); }
+@media (hover: hover) and (pointer: fine) { .fopt:hover { color: var(--ink); } }
+.fopt[data-pressed] { color: var(--ink); border-bottom-color: var(--ink); }
+.fsummary { margin: 0; display: flex; align-items: baseline; gap: var(--s-22); font: italic 400 var(--fs-body)/1.4 var(--serif); color: var(--muted); }
+
+/* Filter line: the active filters, quietly, under the wordmark; Clear is the quietest thing on it. */
+.filterline {
+  position: fixed; top: calc(var(--header-h) - var(--s-22)); left: var(--gutter); z-index: var(--z-filterline); margin: 0;
+  display: flex; align-items: center; gap: var(--s-16);
+  font: 400 var(--fs-label-xs)/1.4 var(--display); letter-spacing: var(--track-meta); text-transform: uppercase; color: var(--muted);
+}
+:lang(ja) .filterline { font-family: var(--jp); letter-spacing: var(--track-ja); }
+.filterline .quietlink { font-size: inherit; letter-spacing: inherit; }
+/* "and 3 others" (Base UI Tooltip): a dotted rule says there is more; the popup
+   is the toast surface (--sheet, a 1px ink edge, square). */
+.names-more {
+  color: inherit; font: inherit; letter-spacing: inherit; text-transform: inherit;
+  border-bottom: var(--line) dotted currentColor; padding-bottom: 1px; cursor: default;
+  transition: color var(--t-color), border-color var(--t-color);
+}
+@media (hover: hover) and (pointer: fine) { .names-more:hover { color: var(--link-strong); border-bottom-color: currentColor; } }
+.names-positioner { z-index: var(--z-dialog); }
+.names {
+  display: grid; gap: var(--s-10); min-width: 180px; padding: var(--s-14) var(--s-18) var(--s-16);
+  background: var(--sheet); color: var(--ink); border: var(--line) solid var(--ink);
+  transform-origin: var(--transform-origin); transition: opacity var(--t-pop) var(--ease-out), transform var(--t-pop) var(--ease-out);
+}
+.names[data-starting-style], .names[data-ending-style] { opacity: 0; transform: scale(0.97); }
+.names-label { font: 400 var(--fs-label-xs)/1 var(--display); letter-spacing: var(--track-label); text-transform: uppercase; color: var(--muted); }
+.names-list { margin: 0; padding: 0; list-style: none; display: grid; gap: var(--s-4); font: italic 400 var(--fs-body)/1.35 var(--serif); letter-spacing: 0; text-transform: none; }
+
+@media (max-width: 760px) {
+  .filterline { top: calc(var(--header-h) - var(--s-14)); font-size: var(--fs-micro); }
+  .index-body { grid-template-columns: 1fr; gap: var(--s-36); }
+  .index-rules { position: static; padding-bottom: var(--s-28); border-bottom: var(--line) solid var(--hair); }
+}

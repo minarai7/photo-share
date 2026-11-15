@@ -27,6 +27,8 @@ type postsTable struct {
 	CreatedAt     postgres.ColumnTimestampz
 	UpdatedAt     postgres.ColumnTimestampz
 	ThumbnailPath postgres.ColumnString
+	ImageCount    postgres.ColumnInteger
+	Tint          postgres.ColumnString
 
 	AllColumns     postgres.ColumnList
 	MutableColumns postgres.ColumnList
@@ -78,9 +80,11 @@ func newPostsTableImpl(schemaName, tableName, alias string) postsTable {
 		CreatedAtColumn     = postgres.TimestampzColumn("created_at")
 		UpdatedAtColumn     = postgres.TimestampzColumn("updated_at")
 		ThumbnailPathColumn = postgres.StringColumn("thumbnail_path")
-		allColumns          = postgres.ColumnList{IDColumn, UserIDColumn, ImagePathColumn, CaptionColumn, LocationColumn, CameraBodyColumn, LensColumn, CreatedAtColumn, UpdatedAtColumn, ThumbnailPathColumn}
-		mutableColumns      = postgres.ColumnList{UserIDColumn, ImagePathColumn, CaptionColumn, LocationColumn, CameraBodyColumn, LensColumn, CreatedAtColumn, UpdatedAtColumn, ThumbnailPathColumn}
-		defaultColumns      = postgres.ColumnList{IDColumn, CaptionColumn, CreatedAtColumn, UpdatedAtColumn}
+		ImageCountColumn    = postgres.IntegerColumn("image_count")
+		TintColumn          = postgres.StringColumn("tint")
+		allColumns          = postgres.ColumnList{IDColumn, UserIDColumn, ImagePathColumn, CaptionColumn, LocationColumn, CameraBodyColumn, LensColumn, CreatedAtColumn, UpdatedAtColumn, ThumbnailPathColumn, ImageCountColumn, TintColumn}
+		mutableColumns      = postgres.ColumnList{UserIDColumn, ImagePathColumn, CaptionColumn, LocationColumn, CameraBodyColumn, LensColumn, CreatedAtColumn, UpdatedAtColumn, ThumbnailPathColumn, ImageCountColumn, TintColumn}
+		defaultColumns      = postgres.ColumnList{IDColumn, CaptionColumn, CreatedAtColumn, UpdatedAtColumn, ImageCountColumn}
 	)
 
 	return postsTable{
@@ -97,6 +101,8 @@ func newPostsTableImpl(schemaName, tableName, alias string) postsTable {
 		CreatedAt:     CreatedAtColumn,
 		UpdatedAt:     UpdatedAtColumn,
 		ThumbnailPath: ThumbnailPathColumn,
+		ImageCount:    ImageCountColumn,
+		Tint:          TintColumn,
 
 		AllColumns:     allColumns,
 		MutableColumns: mutableColumns,

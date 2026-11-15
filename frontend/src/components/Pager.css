@@ -1,0 +1,10 @@
+/* Pager: hairline chevrons (hit area widened by ::before) around a rolling count. */
+.pager { display: flex; align-items: center; gap: var(--s-22); }
+.chev { position: relative; width: 12px; height: 12px; border-top: var(--line) solid currentColor; border-right: var(--line) solid currentColor; transition: opacity var(--t-hover); }
+.chev::before { content: ""; position: absolute; inset: calc(-1 * var(--s-14)); }
+.chev.is-prev { transform: rotate(-135deg); }
+.chev.is-next { transform: rotate(45deg); }
+.chev:disabled { opacity: var(--disabled-opacity-mark); cursor: default; }
+@media (hover: hover) and (pointer: fine) { .chev:hover:not(:disabled) { opacity: var(--hover-opacity); } }
+.pager-count { font-family: var(--display); gap: var(--s-4); font-size: var(--fs-label-lg); }
+.pager-count .count-now { font-size: var(--fs-count); }

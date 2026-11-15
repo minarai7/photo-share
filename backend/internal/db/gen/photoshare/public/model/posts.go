@@ -22,4 +22,6 @@ type Posts struct {
 	CreatedAt     time.Time
 	UpdatedAt     time.Time
 	ThumbnailPath *string
+	ImageCount    int16
+	Tint          *string
 }

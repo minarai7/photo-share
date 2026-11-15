@@ -18,6 +18,10 @@ export type Post = {
     // All of the post's images in display order. Only a single post
     // (GET /posts/{id}) has them; the feed and profile lists don't.
     images?: PostImage[];
+    // The page colour behind this work ("#rrggbb", pale, from the cover),
+    // computed by the server; absent until computed. Pages then use
+    // --tint-default.
+    tint?: string | null;
     caption: string;
     location?: string | null;
     camera_body?: string | null;

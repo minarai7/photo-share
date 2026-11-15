@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"log"
 	"strings"
 
 	"backend/internal/dto"
@@ -29,10 +30,21 @@ const MaxImagesPerPost = 10
 
 type PostService struct {
 	postRepo PostStore
+	tints    TintSource
 }
 
-func NewPostService(postRepo PostStore) *PostService {
-	return &PostService{postRepo: postRepo}
+// TintSource computes a post's page colour from its cover's thumbnail.
+// StorageTints is the real one.
+type TintSource interface {
+	// TintFor returns the tint ("#rrggbb") of the stored thumbnail at the
+	// public path thumbnailPath (/uploads/<name>_w800.jpg).
+	TintFor(ctx context.Context, thumbnailPath string) (string, error)
+}
+
+// NewPostService returns the post service. tints may be nil: posts are then
+// created without a tint (clients use their default page colour).
+func NewPostService(postRepo PostStore, tints TintSource) *PostService {
+	return &PostService{postRepo: postRepo, tints: tints}
 }
 
 type CreatePostParams struct {
@@ -75,41 +87,106 @@ type DeletePostParams struct {
 // MaxPageSize is the largest page ListPosts serves.
 const MaxPageSize = 100
 
-// ErrInvalidPagination: a page size outside 1..MaxPageSize, or a malformed cursor.
-var ErrInvalidPagination = fmt.Errorf("limit must be 1 to %d, and the cursor needs both before_created_at and a positive before_id", MaxPageSize)
+// MaxUserIDs is the most people one list or count can be filtered to.
+const MaxUserIDs = 100
 
-// PostCursor is the created_at and id of the last post of the previous page.
+var (
+	// ErrInvalidPagination: a page size outside 1..MaxPageSize, or a malformed cursor.
+	ErrInvalidPagination = fmt.Errorf("limit must be 1 to %d, and the cursor needs before_created_at, a positive before_id and, for sort=most, a positive before_image_count", MaxPageSize)
+	// ErrInvalidSort: sort is not newest, oldest or most.
+	ErrInvalidSort = errors.New("sort must be newest, oldest or most")
+	// ErrInvalidPhotosFilter: photos is not any, single or series.
+	ErrInvalidPhotosFilter = errors.New("photos must be any, single or series")
+	// ErrInvalidUserIDs: a user id that is not positive, or too many of them.
+	ErrInvalidUserIDs = fmt.Errorf("user ids must be positive numbers, at most %d of them", MaxUserIDs)
+)
+
+// Sorts and photo filters, as the API names them.
+type (
+	PostSort     = repository.PostSort
+	PhotosFilter = repository.PhotosFilter
+	PostFilter   = repository.PostFilter
+)
+
+const (
+	SortNewest   = repository.SortNewest
+	SortOldest   = repository.SortOldest
+	SortMost     = repository.SortMost
+	PhotosAny    = repository.PhotosAny
+	PhotosSingle = repository.PhotosSingle
+	PhotosSeries = repository.PhotosSeries
+)
+
+// PostCursor is the last post of the previous page: its created_at and id,
+// and for SortMost its image count.
 type PostCursor = repository.PostCursor
 
-// ListPostsParams selects a page of the feed (or of one user's posts).
+// ListPostsParams selects a page of the feed, filtered and sorted.
 type ListPostsParams struct {
-	UserID *int64
-	// Before is where the previous page ended; nil for the first page.
-	Before *PostCursor
+	PostFilter
+	// Sort is the order; "" means newest first.
+	Sort PostSort
+	// After is where the previous page ended; nil for the first page.
+	After *PostCursor
 	// Limit is the page size, 1..MaxPageSize; 0 means every post (clients
 	// from before pagination send no limit).
 	Limit int
 }
 
-// ListPosts returns posts newest first. They carry the cover and ImageCount,
-// not Images: a card needs nothing else, and the detail page fetches the post.
+func validateFilter(f PostFilter) error {
+	if len(f.UserIDs) > MaxUserIDs {
+		return ErrInvalidUserIDs
+	}
+	for _, id := range f.UserIDs {
+		if id <= 0 {
+			return ErrInvalidUserIDs
+		}
+	}
+	switch f.Photos {
+	case "", PhotosAny, PhotosSingle, PhotosSeries:
+		return nil
+	}
+	return ErrInvalidPhotosFilter
+}
+
+// ListPosts returns a page of posts. They carry the cover, ImageCount and
+// Tint, not Images: a slide needs nothing else, and the post page fetches the post.
 func (s *PostService) ListPosts(ctx context.Context, p ListPostsParams) ([]dto.PostResponse, error) {
-	if p.Limit < 0 || p.Limit > MaxPageSize || (p.Before != nil && p.Before.ID <= 0) {
+	if err := validateFilter(p.PostFilter); err != nil {
+		return nil, err
+	}
+	switch p.Sort {
+	case "", SortNewest, SortOldest, SortMost:
+	default:
+		return nil, ErrInvalidSort
+	}
+	if p.Limit < 0 || p.Limit > MaxPageSize {
+		return nil, ErrInvalidPagination
+	}
+	if c := p.After; c != nil && (c.ID <= 0 || (p.Sort == SortMost && c.ImageCount <= 0)) {
 		return nil, ErrInvalidPagination
 	}
 	posts, err := s.postRepo.ListPosts(ctx, repository.ListPostsParams{
-		UserID: p.UserID,
-		Before: p.Before,
-		Limit:  p.Limit,
+		PostFilter: p.PostFilter,
+		Sort:       p.Sort,
+		After:      p.After,
+		Limit:      p.Limit,
 	})
 	if err != nil {
 		return nil, err
 	}
 	for i := range posts {
-		// A post from an older backend has no image rows: its cover is its image.
 		posts[i].ImageCount = max(posts[i].ImageCount, 1)
 	}
 	return posts, nil
+}
+
+// CountPosts returns how many posts match the filter (the Index's "4 of 10 works").
+func (s *PostService) CountPosts(ctx context.Context, f PostFilter) (int, error) {
+	if err := validateFilter(f); err != nil {
+		return 0, err
+	}
+	return s.postRepo.CountPosts(ctx, f)
 }
 
 func (s *PostService) GetPostByID(ctx context.Context, id int64) (*dto.PostResponse, error) {
@@ -179,12 +256,30 @@ func (s *PostService) CreatePost(ctx context.Context, p CreatePostParams) (*dto.
 		Location:   p.Location,
 		CameraBody: p.CameraBody,
 		Lens:       p.Lens,
+		Tint:       s.coverTint(ctx, repoImages[0].ThumbnailPath),
 	})
 	if err != nil {
 		return nil, err
 	}
 
 	return s.GetPostByID(ctx, createdPostID)
+}
+
+// coverTint is the page colour of a post whose cover has the (already
+// validated) thumbnail at thumbnailPath. It is computed here, from the stored
+// file, rather than taken from the client. Best-effort, like the thumbnail
+// itself: without a thumbnail, or on any error, the post has no tint
+// (cmd/tints can add it later).
+func (s *PostService) coverTint(ctx context.Context, thumbnailPath *string) *string {
+	if s.tints == nil || thumbnailPath == nil {
+		return nil
+	}
+	t, err := s.tints.TintFor(ctx, *thumbnailPath)
+	if err != nil {
+		log.Printf("create post: no tint from %s: %v", *thumbnailPath, err)
+		return nil
+	}
+	return &t
 }
 
 func (s *PostService) UpdatePost(ctx context.Context, p UpdatePostParams) (*dto.PostResponse, error) {

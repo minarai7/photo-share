@@ -1,4 +1,4 @@
-import type { UserResponse } from "../types/auth";
+import type { Author, PublicUser, UserResponse } from "../types/auth";
 import type { Post } from "../types/post";
 
 export const API = "http://api.test"; // matches test.env in vitest.config.ts
@@ -56,6 +56,15 @@ export function makeListPost(overrides: Partial<Post> = {}): Post {
   const post = makePost(overrides);
   delete post.images;
   return post;
+}
+
+/** GET /users/{id}: what anyone may read about a person. */
+export function makePublicUser(overrides: Partial<PublicUser> = {}): PublicUser {
+  return { id: 1, username: "alice", post_count: 2, photo_count: 3, created_at: "2026-10-01T00:00:00Z", ...overrides };
+}
+
+export function makeAuthor(overrides: Partial<Author> = {}): Author {
+  return { id: 1, username: "alice", post_count: 2, ...overrides };
 }
 
 /** Puts a session in localStorage exactly like authStorage.saveAuth does. */

@@ -14,6 +14,9 @@ type PostResponse struct {
 	ThumbnailPath *string `json:"thumbnail_path,omitempty"`
 	// ImageCount is how many images the post has (at least 1).
 	ImageCount int `json:"image_count"`
+	// Tint is the post's pale page colour ("#rrggbb", from its cover); nil
+	// (omitted) until computed, and clients then use their default.
+	Tint *string `json:"tint,omitempty"`
 	// Images are all of the post's images in display order. Only a single
 	// post (GET /posts/{id}, create, update) carries them; lists omit them,
 	// since a card needs only the cover and the count.

@@ -50,6 +50,12 @@ export function getApiErrorMessage(
     case "invalid_pagination":
       return t.apiErrors.invalidPagination;
 
+    case "invalid_sort":
+      return t.apiErrors.invalidSort;
+
+    case "invalid_photos_filter":
+      return t.apiErrors.invalidPhotosFilter;
+
     case "unauthorized":
       return t.apiErrors.unauthorized;
 

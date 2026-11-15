@@ -1,0 +1,42 @@
+/* Post view: the photo screen and the wall-label screen (DESIGN-SYSTEM.md §8).
+   The photo is as large as the screen allows minus --reserve (the header band
+   and the caption bar), so no text lies on it; --reserve stays ≤ --feed-reserve. */
+.is-post { --reserve: calc(var(--header-h) + var(--bar)); }
+.page.is-post .header:not(.is-on-image) { height: var(--header-h); padding-block: 0; transition: background-color var(--t-tint), opacity var(--t-idle); }
+.post-screen { height: 100svh; scroll-snap-align: start; }
+.post-stage { height: calc(100svh - var(--bar)); padding-top: var(--header-h); display: grid; grid-template-rows: minmax(0, 1fr); }
+.post-track { height: 100%; }
+.post-frame { flex: 0 0 100%; margin: 0; display: grid; place-items: center; min-height: 0; scroll-snap-align: center; }
+.post-frame img { width: auto; height: auto; max-width: 100vw; max-height: calc(100svh - var(--reserve)); }
+.post-frame .frame-wait { width: 100%; height: calc(100svh - var(--reserve)); }
+.post-open { display: block; line-height: 0; cursor: zoom-in; } /* the photo is the way into lights out */
+/* Caption bar: title and author | Info, pager. */
+.post-bar {
+  position: relative; z-index: var(--z-bar); height: var(--bar);
+  display: flex; align-items: center; justify-content: space-between; gap: var(--s-22); padding: 0 var(--gutter);
+  background: var(--page); transition: background-color var(--t-tint), opacity var(--t-idle);
+}
+.post-caption { display: grid; justify-items: start; gap: var(--s-10); min-width: 0; }
+.post-caption h1 { margin: 0; max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font: italic 400 var(--fs-lead)/1.15 var(--serif); }
+.post-caption h1.is-ja { font: 400 var(--fs-body)/1.4 var(--jp); letter-spacing: var(--track-ja); }
+.post-caption .author { font: 400 var(--fs-label-xs)/1 var(--display); letter-spacing: var(--track-label); text-transform: uppercase; }
+.post-tools { display: flex; align-items: center; gap: var(--s-28); flex: none; margin-left: auto; }
+/* Info sits left of the pager; its chevron points where it goes (down to the label, up to the photo). */
+.info-link { gap: var(--s-10); }
+.info-chev {
+  width: 6px; height: 6px; margin-top: calc(-1 * var(--s-4)); border-right: var(--line) solid currentColor; border-bottom: var(--line) solid currentColor;
+  transform: rotate(45deg); transition: transform var(--t-color), margin var(--t-color);
+}
+.info-chev.is-up { margin-top: var(--s-4); transform: rotate(-135deg); }
+/* Idle at the top: header and bar fade away, and the cursor with them. */
+.is-post.is-idle :is(.header, .post-bar) { opacity: 0; }
+.is-post.is-idle { cursor: none; }
+.post-label {
+  min-height: 100svh; scroll-snap-align: start;
+  display: grid; place-items: center; padding: calc(var(--header-h) + var(--s-22)) var(--gutter) var(--s-64);
+}
+
+@media (max-width: 760px) {
+  .post-bar { gap: var(--s-16); }
+  .post-tools { gap: var(--s-18); }
+}

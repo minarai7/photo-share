@@ -5,6 +5,8 @@ import (
 	"errors"
 	"log"
 	"net/http"
+	"net/url"
+	"slices"
 	"strconv"
 	"strings"
 	"time"
@@ -64,25 +66,25 @@ func (h *PostHandler) GetPostByID(w http.ResponseWriter, r *http.Request) {
 }
 
 // ListPosts serves GET /posts. Query parameters, all optional:
-//   - user_id: only that user's posts
+//   - user_ids: comma-separated user ids, only their posts (user_id is the
+//     one-person form older clients send; both may be given)
+//   - photos: any (default) | single (one image) | series (two or more)
+//   - sort: newest (default) | oldest | most (most images, then newest)
 //   - limit: page size (1..service.MaxPageSize); without it, every post
-//   - before_created_at (RFC 3339) + before_id: the last post of the
-//     previous page; the response starts after it
+//   - before_created_at (RFC 3339) + before_id (+ before_image_count for
+//     sort=most): the last post of the previous page, sent back as
+//     received; the response starts after it in the sort's order
 func (h *PostHandler) ListPosts(w http.ResponseWriter, r *http.Request) {
 	params, code, msg := parseListPostsQuery(r)
 	if code != "" {
-		httpx.WriteJSON(w, http.StatusBadRequest, httpx.ErrorResponse{
-			Error: httpx.ErrorDetail{Code: code, Message: msg},
-		})
+		writeBadRequest(w, code, msg)
 		return
 	}
 
 	posts, err := h.postService.ListPosts(r.Context(), params)
 	if err != nil {
-		if errors.Is(err, service.ErrInvalidPagination) {
-			httpx.WriteJSON(w, http.StatusBadRequest, httpx.ErrorResponse{
-				Error: httpx.ErrorDetail{Code: "invalid_pagination", Message: err.Error()},
-			})
+		if code, ok := listErrorCode(err); ok {
+			writeBadRequest(w, code, err.Error())
 			return
 		}
 		log.Printf("list posts: %v", err)
@@ -98,18 +100,95 @@ func (h *PostHandler) ListPosts(w http.ResponseWriter, r *http.Request) {
 	httpx.WriteJSON(w, http.StatusOK, posts)
 }
 
+// CountPostsResponse is GET /posts/count's body.
+type CountPostsResponse struct {
+	Count int `json:"count"`
+}
+
+// CountPosts serves GET /posts/count: how many posts GET /posts would list
+// for the same user_ids / user_id and photos filters (sort, limit and the
+// cursor are ignored). The feed's Index link reads "4 of 10 works" from it.
+func (h *PostHandler) CountPosts(w http.ResponseWriter, r *http.Request) {
+	filter, code, msg := parsePostFilter(r.URL.Query())
+	if code != "" {
+		writeBadRequest(w, code, msg)
+		return
+	}
+	n, err := h.postService.CountPosts(r.Context(), filter)
+	if err != nil {
+		if code, ok := listErrorCode(err); ok {
+			writeBadRequest(w, code, err.Error())
+			return
+		}
+		log.Printf("count posts: %v", err)
+		httpx.WriteJSON(w, http.StatusInternalServerError, httpx.ErrorResponse{
+			Error: httpx.ErrorDetail{
+				Code:    "list_posts_failed",
+				Message: "failed to count posts",
+			},
+		})
+		return
+	}
+	httpx.WriteJSON(w, http.StatusOK, CountPostsResponse{Count: n})
+}
+
+// listErrorCode maps the service's validation errors for lists and counts
+// to their API error codes.
+func listErrorCode(err error) (string, bool) {
+	switch {
+	case errors.Is(err, service.ErrInvalidPagination):
+		return "invalid_pagination", true
+	case errors.Is(err, service.ErrInvalidSort):
+		return "invalid_sort", true
+	case errors.Is(err, service.ErrInvalidPhotosFilter):
+		return "invalid_photos_filter", true
+	case errors.Is(err, service.ErrInvalidUserIDs):
+		return "invalid_user_id", true
+	}
+	return "", false
+}
+
+func writeBadRequest(w http.ResponseWriter, code, msg string) {
+	httpx.WriteJSON(w, http.StatusBadRequest, httpx.ErrorResponse{
+		Error: httpx.ErrorDetail{Code: code, Message: msg},
+	})
+}
+
+// parsePostFilter reads the user_ids / user_id and photos parameters. On bad
+// input it returns an error code and message for a 400.
+func parsePostFilter(q url.Values) (f service.PostFilter, code, msg string) {
+	var raw []string
+	if v := q.Get("user_ids"); v != "" {
+		raw = strings.Split(v, ",")
+	}
+	if v := q.Get("user_id"); v != "" {
+		raw = append(raw, v)
+	}
+	for _, v := range raw {
+		id, err := strconv.ParseInt(strings.TrimSpace(v), 10, 64)
+		if err != nil || id <= 0 {
+			return f, "invalid_user_id", "user_ids must be comma-separated positive numbers"
+		}
+		if !slices.Contains(f.UserIDs, id) {
+			f.UserIDs = append(f.UserIDs, id)
+		}
+	}
+	// Validated by the service (invalid_photos_filter).
+	f.Photos = service.PhotosFilter(q.Get("photos"))
+	return f, "", ""
+}
+
 // parseListPostsQuery reads GET /posts's query. On bad input it returns an
 // error code and message for a 400 instead of params.
 func parseListPostsQuery(r *http.Request) (params service.ListPostsParams, code, msg string) {
 	q := r.URL.Query()
 
-	if v := q.Get("user_id"); v != "" {
-		id, err := strconv.ParseInt(v, 10, 64)
-		if err != nil || id <= 0 {
-			return params, "invalid_user_id", "user_id must be a positive number"
-		}
-		params.UserID = &id
+	params.PostFilter, code, msg = parsePostFilter(q)
+	if code != "" {
+		return params, code, msg
 	}
+	// Validated by the service (invalid_sort).
+	params.Sort = service.PostSort(q.Get("sort"))
 
 	invalid := service.ErrInvalidPagination.Error()
 	if v := q.Get("limit"); v != "" {
@@ -120,8 +199,8 @@ func parseListPostsQuery(r *http.Request) (params service.ListPostsParams, code,
 		params.Limit = n
 	}
 
-	createdAt, id := q.Get("before_created_at"), q.Get("before_id")
-	if createdAt != "" || id != "" {
+	createdAt, id, count := q.Get("before_created_at"), q.Get("before_id"), q.Get("before_image_count")
+	if createdAt != "" || id != "" || count != "" {
 		at, err := time.Parse(time.RFC3339Nano, createdAt)
 		if err != nil {
 			return params, "invalid_pagination", invalid
@@ -130,7 +209,13 @@ func parseListPostsQuery(r *http.Request) (params service.ListPostsParams, code,
 		if err != nil {
 			return params, "invalid_pagination", invalid
 		}
-		params.Before = &service.PostCursor{CreatedAt: at, ID: postID}
+		cursor := &service.PostCursor{CreatedAt: at, ID: postID}
+		if count != "" {
+			if cursor.ImageCount, err = strconv.Atoi(count); err != nil {
+				return params, "invalid_pagination", invalid
+			}
+		}
+		params.After = cursor
 	}
 
 	return params, "", ""

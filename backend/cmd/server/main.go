@@ -44,7 +44,8 @@ func main() {
 		MaxUploadBytes: cfg.MaxUploadBytes,
 
 		AuthService:   service.NewAuthService(userRepo, cfg.JWTSecret),
-		PostService:   service.NewPostService(postRepo),
+		PostService:   service.NewPostService(postRepo, service.StorageTints{Storage: fileStorage}),
+		UserService:   service.NewUserService(userRepo, postRepo),
 		UploadService: service.NewUploadService(fileStorage, cfg.MaxUploadBytes),
 		AIService: service.NewAIService(service.AIConfig{
 			APIKey:   cfg.OpenRouterAPIKey,

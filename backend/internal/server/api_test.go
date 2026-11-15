@@ -3,6 +3,7 @@ package server
 import (
 	"bytes"
 	"compress/gzip"
+	"context"
 	"encoding/binary"
 	"encoding/json"
 	"errors"
@@ -104,23 +105,63 @@ func TestLoginErrors(t *testing.T) {
 	expectError(t, app.do(req{method: http.MethodPost, path: "/auth/login", body: map[string]string{"email": "ghost@example.com", "password": "password123"}}), http.StatusUnauthorized, "invalid_credentials")
 }
 
+// GET /users/{id} is public: name and counts for the person hero, and
+// nothing private (no email, password hash or settings).
 func TestGetUser(t *testing.T) {
 	app := newTestApp(t)
-	id, _ := app.userWithToken("carol")
+	id, tok := app.userWithToken("carol")
+	app.store.MustAddPost(id, "/uploads/c1.jpg", "")
+	expectStatus(t, app.do(req{method: http.MethodPost, path: "/posts", token: tok, body: map[string]any{
+		"images": []map[string]string{{"image_path": "/uploads/c2.jpg"}, {"image_path": "/uploads/c3.jpg"}},
+	}}), http.StatusCreated)
 
 	rec := app.do(req{method: http.MethodGet, path: fmt.Sprintf("/users/%d", id)})
 	expectStatus(t, rec, http.StatusOK)
 	var u map[string]any
 	decodeOne(t, rec, &u)
-	if u["username"] != "carol" {
-		t.Errorf("username = %v", u["username"])
+	want := map[string]any{"id": float64(id), "username": "carol", "post_count": float64(2), "photo_count": float64(3)}
+	for k, v := range want {
+		if u[k] != v {
+			t.Errorf("%s = %v, want %v", k, u[k], v)
+		}
 	}
-	if _, ok := u["password_hash"]; ok {
-		t.Error("password_hash exposed by GET /users/{id}")
+	for k := range u {
+		if _, ok := want[k]; !ok && k != "created_at" {
+			t.Errorf("GET /users/{id} exposes %q: %v", k, u)
+		}
 	}
 
 	expectError(t, app.do(req{method: http.MethodGet, path: "/users/abc"}), http.StatusBadRequest, "invalid_user_id")
 	expectError(t, app.do(req{method: http.MethodGet, path: "/users/999"}), http.StatusNotFound, "user_not_found")
+}
+
+func TestListAuthors(t *testing.T) {
+	app := newTestApp(t)
+
+	rec := app.do(req{method: http.MethodGet, path: "/users"})
+	expectStatus(t, rec, http.StatusOK)
+	if got := strings.TrimSpace(rec.Body.String()); got != "[]" {
+		t.Errorf("no authors: body = %s, want []", got)
+	}
+
+	zoe, _ := app.userWithToken("zoe")
+	amy, _ := app.userWithToken("amy")
+	app.userWithToken("lurker")
+	app.store.MustAddPost(zoe, "/uploads/z1.jpg", "")
+	app.store.MustAddPost(zoe, "/uploads/z2.jpg", "")
+	app.store.MustAddPost(amy, "/uploads/a1.jpg", "")
+
+	rec = app.do(req{method: http.MethodGet, path: "/users"})
+	expectStatus(t, rec, http.StatusOK)
+	var authors []map[string]any
+	decodeOne(t, rec, &authors)
+	want := []map[string]any{
+		{"id": float64(amy), "username": "amy", "post_count": float64(1)},
+		{"id": float64(zoe), "username": "zoe", "post_count": float64(2)},
+	}
+	if fmt.Sprint(authors) != fmt.Sprint(want) {
+		t.Errorf("authors = %v, want %v (exactly these keys: no email)", authors, want)
+	}
 }
 
 // ---------- posts ----------
@@ -372,11 +413,119 @@ func TestListPostsPaginationAndUserFilter(t *testing.T) {
 	}
 }
 
+// sort, user_ids and photos reach the query, each sort pages with its own
+// cursor sent back as received, and /posts/count counts the same filters.
+func TestListPostsSortFilterAndCount(t *testing.T) {
+	app := newTestApp(t)
+	aliceID, alice := app.userWithToken("alice")
+	bobID, bob := app.userWithToken("bob")
+	carolID, carol := app.userWithToken("carol")
+
+	n := 0
+	create := func(tok string, images int) any {
+		t.Helper()
+		var imgs []map[string]string
+		for range images {
+			n++
+			imgs = append(imgs, map[string]string{"image_path": fmt.Sprintf("/uploads/%d.jpg", n)})
+		}
+		rec := app.do(req{method: http.MethodPost, path: "/posts", token: tok, body: map[string]any{"images": imgs}})
+		expectStatus(t, rec, http.StatusCreated)
+		return decodePost(t, rec)["id"]
+	}
+	a1 := create(alice, 1)
+	b3 := create(bob, 3)
+	c2 := create(carol, 2)
+	a3 := create(alice, 3)
+
+	list := func(query string) []map[string]any {
+		t.Helper()
+		rec := app.do(req{method: http.MethodGet, path: "/posts" + query})
+		expectStatus(t, rec, http.StatusOK)
+		var posts []map[string]any
+		decodeOne(t, rec, &posts)
+		return posts
+	}
+	idsOf := func(posts []map[string]any) []any {
+		out := []any{}
+		for _, p := range posts {
+			out = append(out, p["id"])
+		}
+		return out
+	}
+	count := func(query string) float64 {
+		t.Helper()
+		rec := app.do(req{method: http.MethodGet, path: "/posts/count" + query})
+		expectStatus(t, rec, http.StatusOK)
+		var body map[string]any
+		decodeOne(t, rec, &body)
+		if len(body) != 1 {
+			t.Errorf("count body = %v, want only count", body)
+		}
+		return body["count"].(float64)
+	}
+
+	for _, tc := range []struct {
+		query string
+		want  []any
+	}{
+		{"", []any{a3, c2, b3, a1}},
+		{"?sort=newest", []any{a3, c2, b3, a1}},
+		{"?sort=oldest", []any{a1, b3, c2, a3}},
+		{"?sort=most", []any{a3, b3, c2, a1}},
+		{fmt.Sprintf("?user_ids=%d,%d", aliceID, carolID), []any{a3, c2, a1}},
+		{fmt.Sprintf("?user_ids=%d&user_id=%d", bobID, carolID), []any{c2, b3}},
+		{fmt.Sprintf("?user_id=%d", bobID), []any{b3}},
+		{"?photos=single", []any{a1}},
+		{"?photos=series&sort=oldest", []any{b3, c2, a3}},
+		{"?photos=any", []any{a3, c2, b3, a1}},
+		{fmt.Sprintf("?photos=series&user_ids=%d", aliceID), []any{a3}},
+	} {
+		if got := idsOf(list(tc.query)); fmt.Sprint(got) != fmt.Sprint(tc.want) {
+			t.Errorf("GET /posts%s = %v, want %v", tc.query, got, tc.want)
+		}
+		if got := count(tc.query); got != float64(len(tc.want)) {
+			t.Errorf("GET /posts/count%s = %v, want %d", tc.query, got, len(tc.want))
+		}
+	}
+
+	// Walk each sort a page at a time, building the cursor from the last
+	// post like the frontend does.
+	for sortName, want := range map[string][]any{
+		"newest": {a3, c2, b3, a1},
+		"oldest": {a1, b3, c2, a3},
+		"most":   {a3, b3, c2, a1},
+	} {
+		var walked []any
+		query := "?limit=1&sort=" + sortName
+		for range 10 {
+			page := list(query)
+			walked = append(walked, idsOf(page)...)
+			if len(page) < 1 {
+				break
+			}
+			last := page[0]
+			query = fmt.Sprintf("?limit=1&sort=%s&before_created_at=%s&before_id=%v&before_image_count=%v",
+				sortName, url.QueryEscape(last["created_at"].(string)), last["id"], last["image_count"])
+		}
+		if fmt.Sprint(walked) != fmt.Sprint(want) {
+			t.Errorf("sort=%s pages = %v, want %v", sortName, walked, want)
+		}
+	}
+}
+
 func TestListPostsBadQuery(t *testing.T) {
 	app := newTestApp(t)
 	for _, tc := range []struct {
 		query, code string
 	}{
+		{"?sort=popular", "invalid_sort"},
+		{"?photos=many", "invalid_photos_filter"},
+		{"?user_ids=1,x", "invalid_user_id"},
+		{"?user_ids=1,,2", "invalid_user_id"},
+		{"?user_ids=-4", "invalid_user_id"},
+		{"?sort=most&before_created_at=2026-01-01T00:00:00Z&before_id=5", "invalid_pagination"},
+		{"?sort=most&before_created_at=2026-01-01T00:00:00Z&before_id=5&before_image_count=x", "invalid_pagination"},
 		{"?limit=0", "invalid_pagination"},
 		{"?limit=-3", "invalid_pagination"},
 		{"?limit=abc", "invalid_pagination"},
@@ -631,6 +780,34 @@ func TestUploadMakesThumbnailForPosts(t *testing.T) {
 	if len(feed) != 1 || feed[0]["thumbnail_path"] != up.ThumbnailPath {
 		t.Errorf("feed = %v", feed)
 	}
+
+	// The server computes the page tint from the stored thumbnail; it is
+	// pale, and the same in the create response, the feed and the detail.
+	tint, _ := created["tint"].(string)
+	if len(tint) != 7 || tint[0] != '#' || tint < "#c0c0c0" {
+		t.Errorf("created post tint = %v, want a pale #rrggbb", created["tint"])
+	}
+	if feed[0]["tint"] != tint {
+		t.Errorf("feed tint = %v, want %s", feed[0]["tint"], tint)
+	}
+	rec = app.do(req{method: http.MethodGet, path: fmt.Sprintf("/posts/%v", created["id"])})
+	if detail := decodePost(t, rec); detail["tint"] != tint {
+		t.Errorf("detail tint = %v, want %s", detail["tint"], tint)
+	}
+}
+
+// A client can't choose a post's tint: the field is ignored, and a post
+// whose cover has no thumbnail has no tint.
+func TestCreatePostIgnoresClientTint(t *testing.T) {
+	app := newTestApp(t)
+	_, tok := app.userWithToken("alice")
+	rec := app.do(req{method: http.MethodPost, path: "/posts", token: tok, body: map[string]any{
+		"image_path": "/uploads/x.jpg", "tint": "#000000",
+	}})
+	expectStatus(t, rec, http.StatusCreated)
+	if p := decodePost(t, rec); p["tint"] != nil {
+		t.Errorf("tint = %v, want none (no thumbnail, and the client's value is ignored)", p["tint"])
+	}
 }
 
 func TestUploadWithoutThumbnailOmitsTheKey(t *testing.T) {
@@ -864,11 +1041,10 @@ func TestUpdatePreferredLanguage(t *testing.T) {
 
 	expectStatus(t, app.do(req{method: http.MethodPut, path: "/users/me/settings/language", token: tok, body: map[string]string{"preferred_language": "ja"}}), http.StatusNoContent)
 
-	rec := app.do(req{method: http.MethodGet, path: fmt.Sprintf("/users/%d", id)})
-	var u map[string]any
-	decodeOne(t, rec, &u)
-	if u["preferred_language"] != "ja" {
-		t.Errorf("preferred_language = %v, want ja", u["preferred_language"])
+	// The setting is private: it comes back with the next login, not from GET /users/{id}.
+	u, err := app.store.Users().GetByID(context.Background(), id)
+	if err != nil || u.PreferredLanguage != "ja" {
+		t.Errorf("preferred_language = %v (%v), want ja", u, err)
 	}
 
 	expectError(t, app.do(req{method: http.MethodPut, path: "/users/me/settings/language", token: tok, body: map[string]string{"preferred_language": "fr"}}), http.StatusBadRequest, "invalid_preferred_language")
@@ -950,7 +1126,11 @@ func TestUnexpectedErrorsDoNotLeakInternals(t *testing.T) {
 		{method: http.MethodPost, path: "/auth/signup", body: map[string]string{"username": "z", "email": "z@z.z", "password": "pw"}},
 		{method: http.MethodPost, path: "/auth/login", body: map[string]string{"email": "alice@example.com", "password": "pw"}},
 		{method: http.MethodGet, path: "/users/1"},
+		{method: http.MethodGet, path: "/users"},
 		{method: http.MethodGet, path: "/posts"},
+		{method: http.MethodGet, path: "/posts?sort=most&photos=series&user_ids=1,2&limit=5"},
+		{method: http.MethodGet, path: "/posts/count"},
+		{method: http.MethodGet, path: "/posts/count?user_ids=1&photos=single"},
 		{method: http.MethodGet, path: "/posts/1"},
 		{method: http.MethodPost, path: "/posts", token: tok, body: map[string]string{"image_path": "/uploads/x.jpg"}},
 		{method: http.MethodPost, path: "/posts", token: tok, body: map[string]any{"images": []map[string]string{{"image_path": "/uploads/y.jpg"}, {"image_path": "/uploads/z.jpg"}}}},

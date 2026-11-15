@@ -327,8 +327,12 @@ func TestPostRepository_ListPostsPagination(t *testing.T) {
 		t.Helper()
 		var got []int64
 		var cursor *repository.PostCursor
+		var filter repository.PostFilter
+		if userID != nil {
+			filter.UserIDs = []int64{*userID}
+		}
 		for range 20 {
-			page, err := repo.ListPosts(ctx, repository.ListPostsParams{UserID: userID, Before: cursor, Limit: limit})
+			page, err := repo.ListPosts(ctx, repository.ListPostsParams{PostFilter: filter, After: cursor, Limit: limit})
 			if err != nil {
 				t.Fatal(err)
 			}
@@ -361,15 +365,313 @@ func TestPostRepository_ListPostsPagination(t *testing.T) {
 	if got := walk(&bob, 1); !slices.Equal(got, bobs) {
 		t.Errorf("bob's pages = %v, want %v", got, bobs)
 	}
-	nobody := int64(99999)
-	if got, _ := repo.ListPosts(ctx, repository.ListPostsParams{UserID: &nobody}); got == nil || len(got) != 0 {
+	if got, _ := repo.ListPosts(ctx, repository.ListPostsParams{PostFilter: repository.PostFilter{UserIDs: []int64{99999}}}); got == nil || len(got) != 0 {
 		t.Errorf("unknown user = %#v, want non-nil empty slice", got)
+	}
+}
+
+// Every sort, with and without filters, pages through its posts with its
+// keyset cursor without skipping or repeating one, in the same order as the
+// unpaged list. The posts share timestamps and image counts, so each
+// cursor's tie-breakers are exercised.
+func TestPostRepository_EverySortPagesWithoutGapsOrRepeats(t *testing.T) {
+	db := testdb.Open(t)
+	repo := repository.NewPostRepository(db)
+	ctx := context.Background()
+	alice := seedUser(t, db, "alice")
+	bob := seedUser(t, db, "bob")
+	carol := seedUser(t, db, "carol")
+	owners := []int64{alice, bob, carol}
+
+	base := time.Date(2026, 3, 1, 9, 0, 0, 654321000, time.UTC)
+	type post struct {
+		id     int64
+		owner  int64
+		at     time.Time
+		images int
+	}
+	var all []post
+	for i := range 13 {
+		images := []int{1, 3, 2, 1, 3}[i%5]
+		paths := make([]string, images)
+		for j := range paths {
+			paths[j] = fmt.Sprintf("/uploads/%d_%d.jpg", i, j)
+		}
+		owner := owners[i%3]
+		id, err := repo.CreatePost(ctx, repository.CreatePostParams{UserID: owner, Images: imgs(paths...)})
+		if err != nil {
+			t.Fatal(err)
+		}
+		at := base.Add(time.Duration(i/3) * time.Hour) // triples share a timestamp
+		if _, err := db.Exec(`UPDATE posts SET created_at=$1 WHERE id=$2`, at, id); err != nil {
+			t.Fatal(err)
+		}
+		all = append(all, post{id, owner, at, images})
+	}
+
+	// want sorts the expected posts in Go, independently of the SQL.
+	want := func(sortBy repository.PostSort, keep func(post) bool) []int64 {
+		var out []post
+		for _, p := range all {
+			if keep(p) {
+				out = append(out, p)
+			}
+		}
+		newer := func(a, b post) bool {
+			if !a.at.Equal(b.at) {
+				return a.at.After(b.at)
+			}
+			return a.id > b.id
+		}
+		slices.SortFunc(out, func(a, b post) int {
+			var first bool
+			switch sortBy {
+			case repository.SortOldest:
+				first = newer(b, a)
+			case repository.SortMost:
+				first = a.images > b.images || (a.images == b.images && newer(a, b))
+			default:
+				first = newer(a, b)
+			}
+			if first {
+				return -1
+			}
+			return 1
+		})
+		ids := make([]int64, len(out))
+		for i, p := range out {
+			ids[i] = p.id
+		}
+		return ids
+	}
+
+	filters := map[string]struct {
+		filter repository.PostFilter
+		keep   func(post) bool
+	}{
+		"all":            {repository.PostFilter{}, func(post) bool { return true }},
+		"alice and bob":  {repository.PostFilter{UserIDs: []int64{alice, bob}}, func(p post) bool { return p.owner != carol }},
+		"single":         {repository.PostFilter{Photos: repository.PhotosSingle}, func(p post) bool { return p.images == 1 }},
+		"series":         {repository.PostFilter{Photos: repository.PhotosSeries}, func(p post) bool { return p.images >= 2 }},
+		"carol's series": {repository.PostFilter{UserIDs: []int64{carol}, Photos: repository.PhotosSeries}, func(p post) bool { return p.owner == carol && p.images >= 2 }},
+	}
+
+	for _, sortBy := range []repository.PostSort{repository.SortNewest, repository.SortOldest, repository.SortMost} {
+		for name, f := range filters {
+			expected := want(sortBy, f.keep)
+
+			full, err := repo.ListPosts(ctx, repository.ListPostsParams{PostFilter: f.filter, Sort: sortBy})
+			if err != nil {
+				t.Fatal(err)
+			}
+			if got := ids(full); !slices.Equal(got, expected) {
+				t.Errorf("%s / %s: unpaged = %v, want %v", sortBy, name, got, expected)
+			}
+			n, err := repo.CountPosts(ctx, f.filter)
+			if err != nil {
+				t.Fatal(err)
+			}
+			if n != len(expected) {
+				t.Errorf("%s: CountPosts = %d, want %d", name, n, len(expected))
+			}
+
+			for _, limit := range []int{1, 2, 4} {
+				var got []int64
+				var cursor *repository.PostCursor
+				for range 30 {
+					page, err := repo.ListPosts(ctx, repository.ListPostsParams{PostFilter: f.filter, Sort: sortBy, After: cursor, Limit: limit})
+					if err != nil {
+						t.Fatal(err)
+					}
+					got = append(got, ids(page)...)
+					if len(page) < limit {
+						break
+					}
+					last := page[len(page)-1]
+					cursor = &repository.PostCursor{CreatedAt: last.CreatedAt, ID: last.ID, ImageCount: last.ImageCount}
+				}
+				if !slices.Equal(got, expected) {
+					t.Errorf("%s / %s / limit %d: pages = %v, want %v", sortBy, name, limit, got, expected)
+				}
+			}
+		}
+	}
+}
+
+func TestPostRepository_UserWorkAndAuthors(t *testing.T) {
+	db := testdb.Open(t)
+	repo := repository.NewPostRepository(db)
+	users := repository.NewUserRepository(db)
+	ctx := context.Background()
+
+	if authors, err := users.ListAuthors(ctx); err != nil || authors == nil || len(authors) != 0 {
+		t.Fatalf("no posts: authors = %#v, %v; want a non-nil empty slice", authors, err)
+	}
+
+	zoe := seedUser(t, db, "zoe")
+	amy := seedUser(t, db, "amy")
+	seedUser(t, db, "lurker")
+	for _, p := range []repository.CreatePostParams{
+		{UserID: zoe, Images: img("/uploads/z1.jpg")},
+		{UserID: zoe, Images: imgs("/uploads/z2.jpg", "/uploads/z3.jpg", "/uploads/z4.jpg")},
+		{UserID: amy, Images: imgs("/uploads/a1.jpg", "/uploads/a2.jpg")},
+	} {
+		if _, err := repo.CreatePost(ctx, p); err != nil {
+			t.Fatal(err)
+		}
+	}
+
+	for id, want := range map[int64]dto.UserWork{zoe: {PostCount: 2, PhotoCount: 4}, amy: {PostCount: 1, PhotoCount: 2}, 99999: {}} {
+		got, err := repo.UserWork(ctx, id)
+		if err != nil {
+			t.Fatal(err)
+		}
+		if got != want {
+			t.Errorf("UserWork(%d) = %+v, want %+v", id, got, want)
+		}
+	}
+
+	authors, err := users.ListAuthors(ctx)
+	if err != nil {
+		t.Fatal(err)
+	}
+	want := []dto.Author{{ID: amy, Username: "amy", PostCount: 1}, {ID: zoe, Username: "zoe", PostCount: 2}}
+	if !slices.Equal(authors, want) {
+		t.Errorf("authors = %+v, want %+v (by username, without the user who never posted)", authors, want)
+	}
+}
+
+// image_count is stored on create, and tint is stored, hydrated by both
+// reads and refused by the database unless it is a lowercase #rrggbb.
+func TestPostRepository_ImageCountAndTint(t *testing.T) {
+	db := testdb.Open(t)
+	repo := repository.NewPostRepository(db)
+	ctx := context.Background()
+	alice := seedUser(t, db, "alice")
+
+	tinted, err := repo.CreatePost(ctx, repository.CreatePostParams{UserID: alice, Images: imgs("/uploads/a.jpg", "/uploads/b.jpg"), Tint: strPtr("#eeddcc")})
+	if err != nil {
+		t.Fatal(err)
+	}
+	plain, err := repo.CreatePost(ctx, repository.CreatePostParams{UserID: alice, Images: img("/uploads/c.jpg")})
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	var stored int
+	if err := db.QueryRow(`SELECT image_count FROM posts WHERE id=$1`, tinted).Scan(&stored); err != nil || stored != 2 {
+		t.Errorf("stored image_count = %d (%v), want 2", stored, err)
+	}
+	p, _ := repo.GetPostByID(ctx, tinted)
+	if p.Tint == nil || *p.Tint != "#eeddcc" {
+		t.Errorf("GetPostByID tint = %v", p.Tint)
+	}
+	list, _ := repo.ListPosts(ctx, repository.ListPostsParams{})
+	byID := map[int64]dto.PostResponse{}
+	for _, p := range list {
+		byID[p.ID] = p
+	}
+	if tp := byID[tinted].Tint; tp == nil || *tp != "#eeddcc" {
+		t.Errorf("ListPosts tint = %v", tp)
+	}
+	if byID[plain].Tint != nil {
+		t.Errorf("untinted post has tint %q", *byID[plain].Tint)
+	}
+
+	for _, bad := range []string{"#EEDDCC", "red", "#abc", "#eeddcc; DROP"} {
+		if _, err := repo.CreatePost(ctx, repository.CreatePostParams{UserID: alice, Images: img("/uploads/bad.jpg"), Tint: strPtr(bad)}); err == nil {
+			t.Errorf("tint %q accepted by the database", bad)
+		}
+	}
+}
+
+func TestPostRepository_TintBackfillMethods(t *testing.T) {
+	db := testdb.Open(t)
+	repo := repository.NewPostRepository(db)
+	ctx := context.Background()
+	alice := seedUser(t, db, "alice")
+
+	first, _ := repo.CreatePost(ctx, repository.CreatePostParams{UserID: alice, Images: img("/uploads/1.jpg", "/uploads/1_w800.jpg")})
+	_, _ = repo.CreatePost(ctx, repository.CreatePostParams{UserID: alice, Images: img("/uploads/2.jpg"), Tint: strPtr("#ffffff")})
+	third, _ := repo.CreatePost(ctx, repository.CreatePostParams{UserID: alice, Images: img("/uploads/3.png")})
+
+	missing, err := repo.ListPostsMissingTint(ctx)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(missing) != 2 || missing[0].ID != first || missing[1].ID != third {
+		t.Fatalf("missing = %+v, want posts %d and %d", missing, first, third)
+	}
+	if missing[0].ImagePath != "/uploads/1.jpg" || missing[0].ThumbnailPath == nil || *missing[0].ThumbnailPath != "/uploads/1_w800.jpg" || missing[1].ThumbnailPath != nil {
+		t.Errorf("missing not hydrated: %+v / %+v", missing[0], missing[1])
+	}
+
+	before, _ := repo.GetPostByID(ctx, first)
+	if err := repo.SetPostTint(ctx, first, "#e0e8f0"); err != nil {
+		t.Fatal(err)
+	}
+	after, _ := repo.GetPostByID(ctx, first)
+	if after.Tint == nil || *after.Tint != "#e0e8f0" {
+		t.Errorf("tint = %v", after.Tint)
+	}
+	if !after.UpdatedAt.Equal(before.UpdatedAt) {
+		t.Error("SetPostTint bumped updated_at: the backfill is not a user edit")
+	}
+	if missing, _ = repo.ListPostsMissingTint(ctx); len(missing) != 1 || missing[0].ID != third {
+		t.Errorf("after set, missing = %+v", missing)
+	}
+	if err := repo.SetPostTint(ctx, 99999, "#ffffff"); !errors.Is(err, repository.ErrorPostNotFound) {
+		t.Errorf("missing post: %v, want ErrorPostNotFound", err)
+	}
+}
+
+// The migration counts each existing post's images; a post without image
+// rows (from before post_images) counts as 1.
+func TestImageCountMigrationBackfill(t *testing.T) {
+	const before = "20261115000000" // the last migration before image_count
+	db := testdb.Open(t)
+	t.Cleanup(func() {
+		if err := testdb.ResetSchema(db); err != nil {
+			t.Errorf("reset: %v", err)
+		}
+		if err := testdb.MigrateUp(db); err != nil {
+			t.Errorf("re-migrate: %v", err)
+		}
+	})
+	if err := testdb.ResetSchema(db); err != nil {
+		t.Fatal(err)
+	}
+	if err := testdb.MigrateUpTo(db, before); err != nil {
+		t.Fatalf("up to %s: %v", before, err)
+	}
+	alice := seedUser(t, db, "alice")
+	var three, legacy int64
+	if err := db.QueryRow(`INSERT INTO posts (user_id, image_path) VALUES ($1, '/uploads/a.jpg') RETURNING id`, alice).Scan(&three); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := db.Exec(`INSERT INTO post_images (post_id, position, image_path) VALUES ($1, 0, '/uploads/a.jpg'), ($1, 1, '/uploads/b.jpg'), ($1, 2, '/uploads/c.jpg')`, three); err != nil {
+		t.Fatal(err)
+	}
+	if err := db.QueryRow(`INSERT INTO posts (user_id, image_path) VALUES ($1, '/uploads/l.jpg') RETURNING id`, alice).Scan(&legacy); err != nil {
+		t.Fatal(err)
+	}
+	if err := testdb.MigrateUpAfter(db, before); err != nil {
+		t.Fatalf("up after %s: %v", before, err)
+	}
+	for id, want := range map[int64]int{three: 3, legacy: 1} {
+		var got int
+		if err := db.QueryRow(`SELECT image_count FROM posts WHERE id=$1`, id).Scan(&got); err != nil {
+			t.Fatal(err)
+		}
+		if got != want {
+			t.Errorf("post %d image_count = %d, want %d", id, got, want)
+		}
 	}
 }
 
 func TestPostListIndexesExist(t *testing.T) {
 	db := testdb.Open(t)
-	for _, name := range []string{"posts_created_at_id_idx", "posts_user_id_created_at_id_idx"} {
+	for _, name := range []string{"posts_created_at_id_idx", "posts_user_id_created_at_id_idx", "posts_image_count_created_at_id_idx"} {
 		var n int
 		if err := db.QueryRow(`SELECT count(*) FROM pg_indexes WHERE schemaname='public' AND indexname=$1`, name).Scan(&n); err != nil {
 			t.Fatal(err)
@@ -440,8 +742,8 @@ func TestPostRepository_PostWithoutImageRows(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if len(list) != 1 || list[0].ImageCount != 0 || list[0].ImagePath != "/uploads/legacy.jpg" {
-		t.Errorf("ListPosts = %+v, want the post with image_count 0", list)
+	if len(list) != 1 || list[0].ImageCount != 1 || list[0].ImagePath != "/uploads/legacy.jpg" {
+		t.Errorf("ListPosts = %+v, want the post with image_count 1 (the column's default)", list)
 	}
 }
 

@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { getImageUrl } from "./imageUrl";
-import { getLocaleFromLanguage } from "./locale";
+import { formatDateDots, isJa } from "./motion";
 
 describe("getImageUrl", () => {
   it("prefixes the API base onto stored /uploads paths", () => {
@@ -12,9 +12,14 @@ describe("getImageUrl", () => {
   });
 });
 
-describe("getLocaleFromLanguage", () => {
-  it("maps app languages to BCP 47 locales", () => {
-    expect(getLocaleFromLanguage("en")).toBe("en-US");
-    expect(getLocaleFromLanguage("ja")).toBe("ja-JP");
+describe("wall label helpers", () => {
+  it("writes the date with dots", () => {
+    expect(formatDateDots("2026-08-04T12:00:00")).toBe("2026.08.04");
+  });
+
+  it("detects Japanese titles", () => {
+    expect(isJa("海辺の生きもの")).toBe(true);
+    expect(isJa("カフェ")).toBe(true);
+    expect(isJa("Harbour at dusk")).toBe(false);
   });
 });

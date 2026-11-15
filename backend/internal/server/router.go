@@ -22,6 +22,7 @@ type Deps struct {
 
 	AuthService         *service.AuthService
 	PostService         *service.PostService
+	UserService         *service.UserService
 	UploadService       *service.UploadService
 	AIService           *service.AIService
 	UserSettingsService *service.UserSettingsService
@@ -41,6 +42,7 @@ func healthHandler(w http.ResponseWriter, r *http.Request) {
 // NewMux returns the bare route table, without CORS/logging/recovery.
 func NewMux(d Deps) *http.ServeMux {
 	authHandler := handler.NewAuthHandler(d.AuthService)
+	userHandler := handler.NewUserHandler(d.UserService)
 	postHandler := handler.NewPostHandler(d.PostService)
 	uploadHandler := handler.NewUploadHandler(d.UploadService, d.MaxUploadBytes)
 	aiHandler := handler.NewAIHandler(d.AIService)
@@ -58,9 +60,11 @@ func NewMux(d Deps) *http.ServeMux {
 	mux.HandleFunc("POST /auth/signup", authHandler.Signup)
 	mux.HandleFunc("POST /auth/login", authHandler.Login)
 
-	mux.HandleFunc("GET /users/", authHandler.GetUserByID)
+	mux.HandleFunc("GET /users", userHandler.ListAuthors)
+	mux.HandleFunc("GET /users/", userHandler.GetUserByID)
 
 	mux.HandleFunc("GET /posts", postHandler.ListPosts)
+	mux.HandleFunc("GET /posts/count", postHandler.CountPosts)
 	mux.Handle("POST /posts", auth(postHandler.CreatePost))
 
 	mux.HandleFunc("GET /posts/", postHandler.GetPostByID)

@@ -1,340 +1,208 @@
 import { act, fireEvent, screen, waitFor, within } from "@testing-library/react";
-import { describe, expect, it, vi } from "vitest";
-import { en } from "../lang";
+import { describe, expect, it } from "vitest";
+import { en, ja } from "../lang";
+import { feedRoutes } from "../test/feedApi";
 import { makeListPost, makePost, makeUser, seedSession } from "../test/fixtures";
 import { apiError, deferred, mockApi, noContent, ok } from "../test/mockApi";
 import { renderApp } from "../test/renderApp";
 
-const post = makePost({ id: 10, user_id: 1, caption: "Morning light", location: "Kyoto" });
+const series = makePost({
+    id: 10,
+    image_path: "/uploads/a.jpg",
+    thumbnail_path: "/uploads/a_w800.jpg",
+    caption: "Harbour at dusk",
+    camera_body: "FUJIFILM X-T5",
+    lens: "XF23mmF1.4",
+    location: "Kyoto",
+    created_at: "2026-08-14T08:00:00Z",
+    tint: "#e6ebe0",
+    images: [
+        { image_path: "/uploads/a.jpg", thumbnail_path: "/uploads/a_w800.jpg" },
+        { image_path: "/uploads/b.jpg" },
+        { image_path: "/uploads/c.jpg" },
+    ],
+});
 
-describe("PostDetailPage", () => {
-  it("shows the post to anonymous visitors, without edit controls", async () => {
-    mockApi({ "GET /posts/10": ok(post) });
-    renderApp("/posts/10");
+const photo = (i: number) => screen.getByRole("img", { name: en.post.photoOf("Harbour at dusk", i, 3) });
 
-    expect(await screen.findByRole("heading", { name: "Morning light" })).toBeInTheDocument();
-    expect(screen.getByRole("img", { name: "Morning light" })).toHaveAttribute("src", "http://api.test/uploads/photo.jpg");
-    expect(screen.getByText("Kyoto")).toBeInTheDocument();
-    expect(screen.queryByRole("button", { name: en.posts.edit })).not.toBeInTheDocument();
-  });
+describe("post view", () => {
+    it("renders at once from the reel's copy (cover + count) and fills in the photos when the fetch lands", async () => {
+        const fetch = deferred();
+        mockApi({ "GET /posts/10": fetch.handler });
+        renderApp({ pathname: "/posts/10", state: { post: makeListPost(series), image: 0, returnTo: "/" } });
 
-  it("shows the full-size original, not the grid thumbnail", async () => {
-    mockApi({ "GET /posts/10": ok({ ...post, thumbnail_path: "/uploads/photo_w800.jpg" }) });
-    renderApp("/posts/10");
-    expect(await screen.findByRole("img", { name: "Morning light" })).toHaveAttribute("src", "http://api.test/uploads/photo.jpg");
-  });
+        expect(photo(1)).toHaveAttribute("src", "http://api.test/uploads/a.jpg");
+        // Photos 2 and 3 are placeholders, so the pager already reads 1/3.
+        expect(screen.queryByRole("img", { name: en.post.photoOf("Harbour at dusk", 2, 3) })).not.toBeInTheDocument();
+        expect(screen.getByRole("status", { name: en.post.photoPosition(1, 3) })).toBeInTheDocument();
 
-  it("fetches its main image with high priority", async () => {
-    mockApi({ "GET /posts/10": ok(post) });
-    renderApp("/posts/10");
-    expect(await screen.findByRole("img", { name: "Morning light" })).toHaveAttribute("fetchpriority", "high");
-  });
-
-  describe("with several images", () => {
-    const multi = makePost({
-      id: 10,
-      caption: "Morning light",
-      images: [
-        { image_path: "/uploads/1.jpg", thumbnail_path: "/uploads/1_w800.jpg" },
-        { image_path: "/uploads/2.png" },
-        { image_path: "/uploads/3.webp" },
-      ],
-      image_path: "/uploads/1.jpg",
-      thumbnail_path: "/uploads/1_w800.jpg",
-    });
-    const shownSrc = () => screen.getByRole("img", { name: "Morning light" }).getAttribute("src");
-
-    it("starts at the first original and steps with the buttons", async () => {
-      mockApi({ "GET /posts/10": ok(multi) });
-      const { user } = renderApp("/posts/10");
-
-      await screen.findByRole("heading", { name: "Morning light" });
-      expect(shownSrc()).toBe("http://api.test/uploads/1.jpg");
-      expect(screen.getByText(en.posts.imagePosition(1, 3))).toBeInTheDocument();
-      expect(screen.getByRole("button", { name: en.posts.previousImage })).toBeDisabled();
-
-      await user.click(screen.getByRole("button", { name: en.posts.nextImage }));
-      expect(shownSrc()).toBe("http://api.test/uploads/2.png");
-      expect(screen.getByText(en.posts.imagePosition(2, 3))).toBeInTheDocument();
-
-      await user.click(screen.getByRole("button", { name: en.posts.nextImage }));
-      expect(shownSrc()).toBe("http://api.test/uploads/3.webp");
-      expect(screen.getByRole("button", { name: en.posts.nextImage })).toBeDisabled();
-
-      await user.click(screen.getByRole("button", { name: en.posts.previousImage }));
-      expect(shownSrc()).toBe("http://api.test/uploads/2.png");
+        await act(async () => fetch.resolve(ok(series)));
+        // The next photo loads (off screen, so hidden from the accessibility tree).
+        await waitFor(() =>
+            expect(screen.getByRole("img", { hidden: true, name: en.post.photoOf("Harbour at dusk", 2, 3) })).toHaveAttribute("src", "http://api.test/uploads/b.jpg"),
+        );
     });
 
-    it("steps with the arrow keys and jumps with the dots", async () => {
-      mockApi({ "GET /posts/10": ok(multi) });
-      const { user } = renderApp("/posts/10");
-
-      await screen.findByRole("heading", { name: "Morning light" });
-      screen.getByRole("region", { name: "Morning light" }).focus();
-      await user.keyboard("{ArrowRight}");
-      expect(shownSrc()).toBe("http://api.test/uploads/2.png");
-      await user.keyboard("{ArrowLeft}{ArrowLeft}");
-      expect(shownSrc()).toBe("http://api.test/uploads/1.jpg");
-
-      const dots = within(screen.getByRole("region", { name: "Morning light" }));
-      await user.click(dots.getByRole("button", { name: en.posts.imagePosition(3, 3) }));
-      expect(shownSrc()).toBe("http://api.test/uploads/3.webp");
+    it("opens on the photo carried from the reel (2 of 3 stays 2 of 3)", async () => {
+        mockApi({ "GET /posts/10": ok(series) });
+        renderApp({ pathname: "/posts/10", state: { post: series, image: 1, returnTo: "/" } });
+        expect(screen.getByRole("status", { name: en.post.photoPosition(2, 3) })).toBeInTheDocument();
     });
 
-    it("follows a swipe: the slide scrolled into view becomes the current one", async () => {
-      mockApi({ "GET /posts/10": ok(multi) });
-      renderApp("/posts/10");
-      await screen.findByRole("heading", { name: "Morning light" });
-
-      // jsdom has no layout: give the track a width, then scroll it like a
-      // finger would (scroll-snap ends on a whole slide).
-      const track = document.querySelector(".image-carousel-track") as HTMLElement;
-      Object.defineProperty(track, "clientWidth", { configurable: true, value: 400 });
-      track.scrollLeft = 400;
-      fireEvent.scroll(track);
-      expect(screen.getByText(en.posts.imagePosition(2, 3))).toBeInTheDocument();
-      expect(shownSrc()).toBe("http://api.test/uploads/2.png");
-
-      track.scrollLeft = 800;
-      fireEvent.scroll(track);
-      expect(screen.getByText(en.posts.imagePosition(3, 3))).toBeInTheDocument();
-      expect(screen.getByRole("button", { name: en.posts.nextImage })).toBeDisabled();
+    it("pages the series with the pager and the arrow keys", async () => {
+        mockApi({ "GET /posts/10": ok(series) });
+        const { user } = renderApp("/posts/10");
+        await screen.findByRole("status", { name: en.post.photoPosition(1, 3) });
+        await user.click(screen.getByRole("button", { name: en.post.nextPhoto }));
+        expect(screen.getByRole("status", { name: en.post.photoPosition(2, 3) })).toBeInTheDocument();
+        await user.keyboard("{ArrowRight}");
+        expect(screen.getByRole("status", { name: en.post.photoPosition(3, 3) })).toBeInTheDocument();
+        expect(screen.getByRole("button", { name: en.post.nextPhoto })).toBeDisabled();
     });
 
-    it("loads a slide's image only once it is shown or next in line", async () => {
-      mockApi({ "GET /posts/10": ok(multi) });
-      const { user } = renderApp("/posts/10");
-      await screen.findByRole("heading", { name: "Morning light" });
-
-      const loaded = () =>
-        Array.from(document.querySelectorAll(".image-carousel-slide img")).map((img) => img.getAttribute("src"));
-      expect(loaded()).toEqual(["http://api.test/uploads/1.jpg", "http://api.test/uploads/2.png"]);
-
-      await user.click(screen.getByRole("button", { name: en.posts.nextImage }));
-      expect(loaded()).toHaveLength(3);
-      // Going back keeps what was loaded.
-      await user.click(screen.getByRole("button", { name: en.posts.previousImage }));
-      expect(loaded()).toHaveLength(3);
+    it("shows the wall label: author, title and year, place, gear with Find, the date", async () => {
+        mockApi({ "GET /posts/10": ok(series) });
+        renderApp("/posts/10");
+        const label = await screen.findByRole("region", { name: en.post.about });
+        expect(within(label).getByRole("link", { name: "alice" })).toHaveAttribute("href", "/users/1");
+        expect(label).toHaveTextContent("Harbour at dusk, 2026");
+        expect(label).toHaveTextContent("Kyoto");
+        expect(within(label).getByRole("button", { name: en.gear.findLabel("FUJIFILM X-T5") })).toBeInTheDocument();
+        expect(within(label).getByRole("button", { name: en.gear.findLabel("XF23mmF1.4") })).toBeInTheDocument();
+        expect(label).toHaveTextContent("2026.08.14");
+        // Not the owner: no Manage.
+        expect(within(label).queryByRole("button", { name: en.post.manage })).not.toBeInTheDocument();
     });
 
-    it("opened from the feed, shows every slide's place at once and fills them in when the post arrives", async () => {
-      const refresh = deferred();
-      mockApi({ "GET /posts/10": refresh.handler });
-      // The feed's copy: the cover and the count, no images.
-      const listed = makeListPost({ id: 10, caption: "Morning light", image_path: "/uploads/1.jpg", image_count: 3 });
-      const { user } = renderApp({ pathname: "/posts/10", state: { post: listed } });
-
-      expect(screen.getByText(en.posts.imagePosition(1, 3))).toBeInTheDocument();
-      expect(shownSrc()).toBe("http://api.test/uploads/1.jpg");
-      expect(document.querySelectorAll(".image-carousel-slide")).toHaveLength(3);
-      await user.click(screen.getByRole("button", { name: en.posts.nextImage }));
-      expect(screen.getByText(en.posts.imagePosition(2, 3))).toBeInTheDocument();
-
-      await act(async () => refresh.resolve(ok(multi)));
-      expect(await screen.findByRole("img", { name: "Morning light" })).toHaveAttribute("src", "http://api.test/uploads/2.png");
+    it("Info says where it goes", async () => {
+        mockApi({ "GET /posts/10": ok(series) });
+        renderApp("/posts/10");
+        expect(await screen.findByRole("button", { name: en.post.infoDown })).toHaveAttribute("aria-controls", "post-details");
     });
 
-    it("shows a single image without carousel controls", async () => {
-      mockApi({ "GET /posts/10": ok(post) });
-      renderApp("/posts/10");
-
-      await screen.findByRole("heading", { name: "Morning light" });
-      expect(screen.queryByRole("button", { name: en.posts.nextImage })).not.toBeInTheDocument();
-      expect(screen.queryByRole("region", { name: "Morning light" })).not.toBeInTheDocument();
-    });
-  });
-
-  describe("opened from a card (post in router state)", () => {
-    const fromFeed = (statePost = post) => ({
-      pathname: "/posts/10",
-      state: { returnTo: { pathname: "/", labelKey: "backToFeed" }, post: statePost },
+    it("Close goes back to where the post was opened from", async () => {
+        mockApi({ ...feedRoutes([series]), "GET /posts/10": ok(series), "GET /users/1": ok({ id: 1, username: "alice", post_count: 1, photo_count: 3, created_at: "" }) });
+        const { user, currentPath } = renderApp({ pathname: "/posts/10", state: { post: series, returnTo: "/users/1" } });
+        await user.click(screen.getByRole("button", { name: en.header.closeToProfile }));
+        expect(currentPath()).toBe("/users/1");
     });
 
-    it("renders the post at once and swaps in the fresh copy when it arrives", async () => {
-      const refresh = deferred();
-      const api = mockApi({ "GET /posts/10": refresh.handler });
-      renderApp(fromFeed());
-
-      // First render, before any fetch resolved: no loading state.
-      expect(screen.getByRole("heading", { name: "Morning light" })).toBeInTheDocument();
-      expect(screen.queryByText(en.posts.loadingPost)).not.toBeInTheDocument();
-      expect(api.calls("GET /posts/10")).toHaveLength(1);
-
-      await act(async () => refresh.resolve(ok({ ...post, caption: "Edited elsewhere" })));
-      expect(await screen.findByRole("heading", { name: "Edited elsewhere" })).toBeInTheDocument();
+    it("Esc leaves for the feed when there is nowhere to go back to", async () => {
+        mockApi({ ...feedRoutes([series]), "GET /posts/10": ok(series) });
+        const { currentPath } = renderApp("/posts/10");
+        await screen.findByRole("region", { name: en.post.about });
+        fireEvent.keyDown(document.body, { key: "Escape" });
+        expect(currentPath()).toBe("/");
     });
 
-    it("keeps showing the post when the background refresh fails", async () => {
-      const refresh = deferred();
-      mockApi({ "GET /posts/10": refresh.handler });
-      renderApp(fromFeed());
+    it("turns the lights out with F or a click on the photo, and back on with Esc", async () => {
+        mockApi({ "GET /posts/10": ok(series) });
+        const { user } = renderApp("/posts/10");
+        await screen.findByRole("region", { name: en.post.about });
 
-      await act(async () => refresh.resolve(apiError(500, "get_post_failed")));
-      expect(screen.getByRole("heading", { name: "Morning light" })).toBeInTheDocument();
-      expect(screen.queryByText(en.posts.loadPostFailed)).not.toBeInTheDocument();
+        fireEvent.keyDown(document.body, { key: "f" });
+        const lights = screen.getByRole("dialog", { name: en.post.lightsOut("Harbour at dusk") });
+        expect(within(lights).getByRole("img", { name: en.post.photoOf("Harbour at dusk", 1, 3) })).toBeInTheDocument();
+        fireEvent.keyDown(document.body, { key: "Escape" });
+        expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
+
+        await user.click(screen.getByRole("button", { name: en.post.viewFull(en.post.photoOf("Harbour at dusk", 1, 3)) }));
+        expect(screen.getByRole("dialog", { name: en.post.lightsOut("Harbour at dusk") })).toBeInTheDocument();
+        await user.click(within(screen.getByRole("dialog")).getByRole("img", { name: en.post.photoOf("Harbour at dusk", 1, 3) }));
+        expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
     });
 
-    it("shows the not-found error when the post was deleted in the meantime", async () => {
-      mockApi({ "GET /posts/10": apiError(404, "post_not_found") });
-      renderApp(fromFeed());
-      expect(await screen.findByText(en.apiErrors.postNotFound)).toBeInTheDocument();
-      expect(screen.queryByRole("heading", { name: "Morning light" })).not.toBeInTheDocument();
+    it("says a deleted post isn't here any more", async () => {
+        mockApi({ "GET /posts/10": apiError(404, "post_not_found") });
+        renderApp({ pathname: "/posts/10", state: { post: series } });
+        expect(await screen.findByRole("alert")).toHaveTextContent(en.apiErrors.postNotFound);
     });
 
-    describe("after the owner edits the post", () => {
-      // First GET answers at once; later ones (refetches) hang, so whatever is
-      // on screen afterwards comes from the page's own state, not the API.
-      function setUp() {
-        seedSession(makeUser({ id: 1 }));
-        let gets = 0;
-        const later = deferred();
-        mockApi({
-          "GET /posts/10": () => (++gets === 1 ? ok(post) : later.handler()),
-          "PUT /posts/10": ok({ ...post, caption: "Evening light" }),
-          "PUT /users/me/settings/language": noContent(),
-          "GET /posts": ok([]),
+    it("keeps the reel's copy on screen when only the refresh fails", async () => {
+        mockApi({ "GET /posts/10": apiError(500, "internal_error") });
+        renderApp({ pathname: "/posts/10", state: { post: series } });
+        await waitFor(() => expect(photo(1)).toBeInTheDocument());
+        expect(screen.queryByRole("alert")).not.toBeInTheDocument();
+    });
+
+    it("renders in Japanese", async () => {
+        mockApi({ "GET /posts/10": ok({ ...series, caption: "海辺の生きもの" }) });
+        renderApp("/posts/10", { language: "ja" });
+        expect(await screen.findByRole("button", { name: ja.post.infoDown })).toHaveTextContent(ja.post.info);
+        expect(screen.getByRole("button", { name: ja.header.closeToFeed })).toBeInTheDocument();
+        expect(screen.getByText("海辺の生きもの", { selector: "h1" })).toHaveClass("is-ja");
+    });
+});
+
+describe("owner actions", () => {
+    function asOwner() {
+        seedSession(makeUser({ id: 1, username: "alice" }));
+    }
+
+    it("Manage opens to Edit · Delete; Edit saves in a dialog with a toast", async () => {
+        asOwner();
+        const api = mockApi({
+            "GET /posts/10": ok(series),
+            "PUT /posts/10": (call) => ok({ ...series, ...(call.json() as object) }),
         });
-        return { ...renderApp(fromFeed()), refetches: () => gets - 1 };
-      }
+        const { user } = renderApp("/posts/10");
+        const label = await screen.findByRole("region", { name: en.post.about });
 
-      async function editCaption(user: ReturnType<typeof renderApp>["user"]) {
-        await user.click(await screen.findByRole("button", { name: en.posts.edit }));
-        const caption = screen.getByLabelText(en.posts.title);
-        await user.clear(caption);
-        await user.type(caption, "Evening light");
-        await user.click(screen.getByRole("button", { name: en.posts.save }));
-        await screen.findByRole("heading", { name: "Evening light" });
-      }
+        await user.click(within(label).getByRole("button", { name: en.post.manage }));
+        await user.click(within(label).getByRole("button", { name: en.post.edit }));
+        const dialog = await screen.findByRole("dialog", { name: en.editPost.title });
+        const title = within(dialog).getByLabelText(en.editPost.caption);
+        expect(title).toHaveValue("Harbour at dusk");
+        await user.clear(title);
+        await user.type(title, "Harbour, blue hour");
+        await user.clear(within(dialog).getByLabelText(en.editPost.place));
+        await user.click(within(dialog).getByRole("button", { name: en.editPost.save }));
 
-      it("keeps the edited version through a language switch", async () => {
-        const { user, refetches } = setUp();
-        await editCaption(user);
-
-        await user.click(screen.getByRole("button", { name: "JA" }));
-
-        await waitFor(() => expect(refetches()).toBe(1)); // the switch re-ran the fetch
-        expect(screen.getByRole("heading", { name: "Evening light" })).toBeInTheDocument();
-        expect(screen.queryByRole("heading", { name: "Morning light" })).not.toBeInTheDocument();
-      });
-
-      it("previews the edited version when coming Back to the page", async () => {
-        const { user, navigate, currentPath } = setUp();
-        await editCaption(user);
-
-        await navigate("/");
-        await screen.findByText(en.posts.noPosts);
-        await navigate(-1);
-
-        expect(currentPath()).toBe("/posts/10");
-        expect(screen.getByRole("heading", { name: "Evening light" })).toBeInTheDocument();
-        expect(screen.queryByText(en.posts.loadingPost)).not.toBeInTheDocument();
-      });
+        expect(api.calls("PUT /posts/10")[0].json()).toEqual({ caption: "Harbour, blue hour", camera_body: "FUJIFILM X-T5", lens: "XF23mmF1.4" });
+        expect(await screen.findByText(en.toast.updated)).toBeInTheDocument();
+        await waitFor(() => expect(screen.queryByRole("dialog")).not.toBeInTheDocument());
+        expect(label).toHaveTextContent("Harbour, blue hour, 2026");
     });
 
-    it("ignores a state post whose id doesn't match the URL", async () => {
-      const refresh = deferred();
-      mockApi({ "GET /posts/10": refresh.handler });
-      renderApp(fromFeed(makePost({ id: 11, caption: "Some other post" })));
-
-      expect(screen.getByText(en.posts.loadingPost)).toBeInTheDocument();
-      expect(screen.queryByRole("heading", { name: "Some other post" })).not.toBeInTheDocument();
-
-      await act(async () => refresh.resolve(ok(post)));
-      expect(await screen.findByRole("heading", { name: "Morning light" })).toBeInTheDocument();
+    it("shows a save error inside the dialog", async () => {
+        asOwner();
+        mockApi({ "GET /posts/10": ok(series), "PUT /posts/10": apiError(403, "forbidden") });
+        const { user } = renderApp("/posts/10");
+        const label = await screen.findByRole("region", { name: en.post.about });
+        await user.click(within(label).getByRole("button", { name: en.post.manage }));
+        await user.click(within(label).getByRole("button", { name: en.post.edit }));
+        const dialog = await screen.findByRole("dialog", { name: en.editPost.title });
+        await user.click(within(dialog).getByRole("button", { name: en.editPost.save }));
+        expect(await within(dialog).findByRole("alert")).toHaveTextContent(en.apiErrors.forbidden);
     });
-  });
 
-  it("shows the loading state on a deep link or refresh (no router state)", async () => {
-    const refresh = deferred();
-    mockApi({ "GET /posts/10": refresh.handler });
-    renderApp("/posts/10");
+    it("Delete confirms in a dialog, then deletes, toasts and leaves", async () => {
+        asOwner();
+        const api = mockApi({ ...feedRoutes([]), "GET /posts/10": ok(series), "DELETE /posts/10": noContent() });
+        const { user, currentPath } = renderApp({ pathname: "/posts/10", state: { post: series, returnTo: "/" } });
+        const label = await screen.findByRole("region", { name: en.post.about });
+        await user.click(within(label).getByRole("button", { name: en.post.manage }));
+        await user.click(within(label).getByRole("button", { name: en.post.delete }));
 
-    expect(screen.getByText(en.posts.loadingPost)).toBeInTheDocument();
-    expect(screen.queryByRole("heading", { name: "Morning light" })).not.toBeInTheDocument();
+        const confirm = await screen.findByRole("alertdialog", { name: en.deletePost.title });
+        expect(confirm).toHaveTextContent(en.deletePost.description("Harbour at dusk", 3));
+        expect(api.calls("DELETE /posts/10")).toHaveLength(0);
+        await user.click(within(confirm).getByRole("button", { name: en.deletePost.confirm }));
 
-    await act(async () => refresh.resolve(ok(post)));
-    expect(await screen.findByRole("heading", { name: "Morning light" })).toBeInTheDocument();
-    expect(screen.queryByText(en.posts.loadingPost)).not.toBeInTheDocument();
-  });
-
-  it("has a labelled back link when opened directly (no router state)", async () => {
-    mockApi({ "GET /posts/10": ok(post) });
-    renderApp("/posts/10");
-    expect(await screen.findByRole("link", { name: en.posts.backToFeed })).toHaveAttribute("href", "/");
-  });
-
-  it("returns to the profile when opened from one", async () => {
-    mockApi({ "GET /posts/10": ok(post) });
-    renderApp({ pathname: "/posts/10", state: { returnTo: { pathname: "/users/1", labelKey: "backToProfile" } } });
-    expect(await screen.findByRole("link", { name: en.posts.backToProfile })).toHaveAttribute("href", "/users/1");
-  });
-
-  it("hides edit controls from logged-in non-owners", async () => {
-    seedSession(makeUser({ id: 2, username: "bob" }));
-    mockApi({ "GET /posts/10": ok(post) });
-    renderApp("/posts/10");
-
-    await screen.findByRole("heading", { name: "Morning light" });
-    expect(screen.queryByRole("button", { name: en.posts.edit })).not.toBeInTheDocument();
-  });
-
-  it("lets the owner edit and save", async () => {
-    seedSession(makeUser({ id: 1 }));
-    const api = mockApi({
-      "GET /posts/10": ok(post),
-      "PUT /posts/10": ok({ ...post, caption: "Evening light", location: null }),
+        expect(api.calls("DELETE /posts/10")).toHaveLength(1);
+        expect(await screen.findByText(en.toast.deleted)).toBeInTheDocument();
+        await waitFor(() => expect(currentPath()).toBe("/"));
     });
-    const { user } = renderApp("/posts/10");
 
-    await user.click(await screen.findByRole("button", { name: en.posts.edit }));
-    const caption = screen.getByLabelText(en.posts.title);
-    await user.clear(caption);
-    await user.type(caption, "Evening light");
-    await user.clear(screen.getByLabelText(en.posts.location));
-    await user.click(screen.getByRole("button", { name: en.posts.save }));
-
-    expect(await screen.findByRole("heading", { name: "Evening light" })).toBeInTheDocument();
-    expect(api.calls("PUT /posts/10")[0].json()).toEqual({ caption: "Evening light" });
-  });
-
-  it("lets the owner delete after confirming", async () => {
-    seedSession(makeUser({ id: 1 }));
-    const confirm = vi.spyOn(window, "confirm").mockReturnValue(true);
-    const api = mockApi({ "GET /posts/10": ok(post), "DELETE /posts/10": noContent(), "GET /posts": ok([]) });
-    const { user, currentPath } = renderApp("/posts/10");
-
-    await user.click(await screen.findByRole("button", { name: en.posts.edit }));
-    await user.click(screen.getByRole("button", { name: en.posts.delete }));
-
-    expect(confirm).toHaveBeenCalledWith(en.posts.deleteConfirm);
-    await waitFor(() => expect(currentPath()).toBe("/"));
-    expect(api.calls("DELETE /posts/10")).toHaveLength(1);
-  });
-
-  it("does nothing when delete is cancelled", async () => {
-    seedSession(makeUser({ id: 1 }));
-    vi.spyOn(window, "confirm").mockReturnValue(false);
-    const api = mockApi({ "GET /posts/10": ok(post) });
-    const { user, currentPath } = renderApp("/posts/10");
-
-    await user.click(await screen.findByRole("button", { name: en.posts.edit }));
-    await user.click(screen.getByRole("button", { name: en.posts.delete }));
-
-    expect(api.calls("DELETE /posts/10")).toHaveLength(0);
-    expect(currentPath()).toBe("/posts/10");
-  });
-
-  it("shows a translated error for a missing post", async () => {
-    mockApi({ "GET /posts/404": apiError(404, "post_not_found") });
-    renderApp("/posts/404");
-    const main = await screen.findByText(en.apiErrors.postNotFound);
-    expect(within(main.closest("main")!).getByRole("link", { name: en.posts.backToFeed })).toBeInTheDocument();
-  });
-
-  it("rejects a non-numeric id without calling the API", async () => {
-    const api = mockApi({});
-    renderApp("/posts/abc");
-    expect(await screen.findByText(en.posts.invalidPostId)).toBeInTheDocument();
-    expect(api.fetch).not.toHaveBeenCalled();
-  });
+    it("Cancel keeps the post", async () => {
+        asOwner();
+        const api = mockApi({ "GET /posts/10": ok(series), "DELETE /posts/10": noContent() });
+        const { user } = renderApp("/posts/10");
+        const label = await screen.findByRole("region", { name: en.post.about });
+        await user.click(within(label).getByRole("button", { name: en.post.manage }));
+        await user.click(within(label).getByRole("button", { name: en.post.delete }));
+        const confirm = await screen.findByRole("alertdialog");
+        await user.click(within(confirm).getByRole("button", { name: en.deletePost.cancel }));
+        expect(api.calls("DELETE /posts/10")).toHaveLength(0);
+    });
 });

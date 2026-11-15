@@ -17,7 +17,17 @@ func strPtr(s string) *string { return &s }
 func newPosts(t *testing.T) (*service.PostService, *memstore.Store) {
 	t.Helper()
 	store := memstore.New()
-	return service.NewPostService(store.Posts()), store
+	return service.NewPostService(store.Posts(), nil), store
+}
+
+// fakeTints gives every thumbnail the tint in its map, or fails.
+type fakeTints map[string]string
+
+func (f fakeTints) TintFor(_ context.Context, thumbnailPath string) (string, error) {
+	if t, ok := f[thumbnailPath]; ok {
+		return t, nil
+	}
+	return "", errors.New("no such thumbnail")
 }
 
 func TestCreatePost_ReturnsHydratedPost(t *testing.T) {
@@ -310,7 +320,7 @@ func TestListPosts_Pagination(t *testing.T) {
 	}
 	last := first[len(first)-1]
 	second, err := svc.ListPosts(context.Background(), service.ListPostsParams{
-		Limit: 2, Before: &service.PostCursor{CreatedAt: last.CreatedAt, ID: last.ID},
+		Limit: 2, After: &service.PostCursor{CreatedAt: last.CreatedAt, ID: last.ID},
 	})
 	if err != nil {
 		t.Fatal(err)
@@ -319,7 +329,7 @@ func TestListPosts_Pagination(t *testing.T) {
 		t.Errorf("two pages = %v, want the first 4 of %v", got, want)
 	}
 
-	bobs, err := svc.ListPosts(context.Background(), service.ListPostsParams{UserID: &bob.ID})
+	bobs, err := svc.ListPosts(context.Background(), service.ListPostsParams{PostFilter: service.PostFilter{UserIDs: []int64{bob.ID}}})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -328,9 +338,10 @@ func TestListPosts_Pagination(t *testing.T) {
 	}
 
 	for name, bad := range map[string]service.ListPostsParams{
-		"negative limit":  {Limit: -1},
-		"limit too large": {Limit: service.MaxPageSize + 1},
-		"cursor id 0":     {Before: &service.PostCursor{CreatedAt: base}},
+		"negative limit":           {Limit: -1},
+		"limit too large":          {Limit: service.MaxPageSize + 1},
+		"cursor id 0":              {After: &service.PostCursor{CreatedAt: base}},
+		"most without image count": {Sort: service.SortMost, After: &service.PostCursor{CreatedAt: base, ID: 3}},
 	} {
 		if _, err := svc.ListPosts(context.Background(), bad); !errors.Is(err, service.ErrInvalidPagination) {
 			t.Errorf("%s: got %v, want ErrInvalidPagination", name, err)
@@ -338,6 +349,191 @@ func TestListPosts_Pagination(t *testing.T) {
 	}
 	if _, err := svc.ListPosts(context.Background(), service.ListPostsParams{Limit: service.MaxPageSize}); err != nil {
 		t.Errorf("limit %d: %v", service.MaxPageSize, err)
+	}
+}
+
+func TestListPosts_RejectsBadSortAndFilters(t *testing.T) {
+	svc, _ := newPosts(t)
+	ctx := context.Background()
+	tooMany := make([]int64, service.MaxUserIDs+1)
+	for i := range tooMany {
+		tooMany[i] = int64(i + 1)
+	}
+	for name, tc := range map[string]struct {
+		p    service.ListPostsParams
+		want error
+	}{
+		"unknown sort":   {service.ListPostsParams{Sort: "popular"}, service.ErrInvalidSort},
+		"unknown photos": {service.ListPostsParams{PostFilter: service.PostFilter{Photos: "many"}}, service.ErrInvalidPhotosFilter},
+		"user id 0":      {service.ListPostsParams{PostFilter: service.PostFilter{UserIDs: []int64{3, 0}}}, service.ErrInvalidUserIDs},
+		"too many users": {service.ListPostsParams{PostFilter: service.PostFilter{UserIDs: tooMany}}, service.ErrInvalidUserIDs},
+	} {
+		if _, err := svc.ListPosts(ctx, tc.p); !errors.Is(err, tc.want) {
+			t.Errorf("list, %s: got %v, want %v", name, err, tc.want)
+		}
+		if tc.want == service.ErrInvalidSort {
+			continue // counts have no sort
+		}
+		if _, err := svc.CountPosts(ctx, tc.p.PostFilter); !errors.Is(err, tc.want) {
+			t.Errorf("count, %s: got %v, want %v", name, err, tc.want)
+		}
+	}
+	for _, sort := range []service.PostSort{"", service.SortNewest, service.SortOldest, service.SortMost} {
+		if _, err := svc.ListPosts(ctx, service.ListPostsParams{Sort: sort}); err != nil {
+			t.Errorf("sort %q: %v", sort, err)
+		}
+	}
+}
+
+// Sorts, the people filter, the photos filter and the count agree.
+func TestListPosts_SortAndFilter(t *testing.T) {
+	svc, store := newPosts(t)
+	ctx := context.Background()
+	alice := store.MustAddUser("alice", "alice@example.com")
+	bob := store.MustAddUser("bob", "bob@example.com")
+	carol := store.MustAddUser("carol", "carol@example.com")
+	base := time.Date(2026, 1, 1, 0, 0, 0, 0, time.UTC)
+
+	add := func(i int, owner int64, images int) int64 {
+		store.Now = func() time.Time { return base.Add(time.Duration(i) * time.Hour) }
+		paths := make([]string, images)
+		for j := range paths {
+			paths[j] = fmt.Sprintf("/uploads/%d_%d.jpg", i, j)
+		}
+		p, err := svc.CreatePost(ctx, service.CreatePostParams{UserID: owner, Images: imagesFor(paths...)})
+		if err != nil {
+			t.Fatal(err)
+		}
+		return p.ID
+	}
+	a1 := add(0, alice.ID, 1)
+	b3 := add(1, bob.ID, 3)
+	c2 := add(2, carol.ID, 2)
+	a3 := add(3, alice.ID, 3)
+
+	list := func(p service.ListPostsParams) []int64 {
+		t.Helper()
+		posts, err := svc.ListPosts(ctx, p)
+		if err != nil {
+			t.Fatal(err)
+		}
+		return ids(posts)
+	}
+	for name, tc := range map[string]struct {
+		p    service.ListPostsParams
+		want []int64
+	}{
+		"newest":            {service.ListPostsParams{}, []int64{a3, c2, b3, a1}},
+		"oldest":            {service.ListPostsParams{Sort: service.SortOldest}, []int64{a1, b3, c2, a3}},
+		"most, ties newest": {service.ListPostsParams{Sort: service.SortMost}, []int64{a3, b3, c2, a1}},
+		"alice and carol":   {service.ListPostsParams{PostFilter: service.PostFilter{UserIDs: []int64{alice.ID, carol.ID}}}, []int64{a3, c2, a1}},
+		"single":            {service.ListPostsParams{PostFilter: service.PostFilter{Photos: service.PhotosSingle}}, []int64{a1}},
+		"series":            {service.ListPostsParams{PostFilter: service.PostFilter{Photos: service.PhotosSeries}}, []int64{a3, c2, b3}},
+		"any":               {service.ListPostsParams{PostFilter: service.PostFilter{Photos: service.PhotosAny}}, []int64{a3, c2, b3, a1}},
+		"most after a3": {service.ListPostsParams{Sort: service.SortMost, After: &service.PostCursor{
+			CreatedAt: base.Add(3 * time.Hour), ID: a3, ImageCount: 3,
+		}}, []int64{b3, c2, a1}},
+	} {
+		if got := list(tc.p); fmt.Sprint(got) != fmt.Sprint(tc.want) {
+			t.Errorf("%s: %v, want %v", name, got, tc.want)
+		}
+		n, err := svc.CountPosts(ctx, tc.p.PostFilter)
+		if err != nil {
+			t.Fatal(err)
+		}
+		if tc.p.After == nil && n != len(tc.want) {
+			t.Errorf("%s: count %d, want %d", name, n, len(tc.want))
+		}
+	}
+}
+
+func imagesFor(paths ...string) []service.CreatePostImage {
+	out := make([]service.CreatePostImage, len(paths))
+	for i, p := range paths {
+		out[i] = service.CreatePostImage{ImagePath: p}
+	}
+	return out
+}
+
+// The tint comes from the cover's thumbnail, never from the client; without
+// a thumbnail or when it can't be read, the post has none.
+func TestCreatePost_Tint(t *testing.T) {
+	store := memstore.New()
+	svc := service.NewPostService(store.Posts(), fakeTints{"/uploads/a_w800.jpg": "#eeddcc"})
+	alice := store.MustAddUser("alice", "alice@example.com")
+	ctx := context.Background()
+
+	withThumb, err := svc.CreatePost(ctx, service.CreatePostParams{UserID: alice.ID, Images: []service.CreatePostImage{
+		{ImagePath: "/uploads/a.jpg", ThumbnailPath: strPtr("/uploads/a_w800.jpg")},
+		{ImagePath: "/uploads/b.jpg"},
+	}})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if withThumb.Tint == nil || *withThumb.Tint != "#eeddcc" {
+		t.Errorf("tint = %v, want #eeddcc from the cover's thumbnail", withThumb.Tint)
+	}
+	listed, _ := svc.ListPosts(ctx, service.ListPostsParams{})
+	if len(listed) != 1 || listed[0].Tint == nil || *listed[0].Tint != "#eeddcc" {
+		t.Errorf("listed tint = %+v", listed)
+	}
+
+	// The second image's thumbnail is not the cover's: no tint.
+	noCoverThumb, err := svc.CreatePost(ctx, service.CreatePostParams{UserID: alice.ID, Images: []service.CreatePostImage{
+		{ImagePath: "/uploads/c.jpg"},
+		{ImagePath: "/uploads/a.jpg", ThumbnailPath: strPtr("/uploads/a_w800.jpg")},
+	}})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if noCoverThumb.Tint != nil {
+		t.Errorf("tint without a cover thumbnail = %s, want none", *noCoverThumb.Tint)
+	}
+
+	// The tint source fails: the post is still created, without a tint.
+	unreadable, err := svc.CreatePost(ctx, service.CreatePostParams{UserID: alice.ID, Images: []service.CreatePostImage{
+		{ImagePath: "/uploads/d.jpg", ThumbnailPath: strPtr("/uploads/d_w800.jpg")},
+	}})
+	if err != nil {
+		t.Fatalf("create with an unreadable thumbnail: %v", err)
+	}
+	if unreadable.Tint != nil {
+		t.Errorf("tint = %s, want none", *unreadable.Tint)
+	}
+}
+
+func TestUserService(t *testing.T) {
+	store := memstore.New()
+	users := service.NewUserService(store.Users(), store.Posts())
+	posts := service.NewPostService(store.Posts(), nil)
+	ctx := context.Background()
+	zoe := store.MustAddUser("zoe", "zoe@example.com")
+	amy := store.MustAddUser("amy", "amy@example.com")
+	store.MustAddUser("lurker", "lurker@example.com")
+
+	store.MustAddPost(zoe.ID, "/uploads/z1.jpg", "")
+	if _, err := posts.CreatePost(ctx, service.CreatePostParams{UserID: zoe.ID, Images: imagesFor("/uploads/z2.jpg", "/uploads/z3.jpg", "/uploads/z4.jpg")}); err != nil {
+		t.Fatal(err)
+	}
+	store.MustAddPost(amy.ID, "/uploads/a1.jpg", "")
+
+	profile, err := users.GetProfile(ctx, zoe.ID)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if profile.User.Username != "zoe" || profile.Work.PostCount != 2 || profile.Work.PhotoCount != 4 {
+		t.Errorf("zoe's profile = %+v / %+v, want 2 works, 4 photographs", profile.User, profile.Work)
+	}
+	if _, err := users.GetProfile(ctx, 999); !errors.Is(err, service.ErrUserNotFound) {
+		t.Errorf("unknown user: %v, want ErrUserNotFound", err)
+	}
+
+	authors, err := users.ListAuthors(ctx)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if fmt.Sprint(authors) != fmt.Sprint([]dto.Author{{ID: amy.ID, Username: "amy", PostCount: 1}, {ID: zoe.ID, Username: "zoe", PostCount: 2}}) {
+		t.Errorf("authors = %+v, want amy then zoe, without lurker", authors)
 	}
 }
 

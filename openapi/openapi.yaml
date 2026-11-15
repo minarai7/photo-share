@@ -86,11 +86,34 @@ paths:
               schema:
                 $ref: '#/components/schemas/ErrorResponse'
   
+  /users:
+    get:
+      tags:
+        - users
+      summary: List the people who have posted
+      description: >-
+        Every user with at least one post, ordered by username, with their
+        post count. For the feed's "By" filter. Public; carries no email.
+      operationId: listAuthors
+      responses:
+        '200':
+          description: People who have posted (possibly empty)
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Author'
+
   /users/{id}:
     get:
       tags:
-        - auth
-      summary: Get one user by ID
+        - users
+      summary: Get one person's public profile
+      description: >-
+        Name and work counts for the person hero. Public: no email and no
+        settings (those are only in the signed-in user's login/signup
+        response).
       operationId: getUserById
       parameters:
         - name: id
@@ -106,7 +129,13 @@ paths:
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/UserResponse'
+                $ref: '#/components/schemas/PublicUser'
+        '400':
+          description: invalid_user_id
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
         '404':
           description: User not found
           content:
@@ -151,17 +180,31 @@ paths:
     get:
       tags:
         - posts
-      summary: List posts, newest first
+      summary: List posts, sorted and filtered
       description: >-
-        Posts are ordered by created_at, then id, both descending. Each post
-        has its cover (image_path / thumbnail_path) and image_count but no
-        images array; GET /posts/{id} has the images. To page, pass limit and,
-        for every page after the first, before_created_at + before_id of the
-        last post received (send created_at back exactly as received). A page
-        shorter than limit is the last one. Without limit, every post is
-        returned (clients from before pagination).
+        sort=newest (default) orders by created_at, then id, both descending;
+        oldest by both ascending; most by image_count descending, then newest
+        first. Each post has its cover (image_path / thumbnail_path),
+        image_count and tint but no images array; GET /posts/{id} has the
+        images. To page, pass limit and, for every page after the first, the
+        cursor of the last post received: before_created_at + before_id, plus
+        before_image_count for sort=most (send created_at back exactly as
+        received). "before" means "the post before this page" in the chosen
+        order. A page shorter than limit is the last one. Without limit, every
+        matching post is returned (clients from before pagination). The
+        response stays a bare array; GET /posts/count gives the total.
       operationId: listPosts
       parameters:
+        - $ref: '#/components/parameters/UserIds'
+        - $ref: '#/components/parameters/UserId'
+        - $ref: '#/components/parameters/Photos'
+        - name: sort
+          in: query
+          required: false
+          schema:
+            type: string
+            enum: [newest, oldest, most]
+            default: newest
         - name: limit
           in: query
           required: false
@@ -185,13 +228,12 @@ paths:
             type: integer
             format: int64
             minimum: 1
-        - name: user_id
+        - name: before_image_count
           in: query
           required: false
-          description: Only this user's posts.
+          description: image_count of the last post of the previous page. Required with the cursor for sort=most; ignored otherwise.
           schema:
             type: integer
-            format: int64
             minimum: 1
       responses:
         '200':
@@ -205,7 +247,7 @@ paths:
         '400':
           description: >-
             invalid_pagination (bad limit, or an incomplete or malformed
-            cursor) or invalid_user_id
+            cursor), invalid_sort, invalid_photos_filter or invalid_user_id
           content:
             application/json:
               schema:
@@ -244,6 +286,42 @@ paths:
               schema:
                 $ref: '#/components/schemas/ErrorResponse'
   
+  /posts/count:
+    get:
+      tags:
+        - posts
+      summary: Count posts
+      description: >-
+        How many posts GET /posts returns for the same user_ids / user_id and
+        photos filters (sort, limit and the cursor don't apply). Without
+        filters, every post. The feed's Index link reads "4 of 10 works" from
+        two counts.
+      operationId: countPosts
+      parameters:
+        - $ref: '#/components/parameters/UserIds'
+        - $ref: '#/components/parameters/UserId'
+        - $ref: '#/components/parameters/Photos'
+      responses:
+        '200':
+          description: The count
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                  - count
+                properties:
+                  count:
+                    type: integer
+                    minimum: 0
+                    example: 4
+        '400':
+          description: invalid_photos_filter or invalid_user_id
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
   /posts/{id}:
     get:
       tags:
@@ -463,7 +541,35 @@ components:
       type: http
       scheme: bearer
       bearerFormat: JWT
-  
+
+  parameters:
+    UserIds:
+      name: user_ids
+      in: query
+      required: false
+      description: Comma-separated user ids (at most 100); only their posts.
+      schema:
+        type: string
+        example: 2,5
+    UserId:
+      name: user_id
+      in: query
+      required: false
+      description: One user id, the form older clients send. Combined with user_ids when both are given.
+      schema:
+        type: integer
+        format: int64
+        minimum: 1
+    Photos:
+      name: photos
+      in: query
+      required: false
+      description: single = posts with one image; series = two or more.
+      schema:
+        type: string
+        enum: [any, single, series]
+        default: any
+
   schemas:
     LanguageCode:
       type: string
@@ -514,8 +620,58 @@ components:
           format: password
           example: secret123
     
+    PublicUser:
+      type: object
+      description: What anyone may read about a person.
+      required:
+        - id
+        - username
+        - post_count
+        - photo_count
+        - created_at
+      properties:
+        id:
+          type: integer
+          format: int64
+          example: 1
+        username:
+          type: string
+          example: yamato
+        post_count:
+          type: integer
+          description: How many posts ("works") the person has.
+          example: 12
+        photo_count:
+          type: integer
+          description: How many images those posts hold in all.
+          example: 31
+        created_at:
+          type: string
+          format: date-time
+          example: 2026-04-14T12:00:00Z
+
+    Author:
+      type: object
+      required:
+        - id
+        - username
+        - post_count
+      properties:
+        id:
+          type: integer
+          format: int64
+          example: 1
+        username:
+          type: string
+          example: yamato
+        post_count:
+          type: integer
+          minimum: 1
+          example: 12
+
     UserResponse:
       type: object
+      description: The signed-in user's own account (login and signup responses only).
       required:
         - id
         - username
@@ -661,7 +817,6 @@ components:
         - caption
         - created_at
         - updated_at
-        - author
       properties:
         id:
           type: integer
@@ -691,6 +846,16 @@ components:
           maximum: 10
           description: How many images the post has.
           example: 3
+        tint:
+          type: string
+          pattern: '^#[0-9a-f]{6}$'
+          description: >-
+            The post's page colour: a pale colour computed by the server from
+            the cover's thumbnail, light enough that black text at 55% keeps a
+            4.5:1 contrast on it. Omitted until computed (e.g. the cover has
+            no thumbnail); clients then use their default page colour. Clients
+            can't set it.
+          example: '#efe6d6'
         images:
           type: array
           description: >-

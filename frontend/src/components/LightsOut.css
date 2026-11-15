@@ -1,0 +1,16 @@
+/* Lights out: inside the window, the page goes dark and the photo moves out to fill it (a
+   screen change). One screen down, the same wall label, white on black. */
+.lights {
+  position: fixed; inset: 0; z-index: var(--z-lights); overflow-y: auto; overscroll-behavior: contain;
+  scroll-snap-type: y mandatory; scrollbar-width: none; background: var(--black); color: var(--on-dark);
+}
+.lights::-webkit-scrollbar { display: none; }
+.lights-photo { height: 100svh; scroll-snap-align: start; scroll-snap-stop: always; cursor: zoom-out; }
+.lights-label { min-height: 100svh; scroll-snap-align: start; scroll-snap-stop: always; display: grid; place-items: center; padding: var(--s-64) var(--gutter); }
+.lights.is-idle .lights-photo, .lights.is-idle .lights-photo * { cursor: none; }
+.lights-track { height: 100%; }
+.lights-track:focus-visible { outline: 0; } /* the view itself is the focus; a ring would be the one distraction */
+.lights-frame { flex: 0 0 100%; height: 100%; margin: 0; display: grid; place-items: center; min-height: 0; scroll-snap-align: center; }
+.lights-frame img { width: auto; height: auto; max-width: 100vw; max-height: 100svh; }
+/* While lights out is up the header is under it, so it must not be lifted above it during the move. */
+.page:has(.lights) .header { view-transition-name: none; }

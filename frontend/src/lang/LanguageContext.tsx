@@ -1,4 +1,4 @@
-import { useMemo, useState, type ReactNode } from "react";
+import { useEffect, useMemo, useState, type ReactNode } from "react";
 import type { LanguageCode } from "../types/lang"
 import { translations } from ".";
 import { DEFAULT_LANGUAGE, LanguageContext, type LanguageContextValue } from "./useLanguage";
@@ -15,6 +15,11 @@ export function LanguageProvider({
     const [language, setLanguage] = useState<LanguageCode>(initialLanguage);
 
     const t = translations[language];
+
+    // <html lang> follows the language, so :lang(ja) rules apply (DESIGN-SYSTEM.md §3.3).
+    useEffect(() => {
+        document.documentElement.lang = language;
+    }, [language]);
 
     const value = useMemo<LanguageContextValue>(() => ({
         language,

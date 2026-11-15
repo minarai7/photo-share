@@ -1,0 +1,81 @@
+/* Photo Share base: page, links, buttons, counters and screen changes.
+ * Every value is a token from src/design/tokens.css (DESIGN-SYSTEM.md §11.1).
+ * Hover is for fine pointers only: ink links and marks fade to
+ * --hover-opacity, solid buttons to --hover-opacity-solid, grey links and
+ * controls darken to --link-strong. Component stylesheets sit beside their
+ * components. */
+
+*, *::before, *::after { box-sizing: border-box; }
+html { -webkit-text-size-adjust: 100%; }
+body {
+  --link-strong: var(--ink); /* what a grey link darkens to on hover (white on dark surfaces) */
+  margin: 0; min-height: 100vh;
+  font: 400 var(--fs-body)/1.6 var(--serif);
+  color: var(--ink);
+  background: var(--night);
+  -webkit-font-smoothing: antialiased;
+}
+:lang(ja) body { font-family: var(--jp); }
+img { display: block; max-width: 100%; }
+a { color: inherit; text-decoration: none; }
+button { background: none; border: 0; padding: 0; margin: 0; color: inherit; font: inherit; letter-spacing: inherit; text-transform: inherit; cursor: pointer; }
+:focus-visible { outline: var(--line) solid currentColor; outline-offset: 5px; }
+.sr-only { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap; }
+
+/* ------------------------------------------------------------ page & reel */
+.page { --page: var(--tint-default); min-height: 100vh; background-color: var(--page); transition: background-color var(--t-tint); }
+.page.is-paper { --page: var(--paper); }
+.reel { position: relative; height: 100svh; overflow-y: auto; scroll-snap-type: y mandatory; overscroll-behavior: contain; scrollbar-width: none; }
+.reel::-webkit-scrollbar { display: none; }
+/* Native snapping that can't fly past a work (or a photo) in one gesture. */
+.reel.is-stop > *, .track.is-stop > * { scroll-snap-stop: always; }
+
+/* ------------------------------------------------------------ links & buttons */
+.hlink { display: inline-flex; align-items: center; font: 400 var(--fs-label)/1 var(--display); letter-spacing: var(--track-label); text-transform: uppercase; transition: opacity var(--t-hover); }
+.textlink { font: 400 var(--fs-label)/1 var(--display); letter-spacing: var(--track-label); text-transform: uppercase; border-bottom: var(--line) solid currentColor; padding-bottom: var(--s-4); transition: opacity var(--t-hover); }
+.textlink.is-light { color: var(--on-dark); }
+.author { color: var(--ink); border-bottom: var(--line) solid currentColor; padding-bottom: 1px; transition: opacity var(--t-hover); }
+
+/* Grey links: the quiet link (secondary actions beside information), Find, and
+   "3 others". Muted, a hairline in --hair; on hover they darken, never fade. */
+.quietlink {
+  color: var(--muted); border-bottom: var(--line) solid var(--hair); padding-bottom: var(--s-2);
+  font: 400 var(--fs-label-xs)/1.4 var(--display); letter-spacing: var(--track-label); text-transform: uppercase;
+  transition: color var(--t-color), border-color var(--t-color);
+}
+.quietlink.is-light { color: var(--muted-on-dark); border-bottom-color: var(--hair-on-dark); }
+
+.btn { background: var(--ink); color: var(--on-dark); padding: var(--s-16) var(--s-28); font: 400 var(--fs-label)/1 var(--display); letter-spacing: var(--track-wide); text-transform: uppercase; transition: opacity var(--t-hover); }
+.btn:disabled { opacity: var(--disabled-opacity); cursor: progress; }
+.btn.is-light { background: var(--on-dark); color: var(--ink); }
+.btn.is-block { width: 100%; }
+
+/* Japanese never takes uppercase, italics or wide tracking (§3.3). */
+:lang(ja) :is(.hlink, .textlink, .quietlink, .btn) { text-transform: none; letter-spacing: var(--track-ja); font-family: var(--jp); }
+
+@media (hover: hover) and (pointer: fine) {
+  :is(.hlink, .textlink, .author):hover { opacity: var(--hover-opacity); }
+  .btn:hover:not(:disabled) { opacity: var(--hover-opacity-solid); }
+  .quietlink:hover { color: var(--link-strong); border-bottom-color: currentColor; }
+}
+
+/* ------------------------------------------------------------ counter (NumberFlow) */
+.count { display: inline-flex; align-items: baseline; font-variant-numeric: tabular-nums; }
+
+/* ------------------------------------------------------------ a sentence for a whole screen (loading, empty, error, 404) */
+.notice { min-height: 100svh; display: grid; place-content: center; justify-items: center; gap: var(--s-22); padding: var(--header-h) var(--gutter); text-align: center; }
+.notice-text { margin: 0; max-width: 28em; font: italic 400 var(--fs-title)/1.3 var(--serif); }
+.notice-text[role="alert"] { color: var(--danger); }
+:lang(ja) .notice-text { font: 400 var(--fs-field)/1.6 var(--jp); letter-spacing: var(--track-ja); }
+
+/* ------------------------------------------------------------ reduced motion */
+@media (prefers-reduced-motion: reduce) {
+  .page { transition: none; }
+}
+
+/* ------------------------------------------------------------ screen changes (View Transitions) */
+/* The header holds still (view-transition-name: header); the photo on screen
+   (workPhoto → work-<id>) moves into its place on the next screen; everything
+   else crossfades at the page-tint tempo. */
+::view-transition-group(*) { animation-duration: var(--t-screen); animation-timing-function: var(--ease-out); }
+::view-transition-old(root), ::view-transition-new(root) { animation-duration: var(--t-screen); animation-timing-function: linear; }

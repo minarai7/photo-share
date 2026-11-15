@@ -1,0 +1,28 @@
+/* Wall label: a small block, left-aligned, alone in the middle of its screen. Title italic, year roman. */
+.wall-label { width: min(100%, var(--label-w)); display: grid; justify-items: start; gap: var(--s-8); }
+.wall-label::before { content: ""; width: 32px; height: var(--line); margin-bottom: var(--s-18); background: var(--ink); }
+.wall-label .author { font: 400 var(--fs-label)/1.4 var(--display); letter-spacing: var(--track-label); text-transform: uppercase; }
+.wall-title { margin: var(--s-6) 0 0; font: italic 400 var(--fs-title)/1.25 var(--serif); overflow-wrap: anywhere; }
+.wall-title em { font-style: normal; }
+.wall-title.is-ja { font: 400 var(--fs-option)/1.6 var(--jp); letter-spacing: var(--track-ja); }
+.wall-place { margin: 0; font: 400 var(--fs-body)/1.4 var(--serif); }
+.wall-medium { margin: var(--s-10) 0 0; padding: 0; list-style: none; display: grid; gap: var(--s-4); font: 400 var(--fs-body)/1.4 var(--serif); color: var(--muted); }
+.wall-meta { margin: var(--s-10) 0 0; font: 400 var(--fs-label-xs)/1.6 var(--display); letter-spacing: var(--track-label); text-transform: uppercase; color: var(--muted); }
+:lang(ja) :is(.wall-place, .wall-medium) { font-family: var(--jp); letter-spacing: var(--track-ja); }
+/* Find: a grey link after a camera or lens. */
+.find {
+  margin-left: var(--s-10); padding-bottom: var(--s-2); color: var(--muted); border-bottom: var(--line) solid currentColor;
+  font: 400 var(--fs-label-xs)/1 var(--display); letter-spacing: var(--track-label); text-transform: uppercase;
+  transition: color var(--t-color), border-color var(--t-color);
+}
+.find:disabled { cursor: progress; }
+:lang(ja) .find { font-family: var(--jp); letter-spacing: var(--track-ja); }
+@media (hover: hover) and (pointer: fine) { .find:hover { color: var(--link-strong); border-bottom-color: currentColor; } }
+/* Owner actions: "Manage", opening to Edit · Delete (quiet links). */
+.owner-line { margin: var(--s-12) 0 0; display: flex; gap: var(--s-22); }
+/* The same label in lights out: white on black. */
+.wall-label.is-dark { --link-strong: var(--on-dark); color: var(--on-dark); }
+.wall-label.is-dark::before { background: currentColor; }
+.wall-label.is-dark .author { color: inherit; }
+.wall-label.is-dark :is(.wall-medium, .wall-meta, .find) { color: var(--muted-on-dark); }
+.wall-label.is-dark .quietlink { color: var(--muted-on-dark); border-bottom-color: var(--hair-on-dark); }
