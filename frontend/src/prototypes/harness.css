@@ -1,0 +1,172 @@
+/* ---- Shared reset for every prototype variant ---- */
+*, *::before, *::after { box-sizing: border-box; }
+html, body { margin: 0; }
+body { -webkit-font-smoothing: antialiased; -moz-osx-font-smoothing: grayscale; }
+img { display: block; max-width: 100%; }
+button { font: inherit; color: inherit; }
+.proto-stage { min-height: 100vh; }
+.sr-only {
+  position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px;
+  overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; border: 0;
+}
+
+/* ---- Picker: verbatim from emilkowalski/skills prototype/PICKER.md ---- */
+.proto-picker {
+  position: fixed;
+  bottom: 24px;
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 2147483647;
+  display: flex;
+  align-items: center;
+  gap: 2px;
+  padding: 4px;
+  border-radius: 999px;
+  background: rgba(10, 10, 10, 0.82);
+  -webkit-backdrop-filter: blur(12px) saturate(1.4);
+  backdrop-filter: blur(12px) saturate(1.4);
+  box-shadow:
+    0 0 0 1px rgba(255, 255, 255, 0.08) inset,
+    0 8px 24px rgba(0, 0, 0, 0.24),
+    0 2px 6px rgba(0, 0, 0, 0.12);
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+  font-size: 13px;
+  line-height: 1;
+  -webkit-font-smoothing: antialiased;
+  user-select: none;
+  -webkit-user-select: none;
+}
+
+.proto-picker-highlight {
+  position: absolute;
+  top: 4px;
+  left: 0;
+  height: 28px;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.12);
+}
+
+.proto-picker[data-ready] .proto-picker-highlight {
+  transition:
+    transform 250ms cubic-bezier(0.23, 1, 0.32, 1),
+    width 250ms cubic-bezier(0.23, 1, 0.32, 1);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .proto-picker[data-ready] .proto-picker-highlight { transition: none; }
+}
+
+.proto-picker-item {
+  position: relative;
+  display: flex;
+  align-items: center;
+  height: 28px;
+  padding: 0 12px;
+  border: 0;
+  border-radius: 999px;
+  background: transparent;
+  color: rgba(255, 255, 255, 0.55);
+  font: inherit;
+  cursor: pointer;
+  transition:
+    color 150ms ease-out,
+    transform 160ms cubic-bezier(0.23, 1, 0.32, 1);
+}
+
+@media (hover: hover) and (pointer: fine) {
+  .proto-picker-item:hover {
+    color: rgba(255, 255, 255, 0.85);
+  }
+}
+
+.proto-picker-item:active {
+  transform: scale(0.97);
+}
+
+.proto-picker-item:focus-visible {
+  outline: 2px solid rgba(255, 255, 255, 0.4);
+  outline-offset: 2px;
+}
+
+.proto-picker-item[data-active] {
+  color: #fff;
+}
+
+.proto-picker-divider {
+  width: 1px;
+  height: 16px;
+  margin: 0 4px;
+  background: rgba(255, 255, 255, 0.12);
+}
+
+.proto-picker-replay {
+  padding: 0 10px;
+  font-size: 14px;
+}
+
+.proto-picker[data-position="top"] {
+  bottom: auto;
+  top: 24px;
+}
+
+/* ---- Screen bar: harness chrome in the picker's exact style ---- */
+.proto-screens {
+  position: fixed;
+  bottom: 68px;
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 2147483647;
+  display: flex;
+  align-items: center;
+  gap: 2px;
+  padding: 4px;
+  border-radius: 999px;
+  background: rgba(10, 10, 10, 0.82);
+  -webkit-backdrop-filter: blur(12px) saturate(1.4);
+  backdrop-filter: blur(12px) saturate(1.4);
+  box-shadow:
+    0 0 0 1px rgba(255, 255, 255, 0.08) inset,
+    0 8px 24px rgba(0, 0, 0, 0.24),
+    0 2px 6px rgba(0, 0, 0, 0.12);
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+  font-size: 12px;
+  line-height: 1;
+  user-select: none;
+  -webkit-user-select: none;
+  max-width: calc(100vw - 16px);
+  overflow-x: auto;
+  scrollbar-width: none;
+}
+.proto-screens .proto-picker-item { height: 26px; padding: 0 10px; white-space: nowrap; }
+
+/* ---- Options panel (variants that declare mix-and-match choices) ---- */
+.proto-options {
+  position: fixed;
+  right: 16px;
+  bottom: 112px;
+  z-index: 2147483647;
+  display: grid;
+  gap: 6px;
+  max-width: calc(100vw - 32px);
+  padding: 8px 10px;
+  border-radius: 14px;
+  background: rgba(10, 10, 10, 0.82);
+  -webkit-backdrop-filter: blur(12px) saturate(1.4);
+  backdrop-filter: blur(12px) saturate(1.4);
+  box-shadow: 0 0 0 1px rgba(255, 255, 255, 0.08) inset, 0 8px 24px rgba(0, 0, 0, 0.24);
+  color: rgba(255, 255, 255, 0.55);
+  font: 12px/1 -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+  user-select: none;
+  -webkit-user-select: none;
+}
+.proto-options summary { cursor: pointer; padding: 4px 2px; color: rgba(255, 255, 255, 0.8); }
+.proto-options[open] summary { margin-bottom: 4px; }
+.proto-options-row { display: flex; flex-wrap: wrap; align-items: center; gap: 2px; }
+.proto-options-label { width: 92px; flex: none; color: rgba(255, 255, 255, 0.45); font-size: 11px; }
+.proto-options .proto-picker-item { height: 24px; padding: 0 9px; white-space: nowrap; }
+.proto-options .proto-picker-item[data-active] { background: rgba(255, 255, 255, 0.14); }
+@media (max-width: 760px) {
+  .proto-options { bottom: auto; top: 64px; right: 8px; max-width: calc(100vw - 16px); }
+  .proto-options-label { width: 100%; }
+}
+.proto-screens .proto-picker-item[data-active] { background: rgba(255, 255, 255, 0.12); }

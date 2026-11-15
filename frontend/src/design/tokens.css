@@ -1,0 +1,146 @@
+/* Photo Share design tokens. The rules for using them are in /DESIGN-SYSTEM.md.
+ *
+ * Every value the interface uses lives here. Component stylesheets read these
+ * tokens and never type a value that has one; the reference implementation
+ * (src/prototypes/variants/immersive.css) does exactly that. Sizes the scales
+ * don't cover are component dimensions (a 12px chevron, an 88px tile) and stay
+ * in the component, named by what they measure.
+ *
+ * Single theme by design: light paper, each page in its photo's colour, and
+ * two dark surfaces (the hero's --night, lights out's --black). No dark mode.
+ */
+
+:root {
+  /* ---------------------------------------------------------------- colour */
+  --ink: #0d0d0d;                     /* text, rules, solid buttons: the one black of the interface */
+  --muted: rgba(0, 0, 0, 0.55);       /* secondary text: credits, labels, counts, quiet links */
+  --faint: rgba(0, 0, 0, 0.32);       /* placeholders, the dashed "add" tile */
+  --hair: rgba(0, 0, 0, 0.14);        /* 1px dividers, quiet-link underlines */
+  --rule: rgba(0, 0, 0, 0.6);         /* input underlines, drop-zone borders */
+  --wash: rgba(0, 0, 0, 0.06);        /* an empty photo tile */
+  --danger: #8c1d18;                  /* errors, the Delete confirm button; never decoration */
+
+  --paper: #f4f1ec;                   /* a page with no photo yet (new post before photos, 404) */
+  --sheet: #f1eee8;                   /* overlays: Index, dialogs, tooltip, toasts */
+  --tint-default: #ece9e2;            /* page colour before a photo supplies one */
+  --night: #141414;                   /* the hero's ground under its photo */
+  --black: #000;                      /* lights out only: a photograph alone on black */
+  --scrim: rgba(20, 20, 20, 0.55);    /* behind dialogs (--night at 55%) */
+  --on-dark: #fff;                    /* text on --night / --black / photos; the light button */
+  --muted-on-dark: rgba(255, 255, 255, 0.6);  /* secondary text on dark */
+  --hair-on-dark: rgba(255, 255, 255, 0.25);  /* quiet-link underline on dark */
+
+  /* The per-photo page colour. Each work carries `tint` (pale, sampled from the
+     photo); a page sets it with style="--page: <tint>". Fallback below. */
+  --page: var(--tint-default);
+
+  /* Text over a photograph (hero text, the header over a hero): a soft halo
+     under the letters, and the hero's corner shade where its words sit. */
+  --halo: 0 1px 20px rgba(0, 0, 0, 0.45), 0 0 2px rgba(0, 0, 0, 0.3);
+  --halo-mark: drop-shadow(0 0 3px rgba(0, 0, 0, 0.6));     /* for icons (filter) */
+  --hero-shade: radial-gradient(130% 85% at 0% 100%, rgba(0, 0, 0, 0.72) 0%, rgba(0, 0, 0, 0.5) 30%, rgba(0, 0, 0, 0.18) 55%, rgba(0, 0, 0, 0) 75%);
+
+  /* ------------------------------------------------------------------ type */
+  --display: "Cinzel", "Noto Serif JP", "Times New Roman", serif;     /* the voice: tracked capitals */
+  --serif: "Cormorant Garamond", "Noto Serif JP", Georgia, serif;     /* titles, prose, form input */
+  --jp: "Noto Serif JP", "Yu Mincho", "Hiragino Mincho ProN", serif;  /* any Japanese text */
+
+  /* Display sizes (Cinzel, uppercase, tracked). Small on purpose. */
+  --fs-micro: 8.5px;      /* COVER badge, the filter line on phones */
+  --fs-label-xs: 9.5px;   /* fact and filter labels, quiet links, meta lines, kickers */
+  --fs-label-sm: 10px;    /* credit line, index numbers, EN / JA, the scroll cue */
+  --fs-label: 10.5px;     /* header links, text links, buttons, hero stats */
+  --fs-label-lg: 12px;    /* counter totals; the wordmark and vertical title on phones */
+  --fs-mark: 15px;        /* wordmark, vertical title, sheet titles */
+  --fs-mark-lg: 17px;     /* form titles (Log in, Create account) */
+  --fs-count: 20px;       /* the pager's current number */
+  --fs-count-lg: 30px;    /* the position counter's current number */
+  --fs-hero: 44px;        /* hero name: Photo Share / a username (28px on phones) */
+  /* Serif sizes (Cormorant Garamond, often italic). */
+  --fs-small: 13px;       /* prototype notes, Japanese tile captions */
+  --fs-hint: 15px;        /* hints, field errors, toast text */
+  --fs-body: 17px;        /* running text, wall label lines, tile captions */
+  --fs-option: 18px;      /* filter options, gear links in dialogs, Japanese wall title */
+  --fs-field: 20px;       /* input text, sub-titles, the empty Index sentence */
+  --fs-lead: 23px;        /* hero line, caption-bar title (19px on phones) */
+  --fs-title: 28px;       /* wall-label title, dialog titles, end card */
+
+  --track-tight: 0.04em;  /* italic years inside tracked titles */
+  --track-ja: 0.08em;     /* Japanese: light tracking, never uppercase */
+  --track-meta: 0.18em;   /* small data: credit line, numbers, EN / JA, filter line */
+  --track-label: 0.2em;   /* default Cinzel tracking: links, labels, buttons in dialogs */
+  --track-wide: 0.24em;   /* solid buttons, section titles, the scroll cue, kickers */
+  --track-mark: 0.28em;   /* wordmark, sheet and form titles */
+  --track-ja-vertical: 0.38em; /* short vertical Japanese titles */
+
+  /* ---------------------------------------------------------------- layout */
+  --gutter: 44px;         /* frame inset: header, rails, fixed controls (18px on phones) */
+  --rail: 128px;          /* side room for the vertical title / counter around a slide (88px ≤1100px, 16px on phones) */
+  --header-h: 90px;       /* fixed header incl. padding; content starts below it (64px on phones) */
+  --bar: 88px;            /* the post view's caption bar under the photo (84px on phones) */
+  --form-w: 360px;        /* log-in / sign-up form column */
+  --panel-w: 400px;       /* the new-post side panel (340px ≤1100px) */
+  --label-w: 340px;       /* the wall label's measure */
+  --photo-max: 1180px;    /* widest a feed photo gets */
+  --feed-reserve: 200px;  /* height kept for text around a feed photo (230px on phones); the post view never reserves more */
+
+  /* Spacing scale: the only gaps, paddings and margins. Steps of 2 up to 18,
+     then a widening scale. Named by value so a reader knows the size. */
+  --s-2: 2px;
+  --s-4: 4px;
+  --s-6: 6px;
+  --s-8: 8px;
+  --s-10: 10px;
+  --s-12: 12px;
+  --s-14: 14px;
+  --s-16: 16px;
+  --s-18: 18px;
+  --s-22: 22px;
+  --s-28: 28px;
+  --s-36: 36px;
+  --s-48: 48px;
+  --s-64: 64px;
+  --s-96: 96px;
+  --s-150: 150px;         /* bottom room under long pages and sheets */
+
+  /* Shape: square corners and 1px lines everywhere. Nothing is rounded. */
+  --line: 1px;
+
+  /* ---------------------------------------------------------------- motion */
+  --t-color: 0.2s linear;        /* colour/border changes on controls (grey links darkening) */
+  --t-hover: 0.4s linear;        /* opacity hover: ink links, buttons, grid photos */
+  --t-tint: 0.45s linear;        /* page colour following the photo in view */
+  --t-overlay: 0.2s ease-out;    /* sheets fading in/out, field focus */
+  --t-idle: 0.6s linear;         /* the post view's header and bar fading when idle */
+  --ease-out: cubic-bezier(0.23, 1, 0.32, 1);
+  --t-pop: 0.18s;                /* tooltip (with --ease-out) */
+  --t-dialog: 0.22s;             /* dialogs (with --ease-out) */
+  --t-screen: 0.45s;             /* a screen change (View Transitions), the page-tint tempo */
+  --t-cue: 2.4s;                 /* one draw of the hero's scroll line */
+  --idle-fade: 2.6s;             /* the post view hides its header and bar after this, at the top (IDLE_FADE_MS) */
+  --idle-cursor: 1.5s;           /* lights out hides the cursor after this (IDLE_CURSOR_MS) */
+  --hover-opacity: 0.6;          /* ink links and marks on hover */
+  --hover-opacity-solid: 0.82;   /* solid buttons on hover */
+  --disabled-opacity: 0.55;      /* a button while its action runs */
+  --disabled-opacity-mark: 0.2;  /* a hairline mark that can't act (pager at its end) */
+
+  /* --------------------------------------------------------------- z-index */
+  --z-bar: 5;             /* the post view's caption bar */
+  --z-progress: 50;       /* position counter */
+  --z-filterline: 55;
+  --z-header: 60;
+  --z-lights: 90;         /* lights out: over the page, under dialogs opened from its label (Find, Edit, Delete) */
+  --z-dialog: 100;        /* backdrop 100, popup 101; the names tooltip */
+  --z-sheet: 200;         /* the Index */
+}
+
+@media (max-width: 1100px) {
+  :root { --rail: 88px; --panel-w: 340px; }
+}
+
+@media (max-width: 760px) {
+  :root {
+    --gutter: 18px; --rail: 16px; --header-h: 64px; --bar: 84px; --feed-reserve: 230px;
+    --fs-hero: 28px; --fs-lead: 19px;
+  }
+}
