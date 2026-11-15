@@ -49,10 +49,13 @@ jobs:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
         with:
-          # 24 ships npm 11, matching local dev; npm 10 rejects lockfiles npm 11 writes.
           node-version: 24
           cache: npm
           cache-dependency-path: frontend/package-lock.json
+      # The exact npm pinned in package.json ("packageManager"), which local
+      # checks use too (npm run lockfile:check, .githooks/pre-commit): npm
+      # versions disagree about which lockfiles are in sync.
+      - run: npm install -g "$(node -p "require('./package.json').packageManager")"
       - run: npm ci
       - run: npm run lint
       # tsc -b type-checks app, tests and e2e specs; then vite build.

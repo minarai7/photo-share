@@ -1,11 +1,12 @@
 # syntax=docker/dockerfile:1
 
-FROM node:22-alpine AS builder
+FROM node:24-alpine AS builder
 
 WORKDIR /app
 
 COPY package*.json ./
-RUN npm ci
+# The npm pinned in package.json, like CI: other versions may reject the lockfile.
+RUN npm install -g "$(node -p "require('./package.json').packageManager")" && npm ci
 
 COPY . .
 

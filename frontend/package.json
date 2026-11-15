@@ -3,7 +3,10 @@
   "private": true,
   "version": "0.0.0",
   "type": "module",
+  "packageManager": "npm@11.19.1",
   "scripts": {
+    "lockfile:check": "node scripts/lockfile.mjs check",
+    "lockfile:fix": "node scripts/lockfile.mjs fix",
     "dev": "vite",
     "build": "tsc -b && vite build",
     "lint": "eslint . --max-warnings 0",

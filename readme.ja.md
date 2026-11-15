@@ -188,7 +188,13 @@ VITE_API_BASE_URL=http://localhost:8080
 ### 8. フロントエンドの依存関係をインストールする
 
 ```bash
-npm install
+npm ci
+```
+
+CI は `frontend/package.json` の `packageManager` で固定した npm を使います。ほかのバージョンの npm は、CI が受け付けない lockfile を書くことがあります。依存関係を変えたら `npm run lockfile:fix`（その npm で `package-lock.json` を書き直す）と `npm run lockfile:check` を実行してください。CI が拒否する lockfile をコミットできないよう、クローンごとに一度 pre-commit フックを有効にします。
+
+```bash
+git config core.hooksPath .githooks
 ```
 
 ### 9. フロントエンドの開発サーバーを起動する

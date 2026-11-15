@@ -188,7 +188,13 @@ VITE_API_BASE_URL=http://localhost:8080
 ### 8. Install frontend dependencies
 
 ```bash
-npm install
+npm ci
+```
+
+CI uses the npm version pinned in `frontend/package.json` (`packageManager`), and other npm versions can write a lockfile it rejects. After changing dependencies, run `npm run lockfile:fix` (rewrites `package-lock.json` with that npm) and `npm run lockfile:check`. Enable the pre-commit hook once per clone so a lockfile CI would reject can't be committed:
+
+```bash
+git config core.hooksPath .githooks
 ```
 
 ### 9. Start the frontend dev server

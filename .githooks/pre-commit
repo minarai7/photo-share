@@ -1,0 +1,20 @@
+#!/bin/sh
+# Blocks a commit whose frontend lockfile CI's `npm ci` would reject.
+# Enable once per clone:  git config core.hooksPath .githooks
+#
+# Runs only when frontend/package.json or frontend/package-lock.json is
+# staged, and checks the staged versions (not the working tree), with the npm
+# version pinned in package.json (see frontend/scripts/lockfile.mjs).
+
+staged=$(git diff --cached --name-only --diff-filter=ACMR -- frontend/package.json frontend/package-lock.json)
+[ -z "$staged" ] && exit 0
+
+tmp=$(mktemp -d)
+trap 'rm -rf "$tmp"' EXIT
+mkdir -p "$tmp/scripts"
+git show :frontend/package.json > "$tmp/package.json" || exit 1
+git show :frontend/package-lock.json > "$tmp/package-lock.json" || exit 1
+cp frontend/scripts/lockfile.mjs "$tmp/scripts/lockfile.mjs" || exit 1
+
+echo "pre-commit: checking the staged frontend lockfile..."
+node "$tmp/scripts/lockfile.mjs" check
