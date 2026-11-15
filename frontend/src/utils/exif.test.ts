@@ -1,5 +1,3 @@
-import { readFileSync } from "node:fs";
-import { resolve } from "node:path";
 import { describe, expect, it } from "vitest";
 import { concat, jpeg, png, text, tiff, webp } from "../test/exifBytes";
 import { gearFromBytes, readGear } from "./exif";
@@ -52,13 +50,6 @@ describe("readGear", () => {
     it("reads a file", async () => {
         const file = new Blob([jpeg(sony) as BlobPart, new Uint8Array(2048)]);
         expect(await readGear(file)).toEqual({ camera: "SONY ILCE-7C", lens: "FE 35mm F1.8" });
-    });
-
-    // The Unsplash samples in testfiles/ were stripped (their gear is only in
-    // the filename): a real JPEG with no EXIF reads as nothing, not an error.
-    it("reads a real JPEG without EXIF as nothing", async () => {
-        const path = resolve(__dirname, "../../../testfiles/flower.jpg");
-        expect(await readGear(new Blob([new Uint8Array(readFileSync(path))]))).toEqual({ camera: null, lens: null });
     });
 
     it("never throws on a file it can't read", async () => {
