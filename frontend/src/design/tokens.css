@@ -1,8 +1,8 @@
 /* Photo Share design tokens. The rules for using them are in /DESIGN-SYSTEM.md.
  *
  * Every value the interface uses lives here. Component stylesheets read these
- * tokens and never type a value that has one; the reference implementation
- * (src/prototypes/variants/immersive.css) does exactly that. Sizes the scales
+ * tokens and never type a value that has one, as src/components/*.css and
+ * src/styles/base.css do. Sizes the scales
  * don't cover are component dimensions (a 12px chevron, an 88px tile) and stay
  * in the component, named by what they measure.
  *
@@ -57,7 +57,7 @@
   --fs-count-lg: 30px;    /* the position counter's current number */
   --fs-hero: 44px;        /* hero name: Photo Share / a username (28px on phones) */
   /* Serif sizes (Cormorant Garamond, often italic). */
-  --fs-small: 13px;       /* prototype notes, Japanese tile captions */
+  --fs-small: 13px;       /* Japanese tile captions */
   --fs-hint: 15px;        /* hints, field errors, toast text */
   --fs-body: 17px;        /* running text, wall label lines, tile captions */
   --fs-option: 18px;      /* filter options, gear links in dialogs, Japanese wall title */
