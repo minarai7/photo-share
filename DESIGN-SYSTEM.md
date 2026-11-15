@@ -1,16 +1,16 @@
 # Photo Share design system
 
-This is the rulebook for every Photo Share screen. Read it before designing, building or reviewing UI, and keep it up to date when a decision changes (see [§13 Changing the system](#13-changing-the-system)). §11.2 is the handoff for the production rebuild.
+This is the rulebook for every Photo Share screen. Read it before designing, building or reviewing UI, and keep it up to date when a decision changes (see [§13 Changing the system](#13-changing-the-system)). §11.2 maps each part to its production file.
 
 | | |
 |---|---|
 | **Tokens** | [`frontend/src/design/tokens.css`](frontend/src/design/tokens.css): every colour, type size, tracking, spacing step, layout dimension, duration and layer has a name there. Component stylesheets use only these (§11.1) |
-| **Reference implementation** | The **Combined** prototype: `frontend/src/prototypes/variants/Combined.tsx` renders every screen from `Immersive.tsx` + `immersive.css` (scope `.v3`, classes `i-*`), which reads only tokens. Screen transitions live in `Harness.tsx` (`withViewTransition`). Shared behaviour is in `shared/ui.tsx`, `shared/hooks.ts` and `shared/shared.css`. The other harness variants (Exhibition, Wall label, Immersive, Catalogue) are retired looks kept for comparison. Don't copy from them |
-| **Run it** | `cd frontend; npm run dev`, then open `/prototypes.html` (Combined is `?v=1`, the default). The **Options** panel appears only while a decision in §12 is open |
+| **Reference implementation** | The production app. Components in `frontend/src/components/` (each with its own stylesheet), screens in `frontend/src/pages/`, base rules in `frontend/src/styles/base.css`. Screen changes go through `src/navigation/viewTransition.ts`; reel and track behaviour is in `src/hooks/` (`useSnapTrack`, `useReelKeys`). §11.2 maps each part to its file. The Combined prototype these were built from was retired once production matched it (it is in git history, commit `dd2102e`) |
+| **Run it** | `cd frontend; npm run dev` (needs the backend for data; see CLAUDE.md) |
 | **Background** | `DESIGN-INSPIRATION.md` (the study of marikoohya.jp the look comes from), `prototype-feedback.md` (the owner's feedback rounds) |
 | **Skills** | `photo-share-design` (load before UI work), `design-system` (audit / document / extend), `frontend-design` plugin |
 
-When sources disagree, precedence is: **the owner's latest words → this document → the Combined prototype code → `DESIGN-INSPIRATION.md`**. If the code and this document differ, fix whichever is wrong and say so. Don't silently follow one of them.
+When sources disagree, precedence is: **the owner's latest words → this document → the production code → `DESIGN-INSPIRATION.md`**. If the code and this document differ, fix whichever is wrong and say so. Don't silently follow one of them.
 
 ---
 
@@ -43,7 +43,7 @@ When sources disagree, precedence is: **the owner's latest words → this docume
 | `--serif` | Cormorant Garamond 400 / *italic* | **Titles and prose**: work titles (italic), years, body copy, form input text, filter options, hints, errors | Tiny labels under 13px |
 | `--jp` | Noto Serif JP 400/500 | Any Japanese string (titles, captions, UI in `ja`) | Uppercase or wide tracking |
 
-There is no monospace face. Fonts are self-hosted through `@fontsource` (imported once in the entry file), never loaded from Google. Inter and IBM Plex Mono are installed only for retired prototypes. They are not part of the system.
+There is no monospace face. Fonts are self-hosted through `@fontsource` (imported once in the entry file), never loaded from Google (`main.tsx`: Cinzel 400/500, Cormorant Garamond 400 and 400 italic, Noto Serif JP 400/500).
 
 ### 3.2 Type scale
 
@@ -60,7 +60,7 @@ Write copy in sentence case in `en.ts`/`ja.ts`. Uppercase comes from CSS (`text-
 | `--fs-mark-lg` | 17px | display | form titles ("Log in", "New post") |
 | `--fs-count` / `--fs-count-lg` | 20 / 30px | display | pager number / position-counter number |
 | `--fs-hero` | 44px (28 on phones) | display | hero name: "Photo Share", a username |
-| `--fs-small` | 13px | serif / jp | prototype notes, Japanese tile captions |
+| `--fs-small` | 13px | serif / jp | Japanese tile captions |
 | `--fs-hint` | 15px | serif italic | hints, field errors, toast text, dialog notes |
 | `--fs-body` | 17px | serif | running text, wall-label lines, tile captions, the base size |
 | `--fs-option` | 18px | serif italic | filter options, gear links; Japanese wall title |
@@ -83,7 +83,7 @@ Titles always pair with their **year**: in serif italic after a roman title ("Ga
 ### 3.3 Japanese
 
 - Detect Japanese titles (`/[぀-ヿ㐀-鿿]/`) and add `is-ja`. Switch to `--jp`, set `text-transform: none`, and use `--track-ja` (`--track-ja-vertical` only for short vertical titles). Never apply italics.
-- Vertical Japanese titles are **not** rotated 180°. They read top to bottom (`.i-vtitle.is-ja`).
+- Vertical Japanese titles are **not** rotated 180°. They read top to bottom (`.vtitle.is-ja`).
 - In production, set `<html lang>` from `LanguageProvider` so `:lang(ja)` rules work.
 
 ## 4. Colour
@@ -136,7 +136,7 @@ Every gap, padding and margin is a step: `--s-2`, `--s-4`, `--s-6`, `--s-8`, `--
 
 ### 5.3 Frame
 
-- **Header** (`.i-header`): fixed, transparent, `--s-28` padding (`--s-18` on phones). The wordmark is on the left. On the right are two things only: one action, `+ New` for a member or `Log in` for a visitor (absent on the log-in and sign-up pages), then the lead link, which on the feed is the Index link ("All 10 works"). Your profile, Log out, Sign up and `EN / JA` live in the heroes, which the wordmark and one scroll up always reach. **On the post and new-post pages the nav is replaced by Close.** On pages that scroll normally the header takes the page colour. Nothing else goes near the wordmark.
+- **Header** (`.header`): fixed, transparent, `--s-28` padding (`--s-18` on phones). The wordmark is on the left. On the right are two things only: one action, `+ New` for a member or `Log in` for a visitor (absent on the log-in and sign-up pages), then the lead link, which on the feed is the Index link ("All 10 works"). Your profile, Log out, Sign up and `EN / JA` live in the heroes, which the wordmark and one scroll up always reach. **On the post and new-post pages the nav is replaced by Close.** On pages that scroll normally the header takes the page colour. Nothing else goes near the wordmark.
 - **Left rail:** the vertical title of the work in view. **Right rail:** the position counter `03 / 10` (rotated −90°).
 
 ### 5.4 Slide
@@ -165,46 +165,46 @@ Every gap, padding and margin is a step: `--s-2`, `--s-4`, `--s-6`, `--s-8`, `--
 
 ## 6. Components
 
-Name parts by role (`Header`, `CloseButton`, `Pager`). Prototype classes carry the `i-` prefix; in production use one prefix-free set (§11.2).
+Name parts by role (`Header`, `CloseButton`, `Pager`). Class names are prefix-free; each component in `frontend/src/components/` has its stylesheet beside it (§11.2).
 
-| Component | Prototype | Rules |
+| Component | Production | Rules |
 |---|---|---|
-| **Wordmark** | `Header` → `.i-wordmark` | Always goes to the feed; on the feed, back to its top (the landing hero). Nothing sits next to it |
-| **Header link** | `.i-hlink` | Display caps, no underline, fades to `--hover-opacity` on hover. "+ New", "Log in", the Index link, Info and Close are header links |
-| **Close** | `CloseButton` (`.i-close`) | **The one close control:** reads **"− Close"**, the counterpart of "+ New" (a header link, minus sign `aria-hidden`). Used for the Index sheet (`<Dialog.Close render={<CloseButton />} />`), leaving a post (`PostClose`) and leaving new post (`CreateClose`). Callers give a spoken label ("Close, back to feed"). Esc does the same, unless a field, dialog or drag has it. Never make another close or ✕ |
-| **Text link** | `.i-textlink` | Display caps with a 1px underline, for actions in running copy and empty states ("No account yet? *Sign up*", "Clear filters", "Back to the top"). `.is-light` on the hero |
-| **Quiet link** | `.i-quietlink` | Lower in the hierarchy than a text link or an author link: `--muted` at `--fs-label-xs` with a `--hair` underline. For actions beside information, never the point of the screen: the filter line's Clear, the Index's Clear all, Log out, Manage, Edit, Delete. `.is-light` on the hero |
-| **Button** | `.i-btn` | Solid `--ink` with `--on-dark` text, display caps, square. `.is-light` (white, on the hero), `.is-block` (full width in forms). One per view, for the main action (Log in, Publish, New post). While its action runs: `--disabled-opacity`, a `progress` cursor, and the label says what's happening ("Publishing…") |
-| **Index link** | `indexLink` in `ImmersiveFeed` (`.i-hlink.i-indexlink`) | The single way into the Index. It names the set on screen: "All 10 works", or "4 of 10 works" (weight 500) while a filter narrows it. Sort only reorders, so it never makes "10 of 10". Grid icon before it |
+| **Wordmark** | `Header` → `.wordmark` | Always goes to the feed; on the feed, back to its top (the landing hero). Nothing sits next to it |
+| **Header link** | `.hlink` | Display caps, no underline, fades to `--hover-opacity` on hover. "+ New", "Log in", the Index link, Info and Close are header links |
+| **Close** | `CloseButton` (`.close`) | **The one close control:** reads **"− Close"**, the counterpart of "+ New" (a header link, minus sign `aria-hidden`). Used for the Index sheet (`<Dialog.Close render={<CloseButton />} />`), leaving a post (`PostDetailPage`) and leaving new post (`CreatePostPage`). Callers give a spoken label ("Close, back to feed"). Esc does the same, unless a field, dialog or drag has it. Never make another close or ✕ |
+| **Text link** | `.textlink` | Display caps with a 1px underline, for actions in running copy and empty states ("No account yet? *Sign up*", "Clear filters", "Back to the top"). `.is-light` on the hero |
+| **Quiet link** | `.quietlink` | Lower in the hierarchy than a text link or an author link: `--muted` at `--fs-label-xs` with a `--hair` underline. For actions beside information, never the point of the screen: the filter line's Clear, the Index's Clear all, Log out, Manage, Edit, Delete. `.is-light` on the hero |
+| **Button** | `.btn` | Solid `--ink` with `--on-dark` text, display caps, square. `.is-light` (white, on the hero), `.is-block` (full width in forms). One per view, for the main action (Log in, Publish, New post). While its action runs: `--disabled-opacity`, a `progress` cursor, and the label says what's happening ("Publishing…") |
+| **Index link** | `IndexLink` in `IndexSheet.tsx` (`.hlink.indexlink`) | The single way into the Index. It names the set on screen: "All 10 works", or "4 of 10 works" (weight 500) while a filter narrows it. Sort only reorders, so it never makes "10 of 10". Grid icon before it |
 | **Drift hero** | `DriftHero` | A full-bleed photo on `--night`, drifting −10% → 2% with scroll, large display text and actions bottom left, `--hero-shade` and `--halo`. Two uses: the **landing hero** at the top of the feed (a visitor starts on it; a member lands on the first work with it one scroll up) and the **person hero**. Actions follow one pattern: the main action as a light button, the way to the other set of works as a text link, quiet links, then `EN / JA`. Landing hero: visitor *Log in* · Sign up; member *New post* · Your profile · Log out |
-| **Person hero** | `PersonHero` | The drift hero on the person's first work: name, bio, "N works · N photographs". Yours: *New post* · All works · Log out · EN / JA |
-| **Scroll cue** | `ScrollCue` (`.i-scroll.is-drawn`) | "Scroll" over a 56px hairline under a hero. The line draws itself down and fades every `--t-cue`, the one looping animation. With reduced motion it draws once and stays |
-| **Reel** | `Reel` | A vertical scroll-snap container (`.i-reel.is-stop`) of an optional hero, slides and an end card ("That's everything here." / "That's everything by aoi.tanaka." + All works, then Back to the top). It remembers the last opened work. Keys: ↓/↑, PgDn/PgUp, J/K, Space |
-| **Slide** | `Slide` (`.i-slide`) | One work on a reel. The photo is a button that opens the post, carrying the photo index (2 of 3 opens on 2/3). It **settles** as the reel scrolls (`SETTLE`: arriving and leaving at 98.5% scale and 55% opacity, flat and full when centred); nothing moves sideways; off with reduced motion |
-| **Slide staging** (layout) | `.i-slide`, `.i-door`, `.i-compose-stage` | The shared staging of a work: `--s-96 --rail --s-36` padding, the vertical title in the left rail, the photo contained, a credit line beneath. Every screen that shows a work builds on it |
-| **Vertical title** | `.i-vtitle` | Title + italic year at `--fs-mark`, `vertical-rl` rotated 180° (not for Japanese), max 72svh, horizontal on phones |
-| **Credit line** | `.i-credit-line` | Author · place · gear, in that order, `--muted` display caps at `--fs-label-sm` |
-| **Author link** | `AuthorLink` (`.i-author`) | Display caps with an underline, in ink; goes to the person's profile |
-| **Pager** | `Pager` (`.i-pager`) | Hairline chevrons (`currentColor`, hit area widened by `::before`) around a `Count`. Only for a series of 2+. At the ends: `--disabled-opacity-mark`. Hover fades like an ink link |
-| **Count** | `shared/ui.tsx` `Count` | NumberFlow rolling digits, tabular. Rotate the whole element (never `writing-mode`) when it is vertical |
-| **Position counter** | `.i-progress` | `03 / 10` on the right rail, hidden on phones |
-| **Index sheet** | `IndexSheet` (`.i-index`) | A full-screen `--sheet` dialog: "Index", live count, Close. Sort · Filter column on the left (sticky), the contact sheet on the right; stacked on phones. Picking a work closes it and lands the reel there |
-| **Filter panel** | `FilterPanel` | Rows of label + options (Base UI `ToggleGroup`/`Toggle`). Options are serif italic, `--muted`, darkening on hover, ink with an underline when pressed. Rules: Sort (one), By (any number of people), Only: Single photo / Series of 2+ (one or neither). "Clear all" (quiet link) only while a filter (not a sort) is on; it keeps the sort |
-| **Filter line** | `FilterLine` (`.i-filterline`) | While a filter is on, a `--muted` line under the wordmark saying which ("by lena.ph · single photos only"), then Clear (quiet link; keeps the sort). Never the sort. More than two people read "by a, b and 3 others"; "3 others" (dotted rule) opens a Base UI Tooltip (`ByNames`) on the `--sheet` surface with a 1px ink edge listing everyone under "By". Hidden while a hero is on screen. Not a link: the Index link is the one way in |
-| **Caption bar** | `.i-post-bar` in `PostView` | The post's band under the photo (`--bar`): title (serif italic `--fs-lead`, one line) over the author on the left; Info and the Pager on the right. It and the header fade (`--t-idle`) after `--idle-fade` without input while the visitor is at the top. Its caption fades out as the wall label's title scrolls in, so the title is never on screen twice |
-| **Info link** | `.i-hlink.i-info-link` + `.i-info-chev` | "Info" and a small chevron, just left of the Pager. It moves to the wall label and back, the chevron pointing the way it will go. I does the same; Esc goes back up. Spoken as "Info: details below" / "Info: back to the photo" |
-| **Wall label** | `WallLabel` (`.i-wall-label`) | The post's details, like the card beside a print: a 32px ink rule, the author, the title in italic with the year in roman (`--fs-title`), the place, the camera and lens each with Find, the posted date (`2026.08.14`) in `--muted` caps, then owner actions. Left-aligned, `--label-w` wide, alone in the middle of its screen (`.i-post-label`). `dark` sets it white on black for lights out |
-| **Gear link** | `GearLink` (`.i-find`) | "Find" after a camera or lens (a grey link); opens the AI gear-link dialog |
-| **Owner actions** | `OwnerActions` (`.i-owner-line`) | Only for the owner, at the foot of the wall label: one quiet "Manage" that opens to Edit · Delete in place. Delete always confirms in a dialog |
-| **Lights out** | `LightsOut` (`.i-lights`) | A click on the post's photo (`zoom-in` cursor), or F. Inside the window (no browser full screen, no "Press Esc" notice): the page goes `--black` and the photo moves out to fill the window. Nothing else is on screen; the cursor hides after `--idle-cursor`. One snapped scroll down: the same wall label, white on black. A click on the photo (`zoom-out`) or Esc turns the lights back on, on the photo it ended on. ←/→ or a swipe pages a series. A `role="dialog"` at `--z-lights`, under the dialog layer, so Find / Edit / Delete open above it |
-| **Language toggle** | `LangToggle` (`.i-lang`) | `EN / JA` in the heroes; the language not in use at 0.45 opacity, darkening on hover |
+| **Person hero** | `DriftHero` in `FeedPage.tsx` | The drift hero on the person's first work: name and "N works · N photographs" (no bio yet, §14). Yours: *New post* · All works · Log out · EN / JA |
+| **Scroll cue** | `ScrollCue` (`.scroll-cue.is-drawn`) | "Scroll" over a 56px hairline under a hero. The line draws itself down and fades every `--t-cue`, the one looping animation. With reduced motion it draws once and stays |
+| **Reel** | `Reel` | A vertical scroll-snap container (`.reel.is-stop`) of an optional hero, slides and an end card ("That's everything here." / "That's everything by aoi.tanaka." + All works, then Back to the top). It remembers the last opened work. Keys: ↓/↑, PgDn/PgUp, J/K, Space |
+| **Slide** | `Slide` in `Reel.tsx` (`.slide`) | One work on a reel. The photo is a link that opens the post, carrying the photo index (2 of 3 opens on 2/3). It **settles** as the reel scrolls (`SETTLE`: arriving and leaving at 98.5% scale and 55% opacity, flat and full when centred); nothing moves sideways; off with reduced motion |
+| **Slide staging** (layout) | `.slide`, `.door`, `.compose-stage` | The shared staging of a work: `--s-96 --rail --s-36` padding, the vertical title in the left rail, the photo contained, a credit line beneath. Every screen that shows a work builds on it |
+| **Vertical title** | `.vtitle` | Title + italic year at `--fs-mark`, `vertical-rl` rotated 180° (not for Japanese), max 72svh, horizontal on phones |
+| **Credit line** | `.credit-line` | Author · place · gear, in that order, `--muted` display caps at `--fs-label-sm` |
+| **Author link** | `AuthorLink` (`.author`) | Display caps with an underline, in ink; goes to the person's profile |
+| **Pager** | `Pager` (`.pager`) | Hairline chevrons (`currentColor`, hit area widened by `::before`) around a `Count`. Only for a series of 2+. At the ends: `--disabled-opacity-mark`. Hover fades like an ink link |
+| **Count** | `Count` | NumberFlow rolling digits, tabular. Rotate the whole element (never `writing-mode`) when it is vertical |
+| **Position counter** | `.progress` | `03 / 10` on the right rail, hidden on phones |
+| **Index sheet** | `IndexSheet` (`.index`) | A full-screen `--sheet` dialog: "Index", live count, Close. Sort · Filter column on the left (sticky), the contact sheet on the right; stacked on phones. Picking a work closes it and lands the reel there |
+| **Filter panel** | `FilterPanel` in `IndexSheet.tsx` | Rows of label + options (Base UI `ToggleGroup`/`Toggle`). Options are serif italic, `--muted`, darkening on hover, ink with an underline when pressed. Rules: Sort (one), By (any number of people), Only: Single photo / Series of 2+ (one or neither). "Clear all" (quiet link) only while a filter (not a sort) is on; it keeps the sort |
+| **Filter line** | `FilterLine` (`.filterline`) | While a filter is on, a `--muted` line under the wordmark saying which ("by lena.ph · single photos only"), then Clear (quiet link; keeps the sort). Never the sort. More than two people read "by a, b and 3 others"; "3 others" (dotted rule) opens a Base UI Tooltip (`ByNames`) on the `--sheet` surface with a 1px ink edge listing everyone under "By". Hidden while a hero is on screen. Not a link: the Index link is the one way in |
+| **Caption bar** | `.post-bar` in `PostDetailPage` | The post's band under the photo (`--bar`): title (serif italic `--fs-lead`, one line) over the author on the left; Info and the Pager on the right. It and the header fade (`--t-idle`) after `--idle-fade` without input while the visitor is at the top. Its caption fades out as the wall label's title scrolls in, so the title is never on screen twice |
+| **Info link** | `.hlink.info-link` + `.info-chev` | "Info" and a small chevron, just left of the Pager. It moves to the wall label and back, the chevron pointing the way it will go. I does the same; Esc goes back up. Spoken as "Info: details below" / "Info: back to the photo" |
+| **Wall label** | `WallLabel` (`.wall-label`) | The post's details, like the card beside a print: a 32px ink rule, the author, the title in italic with the year in roman (`--fs-title`), the place, the camera and lens each with Find, the posted date (`2026.08.14`) in `--muted` caps, then owner actions. Left-aligned, `--label-w` wide, alone in the middle of its screen (`.post-label`). `dark` sets it white on black for lights out |
+| **Gear link** | `GearLink` (`.find`) | "Find" after a camera or lens (a grey link); opens the AI gear-link dialog |
+| **Owner actions** | `OwnerActions` (`.owner-line`) | Only for the owner, at the foot of the wall label: one quiet "Manage" that opens to Edit · Delete in place. Delete always confirms in a dialog |
+| **Lights out** | `LightsOut` (`.lights`) | A click on the post's photo (`zoom-in` cursor), or F. Inside the window (no browser full screen, no "Press Esc" notice): the page goes `--black` and the photo moves out to fill the window. Nothing else is on screen; the cursor hides after `--idle-cursor`. One snapped scroll down: the same wall label, white on black. A click on the photo (`zoom-out`) or Esc turns the lights back on, on the photo it ended on. ←/→ or a swipe pages a series. A `role="dialog"` at `--z-lights`, under the dialog layer, so Find / Edit / Delete open above it |
+| **Language toggle** | `LangToggle` (`.lang`) | `EN / JA` in the heroes; the language not in use at 0.45 opacity, darkening on hover |
 | **Text field** | `TextField` (`.tf`) | Display-caps label, serif input with only a bottom rule (`--rule`) that turns ink with an inset line on focus. Hint and error below in serif italic. Errors in `--danger` with `aria-invalid` |
-| **Form error** | `.i-form-error` | Serif italic `--danger` with a 1px left rule, `role="alert"` |
-| **Side panel** | `.i-compose-panel` | The surface for fields beside a work: the page colour lifted toward white, a hairline left edge, `--panel-w` wide. Full width under the work on phones |
-| **Sortable photos** | `SortablePhotos` (dnd-kit, `.i-sortable`) | 88px thumbnails on `--wash`, reordered by drag or keyboard. The first is marked COVER (ink band, `--fs-micro`). Remove × (a light square that inverts on hover), + add tile (dashed `--faint`, ink border and `--wash` on hover) |
-| **Drop zone** | `.i-compose-empty` | Fills the preview's photo area with a 1px `--rule` border: "Choose photos" in display caps and the limits in serif italic (JPEG, PNG or WebP · up to 32 MB each · up to 10 photos). Lightens on hover |
-| **Dialogs** | `ConfirmDelete`, `EditPost`, `GearLink` | Base UI Dialog / AlertDialog on `--sheet` over `--scrim`, no border, square, `--t-dialog` + `--ease-out`. Title in serif italic `--fs-title`. Cancel as a text link; the confirm button solid ink, `--danger` for Delete |
-| **Toasts** | `Toasts` (Sonner, unstyled) | Top centre, `--sheet` with a 1px ink border. Title in display caps, text in serif italic. Past-tense confirmations ("Post published", "Signed out") |
+| **Form error** | `.form-error` | Serif italic `--danger` with a 1px left rule, `role="alert"` |
+| **Side panel** | `.compose-panel` | The surface for fields beside a work: the page colour lifted toward white, a hairline left edge, `--panel-w` wide. Full width under the work on phones |
+| **Sortable photos** | `SortablePhotos` (dnd-kit, `.sortable`) | 88px thumbnails on `--wash`, reordered by drag or keyboard. The first is marked COVER (ink band, `--fs-micro`). Remove × (a light square that inverts on hover), + add tile (dashed `--faint`, ink border and `--wash` on hover) |
+| **Drop zone** | `.compose-empty` | Fills the preview's photo area with a 1px `--rule` border: "Choose photos" in display caps and the limits in serif italic (JPEG, PNG or WebP · up to 32 MB each · up to 10 photos). Lightens on hover |
+| **Dialogs** | `ConfirmDeleteDialog`, `EditPostDialog` (`PostDialogs.tsx`), `GearLink` (`.dialog`) | Base UI Dialog / AlertDialog on `--sheet` over `--scrim`, no border, square, `--t-dialog` + `--ease-out`. Title in serif italic `--fs-title`. Cancel as a text link; the confirm button solid ink, `--danger` for Delete |
+| **Toasts** | Sonner `Toaster` in `Layout` (unstyled, `.toast`) | Top centre, `--sheet` with a 1px ink border. Title in display caps, text in serif italic. Past-tense confirmations ("Post published", "Signed out") |
 
 ### 6.1 States every interactive part needs
 
@@ -239,7 +239,7 @@ Name parts by role (`Header`, `CloseButton`, `Pager`). Prototype classes carry t
 | Sheets (Index), field focus | `--t-overlay` |
 | Tooltip | opacity + `scale(0.97)` from the trigger, `--t-pop` + `--ease-out` |
 | Dialogs | opacity + 8px rise + `scale(0.98)`, `--t-dialog` + `--ease-out` |
-| Feed motion: Settle | scale 0.985 → 1 and opacity 0.55 → 1 on arrival, scroll-linked (`SETTLE` in `Immersive.tsx`); hero −10% → 2% |
+| Feed motion: Settle | scale 0.985 → 1 and opacity 0.55 → 1 on arrival, scroll-linked (`SETTLE` in `utils/motion.ts`); hero −10% → 2% |
 | Screen change | `--t-screen` + `--ease-out` for moving photos, linear crossfade for the rest |
 | Lights out in / out | a screen change: the photo moves out to fill the window and back. From the label (photo off screen) the photo fades instead of moving |
 | Post view idle | header and caption bar fade over `--t-idle` after `--idle-fade` without input at the top, and return on any pointer, key, wheel or scroll |
@@ -251,8 +251,8 @@ Name parts by role (`Header`, `CloseButton`, `Pager`). Prototype classes carry t
 
 ### 7.3 Screen changes
 
-- Every navigation (links, Back/Forward, Esc, Close) runs through the View Transitions API (`withViewTransition` in `Harness.tsx`; in production, the router's navigation wrapped the same way). The old screen crossfades into the new one over `--t-screen`.
-- **The header holds still** (`view-transition-name: i-header`), because it is the same on every screen.
+- Every navigation (links, Back/Forward, Esc, Close) runs through the View Transitions API (`useGo` / `TransitionLink` in `src/navigation/`, which wrap the router's `navigate()`; the transition ends when the new location has rendered). The old screen crossfades into the new one over `--t-screen`.
+- **The header holds still** (`view-transition-name: header`), because it is the same on every screen.
 - **The photo moves rather than cuts.** The photo on screen carries `view-transition-name: work-<post id>` (`workPhoto()`). Wherever that work appears on the next screen (post view, log in / sign up, lights out), it moves and scales into place. Names must be unique on a page: give the name only to the shown photo of a series, never to two copies of one work.
 - Screens that stage a work keep it from the screen before when they can: log in / sign up open around the post you came from or the work on screen in the feed.
 - No View Transitions support, or reduced motion: the change is instant.
@@ -261,11 +261,11 @@ Name parts by role (`Header`, `CloseButton`, `Pager`). Prototype classes carry t
 
 | Screen | Recipe |
 |---|---|
-| **Feed** (`ImmersiveFeed`) | A reel: the landing hero ("Photo Share / One photograph at a time."), slides, the end card. A visitor starts on the hero; a member on the first work. When the rules come down to one person, the reel becomes their profile (person hero on top, "That's everything by …" at the end). The Index link is the single way into the Index (contact sheet + sort/filter); the filter line names active filters |
-| **Post** (`PostView`) | Two snapped screens. First: the photo as large as the screen allows between the header band (Close replaces the nav) and the caption bar (title + author \| Info, ‹ 1/n ›), opening on the photo index it was opened with. Second: the wall label alone on the page colour; nothing below it. One swipe, Info or I moves between them; Esc comes back up; Esc at the top, or Close, leaves. A click on the photo (or F) turns the lights out. ←/→ page the series. No text on the photo |
-| **Profile** (`ImmersiveProfile`) | The feed filtered to that person (`PinnedAuthor`): person hero, their works, "That's everything by aoi.tanaka." + All works, with the Index link and filter line carried on from the feed. Sort and Only carry over between feed and profile; choosing other people, Clear or All works leaves for the feed. Author links and "Your profile" lead here |
-| **Log in / Sign up** (`ImmersiveAuth`) | A slide with the form in its right-hand room (`.i-door`: work `1fr`, form `--form-w`). The staged work is the post you came from (on its shown photo), else the work on screen in the feed, else a default. Form: display-caps title, italic subtitle ("Welcome back."), fields, a block button, the alternate link ("No account yet? *Sign up*"). On phones: title, photo (max 34svh), then the form |
-| **New post** (`ImmersiveCreate`) | Close replaces the nav (`CreateClose`: back to where you came from, else the feed; Esc too). A live preview of the slide it will become (`.i-compose-stage`): "Preview" kicker, the typed title up the margin ("Untitled" until typed), the cover on its colour (the drop zone before photos), and the credit line from your name, place and camera/lens (typed, else read from the photo). Below: the sortable filmstrip (first = cover). The side panel holds Title, Place, Camera, Lens (placeholders show EXIF values) and Publish ("Uploading 2 / 3") |
+| **Feed** (`pages/FeedPage.tsx`) | A reel: the landing hero ("Photo Share / One photograph at a time."), slides, the end card. A visitor starts on the hero; a member on the first work. When the rules come down to one person, the reel becomes their profile (person hero on top, "That's everything by …" at the end). The Index link is the single way into the Index (contact sheet + sort/filter); the filter line names active filters |
+| **Post** (`pages/PostDetailPage.tsx`) | Two snapped screens. First: the photo as large as the screen allows between the header band (Close replaces the nav) and the caption bar (title + author \| Info, ‹ 1/n ›), opening on the photo index it was opened with. Second: the wall label alone on the page colour; nothing below it. One swipe, Info or I moves between them; Esc comes back up; Esc at the top, or Close, leaves. A click on the photo (or F) turns the lights out. ←/→ page the series. No text on the photo |
+| **Profile** (`ProfilePage` in `pages/FeedPage.tsx`) | The feed filtered to that person (the author comes from the route, `/users/:id`): person hero, their works, "That's everything by aoi.tanaka." + All works, with the Index link and filter line carried on from the feed. Sort and Only carry over between feed and profile; choosing other people, Clear or All works leaves for the feed. Author links and "Your profile" lead here |
+| **Log in / Sign up** (`pages/AuthPage.tsx`) | A slide with the form in its right-hand room (`.door`: work `1fr`, form `--form-w`). The staged work is the post you came from (on its shown photo), else the work on screen in the feed, else a default. Form: display-caps title, italic subtitle ("Welcome back."), fields, a block button, the alternate link ("No account yet? *Sign up*"). On phones: title, photo (max 34svh), then the form |
+| **New post** (`pages/CreatePostPage.tsx`) | Close replaces the nav (back to where you came from, else the feed; Esc too). A live preview of the slide it will become (`.compose-stage`): "Preview" kicker, the typed title up the margin ("Untitled" until typed), the cover on its colour (the drop zone before photos), and the credit line from your name, place and camera/lens (typed, else read from the photo). Below: the sortable filmstrip (first = cover). The side panel holds Title, Place, Camera, Lens (placeholders show EXIF values) and Publish ("Uploading 2 / 3") |
 | **404 / errors** | `--paper` page with the standard header, one italic sentence and a text link back to the feed |
 
 ## 9. Accessibility checklist
@@ -295,39 +295,36 @@ Name parts by role (`Header`, `CloseButton`, `Pager`). Prototype classes carry t
 - **Hover** always inside `@media (hover: hover) and (pointer: fine)`.
 - **Verify each change:** `npm run lint`, `npm run build`, `npm test`, and screenshots of every screen at 1440×900 and 390×844 (EN and JA), once with `reducedMotion: "reduce"`.
 
-### 11.2 Production handoff
+### 11.2 Where each part lives
 
-The prototype is the spec. The rebuild moves it into the app screen by screen, keeping behaviour and look.
+The Combined prototype was the spec; production now matches it, and the prototype harness was removed (it is in git history at `dd2102e` if a side-by-side comparison is ever needed again). Class names are prefix-free.
 
-**Before starting.** The prototype (`frontend/src/prototypes/`), `frontend/src/design/`, `DESIGN-SYSTEM.md`, `prototype-feedback.md` and `.claude/skills/` are not in git yet. Commit them first, so the rebuild has a fixed reference.
-
-**Where each part goes** (production names drop the `i-` prefix and the "Immersive" names):
-
-| Prototype | Production | Notes |
+| Part | Production | Notes |
 |---|---|---|
-| `tokens.css` | import in `main.tsx` | Replaces the colours, fonts and sizes in `index.css` / `index-legacy.css` as screens move over. Check for clashes: `index-legacy.css` defines its own `--mono` |
-| `Header`, `CloseButton` (`PostClose`, `CreateClose`) | `components/Header.tsx`, `components/CloseButton.tsx` | Replaces `NavBar` and `LanguageSwitcher` in the header. EN / JA moves into the heroes |
-| `DriftHero`, `PersonHero`, `ScrollCue` | `components/Hero.tsx` | Landing hero needs the feature photo from data (the prototype uses post 103) |
-| `Reel`, `Slide`, `Pager`, `AuthorLink` | `components/Reel.tsx`, `Slide.tsx`, `Pager.tsx`, `AuthorLink.tsx` | Replaces `PostCard` grids and `LoadMore`: the reel needs pagination (`usePostPages`) that loads as the end card nears |
-| `IndexSheet`, `FilterPanel`, `FilterLine` (`ByNames`) | `components/Index/*` | Filters (`feedState.ts`) belong in the URL query so a filtered feed and a profile can be linked |
-| `ImmersiveFeed` | `pages/FeedPage.tsx` | `/` |
-| `ImmersiveProfile` + `PinnedAuthor` | `pages/ProfilePage.tsx` | `/users/:userId` renders the feed with the author pinned (`GET /posts?user_id=` already exists) |
-| `PostView`, `Photos`, `WallLabel`, `OwnerActions`, `LightsOut` | `pages/PostDetailPage.tsx` + `components/WallLabel.tsx`, `LightsOut.tsx` | Replaces `ImageCarousel` on this page; keep its lazy loading of slides |
-| `ImmersiveAuth` | `pages/LoginPage.tsx`, `SignupPage.tsx` | The staged work comes from router state (the post or reel position the visitor came from) |
-| `ImmersiveCreate`, `SortablePhotos` | `pages/CreatePostPage.tsx` | Keep its upload/EXIF logic; restyle and restage |
-| `EditPost`, `ConfirmDelete`, `GearLink`, `Toasts`, `TextField` | existing dialogs, `GearLinkAction`, `FormField` | Restyle to §6 |
-| `useSnapTrack`, `useWheelToPage`, `useDocumentKeys`, `useInViewKey` | `hooks/` | As they are |
-| `withViewTransition` (`Harness.tsx`) | the router's navigation | Wrap `navigate()` the same way; skip under reduced motion |
+| Tokens, base rules | `design/tokens.css`, `styles/base.css` (imported in `main.tsx`) | Links, buttons, page and reel, the screen-change animation |
+| `Header`, `CloseButton` | `components/Header.tsx` | Close is used by the Index, the post and new post |
+| `DriftHero`, `ScrollCue` | `components/Hero.tsx`; the landing and person heroes are composed in `pages/FeedPage.tsx` | The landing hero is the newest post's cover (§14) |
+| `LangToggle` | `components/LangToggle.tsx` | Saves the language for a member (PUT /users/me/settings/language) |
+| `Reel`, `Slide`, `VerticalTitle`, `CreditLine` | `components/Reel.tsx` | Loads the next page as the end nears (`hooks/usePostPages.ts`); a series' photos load when its slide is near (`components/postImages.ts`) |
+| `Pager`, `Count`, `AuthorLink` | `components/Pager.tsx`, `Count.tsx`, `AuthorLink.tsx` | |
+| `IndexLink`, `IndexSheet`, `FilterPanel`, `FilterLine`, `ByNames` | `components/IndexSheet.tsx` | Rules live in the URL (`feed/filter.ts`: `?sort=&by=&only=`) |
+| Feed state | `feed/FeedStateProvider.tsx` (in `Layout`) | Loaded pages, last opened work, work on screen, people |
+| Feed, profile | `pages/FeedPage.tsx` (`FeedPage`, `ProfilePage`) | One reel; a profile pins the author from the route |
+| Post view, `Photos` | `pages/PostDetailPage.tsx` | Renders at once from the reel's copy in router state |
+| `WallLabel`, `OwnerActions` | `components/WallLabel.tsx` | |
+| `LightsOut` | `components/LightsOut.tsx` | |
+| `EditPostDialog`, `ConfirmDeleteDialog`, `GearLink` | `components/PostDialogs.tsx`, `GearLink.tsx` | Styles in `components/forms.css` |
+| `TextField`, `FormError` | `components/TextField.tsx` | |
+| Log in, sign up | `pages/AuthPage.tsx` | Stages the work the visitor came from |
+| New post, `SortablePhotos` | `pages/CreatePostPage.tsx`, `components/SortablePhotos.tsx` | Camera and lens read in the browser (`utils/exif.ts`); the page tint previewed with `utils/previewTint.ts` |
+| `useSnapTrack`, `useWheelToPage`, `useDocumentKeys`, `useInViewKey`, `stepReel` | `hooks/useSnapTrack.ts`, `hooks/useReelKeys.ts` | |
+| Screen changes, `workPhoto` | `navigation/viewTransition.ts`, `navigation/TransitionLink.tsx`, `utils/motion.ts` | Skipped under reduced motion |
 
-**Data the design needs that the API doesn't have yet:** a per-post `tint` (pale colour sampled from the cover, computed with the thumbnail); a user `bio` (the person hero shows it); counts for the person hero ("N works · N photographs").
+**From the API:** each post's `tint` is computed by the server from the cover's thumbnail (`backend/internal/tint`) and capped so `--muted` text keeps 4.5:1 on it; the person hero's counts come from `GET /users/{id}` (`post_count`, `photo_count`); the people for "By" from `GET /users`; the Index link's numbers from `GET /posts/count`.
 
-**Strings to add to `TranslationDictionary`** (EN given; JA needed for each): "+ New", "− Close" and its spoken forms ("Close, back to feed / profile / the post"); "All {n} works", "{n} of {total} works", "…: index, sort and filter"; "One photograph at a time.", "Scroll", "Your profile", "All works", "{n} works · {n} photographs"; "Index", "Sort · Filter", "Sort", "By", "Only", "Newest first", "Oldest first", "Most photos", "Single photo", "Series of 2+", "Clear", "Clear all", "Clear filters", "by {names}", "and {n} others", "series only", "single photos only", "Nothing matches these rules.", "No works match these rules."; "That's everything here.", "That's everything by {name}.", "Back to the top"; "Info", "Info: details below", "Info: back to the photo", "View full screen: {photo}", "Previous photo", "Next photo", "Manage", "{caption}, lights out. Scroll for the label; Escape to close."; "Preview", "Untitled", "Choose photos", "Drag to reorder. The first photo is the cover.", "Camera and lens come from the photo unless you type your own.", "Welcome back.", "Signed out". Several exist under other wording in `nav`, `posts`, `profile` and `auth`; reuse those keys where the meaning is the same.
+## 12. Open decisions
 
-**Remove once a screen has moved:** the prototype harness and its retired variants, the fonts only they use (Inter, IBM Plex Mono, unused weights), and `index-legacy.css` rules the new components replace.
-
-## 12. Open decisions (switchable in the prototype)
-
-None are open, so the prototype's Options panel is hidden. When the owner asks for variations, list them here (and as a row in `COMBINED_OPTIONS`) until they pick one. Meanwhile build new work so it doesn't depend on the choice.
+None are open. When the owner asks for variations, list them here until they pick one. Meanwhile build new work so it doesn't depend on the choice.
 
 | Decision | Options | Notes |
 |---|---|---|
@@ -335,9 +332,9 @@ None are open, so the prototype's Options panel is hidden. When the owner asks f
 
 ## 13. Changing the system
 
-1. Check this document and the Combined prototype for an existing part. Reuse beats new.
+1. Check this document and the production components (§11.2) for an existing part. Reuse beats new.
 2. For a new pattern, run the `design-system` skill in **extend** mode and write the result into §6 (and §8 if it's a screen).
-3. Anything visual the owner hasn't seen goes into the prototype harness first, as a variant or an Options row, so it can be compared.
+3. Anything visual the owner hasn't seen is shown to them before it ships: screenshots of the options (1440×900 and 390×844), built behind a temporary switch or on a branch so they can be compared.
 4. When the owner decides, update §12 and the decision log, and remove the losing options from the code.
 5. Change a value in `tokens.css`, not in components. Rename tokens only with a find-and-replace across the frontend in the same change. A value missing from a scale gets a new token (and a line in §3–§5), not a literal.
 6. After a refactor that shouldn't change the look, compare screenshots of every screen before and after: they should match pixel for pixel.
@@ -374,4 +371,6 @@ None are open, so the prototype's Options panel is hidden. When the owner asks f
 | 2026-11 | Hero readability opened as a decision (Gradient, Corner shade, Glass plate, Split, Band) | Round 13 |
 | 2026-11 | Hero text = Corner shade (Gradient, Glass plate, Split and Band retired). The new-post page leaves through the shared Close (and Esc) instead of showing "+ New". Dialog links and buttons get hover feedback | Round 14: "corner shade works well"; "top right corner of create new post page shows + New which is the same page" |
 | 2026-11 | Close reads "− Close", a header link like "+ New" that fades on hover (the diagonal line and its variations retired). The header over a hero is plain white with a halo, no shade on the photo (the veil, difference blend and other variations retired) | Round 15: "close can be like '- close' just like new photo is '+ new' … text brightens just like + new"; "use Halo only" |
-| 2026-11 | Production prep: tokens are the only source of values (complete scales for type, tracking, spacing, layout, motion and layers; the prototype's private copies removed). One black (`--ink`; `--black` only for lights out), one halo. Stylesheet regrouped by component with dead rules removed; components renamed for production (`PostView`, `LightsOut`, `.i-post-*`, `.i-lights*`). Hover feedback added to the pager, EN / JA and the photo-reorder controls, and every hover limited to fine pointers. Values snapped to the scales by 1–2px; no layout changed | Audit after round 15: "take all actions necessary to improve design system … in preparation of production code updates" |
+| 2026-11-15 | Production rebuilt to the Combined prototype; the harness, its retired variants and the fonts only it used were removed. Small choices made while building: a slide's photo is a real link (middle-click works); a series on a reel loads its other photos when its slide is near; a one-person view with Only set says "No works match these rules." when empty; New post previews the page colour in the browser before upload (the server computes the stored one) | The rebuild (current-task.md) |
+| 2026-11-15 | Production rebuild decisions: the landing hero is the **newest post's cover** (no curation). The person hero ships **without a bio** (name + "N works · N photographs") until a bio edit screen is designed. New post reads camera and lens **in the browser** (a small in-house EXIF reader, no new dependency), so the placeholders show them before Publish; the server's EXIF fill-in stays as the fallback. **`email` leaves the public user response**: only the signed-in user's own login/signup response carries it | Owner, before the rebuild (current-task.md §0) |
+| 2026-11 | Production prep: tokens are the only source of values (complete scales for type, tracking, spacing, layout, motion and layers; the prototype's private copies removed). One black (`--ink`; `--black` only for lights out), one halo. Stylesheet regrouped by component with dead rules removed; components renamed for production (`PostView`, `LightsOut`, `.post-*`, `.lights*`). Hover feedback added to the pager, EN / JA and the photo-reorder controls, and every hover limited to fine pointers. Values snapped to the scales by 1–2px; no layout changed | Audit after round 15: "take all actions necessary to improve design system … in preparation of production code updates" |

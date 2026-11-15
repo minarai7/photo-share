@@ -4,7 +4,7 @@ English | [日本語](./readme.ja.md)
 
 Photo Share is a full-stack photo-sharing web application built with Go, React, TypeScript, and PostgreSQL.
 
-Users can sign up, log in, create photo posts, upload images, add caption/location/camera/lens metadata, view a public feed, view individual posts, view user profiles, and edit or delete their own posts.
+Users can sign up, log in, post a photo or a series of up to ten, add title/place/camera/lens details, browse a public feed one photograph at a time, sort and filter it, open a work full screen, visit people's profiles, and edit or delete their own posts. Every page takes the colour of the photo it shows.
 
 The project also includes an AI-powered gear link assistant that helps users find product/spec links for camera bodies and lenses mentioned in posts.
 
@@ -14,11 +14,14 @@ The project also includes an AI-powered gear link assistant that helps users fin
 - JWT-based authentication
 - Create photo posts with uploaded images
 - Add caption, location, camera body, and lens metadata
-- Camera body and lens left blank are filled in from the photo's EXIF data
+- Camera body and lens left blank are filled in from the photo's EXIF data (read in the browser, so they show before upload)
 - Photo metadata (EXIF including GPS location, XMP, IPTC) is removed before the image is stored, without re-encoding it
-- View a feed of recent posts
-- View individual post detail pages
-- View user profile pages
+- A full-screen feed, one work at a time, that loads more as you scroll
+- An Index: a contact sheet of every work, with sort (newest, oldest, most photos) and filters (by people, single photos or series), kept in the URL so a view can be linked
+- A post view with the photograph alone, its wall label one scroll below, and a distraction-free "lights out" view
+- Profiles: the same reel, filtered to one person, with their counts
+- A page colour per post, computed by the server from the photo and kept light enough for readable text
+- English and Japanese, saved per user
 - Edit and delete owned posts
 - Protected routes for authenticated actions
 - AI gear link assistant for camera/lens product suggestions
@@ -30,9 +33,10 @@ The project also includes an AI-powered gear link assistant that helps users fin
 
 - React
 - TypeScript
-- React Router
+- React Router (with the View Transitions API between screens)
 - Vite
-- CSS
+- CSS with design tokens (no UI kit's look)
+- Base UI (dialogs, tooltip, toggles), motion, Sonner, dnd-kit, NumberFlow
 
 ### Backend
 
@@ -209,10 +213,15 @@ Main endpoint groups:
 auth:
   POST /auth/signup
   POST /auth/login
-  GET  /users/{id}
+
+users:
+  GET  /users            # people who have posted
+  GET  /users/{id}       # public profile: name and counts
+  PUT  /users/me/settings/language
 
 posts:
-  GET    /posts
+  GET    /posts          # sort, filter and keyset pagination
+  GET    /posts/count
   GET    /posts/{id}
   POST   /posts
   PUT    /posts/{id}
@@ -271,14 +280,10 @@ A short demo video showing feed browsing, signup, login, profile page, post crea
 
 ## Future Improvements
 
-- Add structured response for ai gear link
-- Deploy the frontend and backend
-- Store uploaded images in cloud storage such as S3
 - Add comments and likes
-- Add post search and filtering
-- Add pagination or infinite scrolling to the feed
+- Add a short bio to profiles (the person hero has room for it)
+- Add text search
 - Improve AI gear link accuracy with caching and stricter source validation
-- Add automated backend and frontend tests
 - Add refresh tokens or cookie-based authentication
 
 ## Development Notes
@@ -290,4 +295,4 @@ This project uses a layered backend architecture:
 - Repositories handle database access.
 - Middleware handles cross-cutting concerns such as authentication, CORS, logging, and panic recovery.
 
-The frontend uses a dedicated API layer so page components do not directly hardcode fetch logic everywhere.
+The frontend uses a dedicated API layer so page components do not directly hardcode fetch logic everywhere. Its look follows DESIGN-SYSTEM.md and rontend/src/design/tokens.css.
