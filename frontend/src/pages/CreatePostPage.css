@@ -12,6 +12,9 @@
 .compose-empty-title { font: 400 var(--fs-mark)/1 var(--display); letter-spacing: var(--track-mark); text-transform: uppercase; }
 .compose-empty-sub { font: italic 400 var(--fs-body)/1.4 var(--serif); color: var(--muted); }
 :lang(ja) :is(.compose-kicker, .compose-empty-title, .compose-empty-sub, .hint) { font-family: var(--jp); font-style: normal; letter-spacing: var(--track-ja); }
+/* Japanese: "写真を選ぶ" is the action, the limits are the aside under it. */
+:lang(ja) .compose-empty-title { font-weight: 500; font-size: var(--fs-field); }
+:lang(ja) .compose-empty-sub { font-size: var(--fs-hint); }
 .filmstrip { display: grid; gap: var(--s-10); }
 /* Sortable photos: 88px thumbnails on --wash; COVER band; remove ×; + add tile. */
 .sortable { list-style: none; margin: 0; display: flex; gap: var(--s-10); overflow-x: auto; padding: var(--s-6) var(--s-4); }

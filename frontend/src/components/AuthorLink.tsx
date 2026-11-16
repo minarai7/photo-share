@@ -2,6 +2,7 @@ import clsx from "clsx";
 import { useLocation } from "react-router";
 import { filterSearch, parseFilter } from "../feed/filter";
 import { TransitionLink } from "../navigation/TransitionLink";
+import { JaText } from "./JaText";
 
 /**
  * The author's name, linking to their profile. Sort and Only carry over
@@ -13,7 +14,7 @@ export function AuthorLink({ userId, username, className }: { userId: number; us
     const search = onReel ? filterSearch(parseFilter(new URLSearchParams(location.search)), { withAuthors: false }) : "";
     return (
         <TransitionLink to={`/users/${userId}${search}`} className={clsx("author", className)}>
-            {username}
+            <JaText text={username} />
         </TransitionLink>
     );
 }

@@ -11,11 +11,13 @@ import './styles/base.css'
 import App from './App.tsx'
 import { BrowserRouter } from 'react-router'
 import { AuthProvider } from './auth/AuthContext.tsx'
+import { storedLanguage } from './auth/authStorage.ts'
 import { LanguageProvider } from './lang/LanguageContext.tsx'
 
 createRoot(document.getElementById('root')!).render(
   <StrictMode>
-    <LanguageProvider>
+    {/* A signed-in member reloads in their own language; everyone else starts in Japanese. */}
+    <LanguageProvider initialLanguage={storedLanguage()}>
       <BrowserRouter>
         <AuthProvider>
           <App />

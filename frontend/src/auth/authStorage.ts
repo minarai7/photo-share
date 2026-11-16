@@ -1,4 +1,5 @@
 import type { UserResponse } from "../types/auth";
+import type { LanguageCode } from "../types/lang";
 
 const TOKEN_KEY = "auth_token";
 const USER_KEY = "auth_user";
@@ -26,6 +27,24 @@ export function saveAuth(token: string, user: UserResponse): void {
     localStorage.setItem(TOKEN_KEY, token);
     localStorage.setItem(USER_KEY, JSON.stringify(user));
     window.dispatchEvent(new Event(AUTH_CHANGED_EVENT));
+}
+
+/**
+ * The signed-in member's saved language, for the first render after a
+ * reload (login() applies it otherwise). undefined for a visitor or an
+ * expired session, so the site's default applies.
+ */
+export function storedLanguage(): LanguageCode | undefined {
+    const token = getToken();
+    if (!token || isTokenExpired(token)) return undefined;
+    return getStoredUser()?.preferred_language;
+}
+
+/** Keeps the stored member in step after their language is saved, so a reload keeps it. */
+export function rememberLanguage(language: LanguageCode): void {
+    const token = getToken();
+    const user = getStoredUser();
+    if (token && user && user.preferred_language !== language) saveAuth(token, { ...user, preferred_language: language });
 }
 
 export function clearAuth(): void {

@@ -16,11 +16,13 @@
 .vtitle.is-ja { transform: translateY(-50%); font-family: var(--jp); letter-spacing: var(--track-ja-vertical); text-transform: none; }
 .stage { display: grid; grid-template-rows: minmax(0, 1fr); min-height: 0; }
 .stage-inner { display: grid; grid-template-rows: minmax(0, 1fr); min-height: 0; }
-.track { display: flex; min-height: 0; overflow-x: auto; scroll-snap-type: x mandatory; scrollbar-width: none; }
+/* Opaque like the reel (base.css): a photo track is a scroller layer too. */
+.track { display: flex; min-height: 0; overflow-x: auto; scroll-snap-type: x mandatory; scrollbar-width: none; background-color: var(--page); transition: background-color var(--t-tint); }
+@media (prefers-reduced-motion: reduce) { .track { transition: none; } }
 .track::-webkit-scrollbar { display: none; }
 .frame { flex: 0 0 100%; margin: 0; display: grid; place-items: center; min-height: 0; scroll-snap-align: center; }
 .frame a { display: block; }
-.frame img { width: auto; height: auto; max-width: min(100%, var(--photo-max)); max-height: calc(100svh - var(--feed-reserve)); }
+.frame img { width: auto; height: auto; max-width: min(100%, var(--photo-max)); max-height: calc(100svh - var(--feed-reserve)); background-color: var(--page); } /* rows still arriving show the wall, never white */
 .frame-wait { display: block; width: min(100%, var(--photo-max)); height: calc(100svh - var(--feed-reserve)); max-height: 100%; }
 .credit { display: flex; justify-content: space-between; align-items: center; gap: var(--s-22); min-height: 30px; }
 .credit-line { margin: 0; display: flex; flex-wrap: wrap; gap: var(--s-4) var(--s-22); font: 400 var(--fs-label-sm)/1.6 var(--display); letter-spacing: var(--track-meta); text-transform: uppercase; color: var(--muted); }

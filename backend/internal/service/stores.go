@@ -13,6 +13,7 @@ import (
 //
 // Contract (verified against Postgres in internal/repository tests):
 //   - GetByID / GetByEmail / GetByUsername return (nil, nil) when no row matches.
+//   - Create stores PreferredLanguage when set, else the column default "en".
 //   - UpdatePreferredLanguage returns repository.ErrorUserNotFound when no row matches.
 //   - ListAuthors returns only users with at least one post, with PostCount,
 //     ordered by username then id; never nil.

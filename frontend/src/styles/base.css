@@ -7,6 +7,8 @@
 
 *, *::before, *::after { box-sizing: border-box; }
 html { -webkit-text-size-adjust: 100%; }
+/* The page itself never bounces vertically (it would show the body's --night). */
+html, body { overscroll-behavior-y: none; }
 body {
   --link-strong: var(--ink); /* what a grey link darkens to on hover (white on dark surfaces) */
   margin: 0; min-height: 100vh;
@@ -25,7 +27,13 @@ button { background: none; border: 0; padding: 0; margin: 0; color: inherit; fon
 /* ------------------------------------------------------------ page & reel */
 .page { --page: var(--tint-default); min-height: 100vh; background-color: var(--page); transition: background-color var(--t-tint); }
 .page.is-paper { --page: var(--paper); }
-.reel { position: relative; height: 100svh; overflow-y: auto; scroll-snap-type: y mandatory; overscroll-behavior: contain; scrollbar-width: none; }
+/* overscroll-behavior: none, not contain: contain still lets the reel bounce
+   at its ends, which pulled the hero down and showed --night above it. */
+.reel { position: relative; height: 100svh; overflow-y: auto; scroll-snap-type: y mandatory; overscroll-behavior: none; scrollbar-width: none; }
+/* A scroller is its own compositor layer. Without an opaque background, tiles
+   not yet rasterised (a large photo still decoding) show as white; with the
+   page colour they show as the wall the photo hangs on. */
+.reel { background-color: var(--page); transition: background-color var(--t-tint); }
 .reel::-webkit-scrollbar { display: none; }
 /* Native snapping that can't fly past a work (or a photo) in one gesture. */
 .reel.is-stop > *, .track.is-stop > * { scroll-snap-stop: always; }
@@ -50,6 +58,10 @@ button { background: none; border: 0; padding: 0; margin: 0; color: inherit; fon
 .btn.is-light { background: var(--on-dark); color: var(--ink); }
 .btn.is-block { width: 100%; }
 
+/* Japanese people typed (a name, a place, a title) inside Latin type: JaText.
+   On the element itself, so it wins over the caps / italic it inherits. */
+.ja-text { font-family: var(--jp); font-style: normal; letter-spacing: var(--track-ja); text-transform: none; }
+
 /* Japanese never takes uppercase, italics or wide tracking (§3.3). */
 :lang(ja) :is(.hlink, .textlink, .quietlink, .btn) { text-transform: none; letter-spacing: var(--track-ja); font-family: var(--jp); }
 
@@ -70,7 +82,7 @@ button { background: none; border: 0; padding: 0; margin: 0; color: inherit; fon
 
 /* ------------------------------------------------------------ reduced motion */
 @media (prefers-reduced-motion: reduce) {
-  .page { transition: none; }
+  .page, .reel { transition: none; }
 }
 
 /* ------------------------------------------------------------ screen changes (View Transitions) */

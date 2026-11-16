@@ -98,7 +98,8 @@ describe("sign up", () => {
         await user.type(screen.getByLabelText(en.auth.password), "password123");
         await user.click(screen.getByRole("button", { name: en.auth.signupButton }));
 
-        expect(api.calls("POST /auth/signup")[0].json()).toEqual({ username: "newbie", email: "new@example.com", password: "password123" });
+        // The language the visitor signed up in becomes their preference.
+        expect(api.calls("POST /auth/signup")[0].json()).toEqual({ username: "newbie", email: "new@example.com", password: "password123", preferred_language: "en" });
         await waitFor(() => expect(currentPath()).toBe("/"));
         expect(localStorage.getItem("auth_token")).toBe(token);
         expect(await screen.findByText(en.toast.signedUpAs("newbie"))).toBeInTheDocument();

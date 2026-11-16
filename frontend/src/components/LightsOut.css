@@ -8,9 +8,9 @@
 .lights-photo { height: 100svh; scroll-snap-align: start; scroll-snap-stop: always; cursor: zoom-out; }
 .lights-label { min-height: 100svh; scroll-snap-align: start; scroll-snap-stop: always; display: grid; place-items: center; padding: var(--s-64) var(--gutter); }
 .lights.is-idle .lights-photo, .lights.is-idle .lights-photo * { cursor: none; }
-.lights-track { height: 100%; }
+.lights-track { height: 100%; background-color: var(--black); }
 .lights-track:focus-visible { outline: 0; } /* the view itself is the focus; a ring would be the one distraction */
 .lights-frame { flex: 0 0 100%; height: 100%; margin: 0; display: grid; place-items: center; min-height: 0; scroll-snap-align: center; }
-.lights-frame img { width: auto; height: auto; max-width: 100vw; max-height: 100svh; }
+.lights-frame img { width: auto; height: auto; max-width: 100vw; max-height: 100svh; background-color: var(--black); }
 /* While lights out is up the header is under it, so it must not be lifted above it during the move. */
 .page:has(.lights) .header { view-transition-name: none; }

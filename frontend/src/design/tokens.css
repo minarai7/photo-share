@@ -45,29 +45,33 @@
   --serif: "Cormorant Garamond", "Noto Serif JP", Georgia, serif;     /* titles, prose, form input */
   --jp: "Noto Serif JP", "Yu Mincho", "Hiragino Mincho ProN", serif;  /* any Japanese text */
 
-  /* Display sizes (Cinzel, uppercase, tracked). Small on purpose. */
-  --fs-micro: 8.5px;      /* COVER badge, the filter line on phones */
-  --fs-label-xs: 9.5px;   /* fact and filter labels, quiet links, meta lines, kickers */
-  --fs-label-sm: 10px;    /* credit line, index numbers, EN / JA, the scroll cue */
-  --fs-label: 10.5px;     /* header links, text links, buttons, hero stats */
-  --fs-label-lg: 12px;    /* counter totals; the wordmark and vertical title on phones */
-  --fs-mark: 15px;        /* wordmark, vertical title, sheet titles */
-  --fs-mark-lg: 17px;     /* form titles (Log in, Create account) */
+  /* Display sizes (Cinzel, uppercase, tracked). Small, but readable: raised
+     by about 1px on 2026-11-16 (owner: "the font can be bigger"). Japanese
+     takes larger steps of the same names (the :lang(ja) block below). */
+  --fs-micro: 9.5px;      /* COVER badge, the filter line on phones */
+  --fs-label-xs: 10.5px;  /* fact and filter labels, quiet links, meta lines, kickers */
+  --fs-label-sm: 11px;    /* credit line, index numbers, JA / EN, the scroll cue */
+  --fs-label: 11.5px;     /* header links, text links, buttons, hero stats */
+  --fs-label-lg: 13px;    /* counter totals; the vertical title on phones */
+  --fs-mark: 16px;        /* vertical title, sheet titles */
+  --fs-mark-lg: 19px;     /* form titles (Log in, Create account) */
+  --fs-wordmark: 16px;    /* the wordmark, the same in both languages (13px on phones) */
   --fs-count: 20px;       /* the pager's current number */
   --fs-count-lg: 30px;    /* the position counter's current number */
-  --fs-hero: 44px;        /* hero name: Photo Share / a username (28px on phones) */
+  --fs-hero: 48px;        /* hero name: Photo Share / a username (32px on phones) */
   /* Serif sizes (Cormorant Garamond, often italic). */
-  --fs-small: 13px;       /* Japanese tile captions */
-  --fs-hint: 15px;        /* hints, field errors, toast text */
-  --fs-body: 17px;        /* running text, wall label lines, tile captions */
-  --fs-option: 18px;      /* filter options, gear links in dialogs, Japanese wall title */
-  --fs-field: 20px;       /* input text, sub-titles, the empty Index sentence */
-  --fs-lead: 23px;        /* hero line, caption-bar title (19px on phones) */
-  --fs-title: 28px;       /* wall-label title, dialog titles, end card */
+  --fs-small: 14px;       /* Japanese tile captions */
+  --fs-hint: 16px;        /* hints, field errors, toast text */
+  --fs-body: 18px;        /* running text, wall label lines, tile captions */
+  --fs-option: 19px;      /* filter options, gear links in dialogs, Japanese wall title */
+  --fs-field: 21px;       /* input text, sub-titles, the empty Index sentence */
+  --fs-lead: 25px;        /* hero line, caption-bar title (20px on phones) */
+  --fs-title: 30px;       /* wall-label title, dialog titles, end card */
+  --fs-title-ja: 24px;    /* a Japanese title at weight 500 (form, dialog, wall label): heavier and larger than the text under it */
 
   --track-tight: 0.04em;  /* italic years inside tracked titles */
   --track-ja: 0.08em;     /* Japanese: light tracking, never uppercase */
-  --track-meta: 0.18em;   /* small data: credit line, numbers, EN / JA, filter line */
+  --track-meta: 0.18em;   /* small data: credit line, numbers, JA / EN, filter line */
   --track-label: 0.2em;   /* default Cinzel tracking: links, labels, buttons in dialogs */
   --track-wide: 0.24em;   /* solid buttons, section titles, the scroll cue, kickers */
   --track-mark: 0.28em;   /* wordmark, sheet and form titles */
@@ -77,6 +81,8 @@
   --gutter: 44px;         /* frame inset: header, rails, fixed controls (18px on phones) */
   --rail: 128px;          /* side room for the vertical title / counter around a slide (88px ≤1100px, 16px on phones) */
   --header-h: 90px;       /* fixed header incl. padding; content starts below it (64px on phones) */
+  --header-pad: 28px;     /* the header row's distance from the top on every screen, the Index too (18px on phones) */
+  --header-row: 16px;     /* the header row's height: the wordmark's line; its links centre in it (13px on phones) */
   --bar: 88px;            /* the post view's caption bar under the photo (84px on phones) */
   --form-w: 360px;        /* log-in / sign-up form column */
   --panel-w: 400px;       /* the new-post side panel (340px ≤1100px) */
@@ -134,6 +140,20 @@
   --z-sheet: 200;         /* the Index */
 }
 
+/* Japanese: kanji need more pixels than capitals to stay legible, so the
+   small steps are larger (DESIGN-SYSTEM.md §3.3). <html lang> is set by
+   LanguageProvider. The wordmark and numbers keep their sizes. */
+:root:lang(ja) {
+  --fs-micro: 11px;
+  --fs-label-xs: 12.5px;
+  --fs-label-sm: 13px;
+  --fs-label: 13.5px;
+  --fs-label-lg: 14.5px;
+  --fs-mark: 17px;
+  --fs-mark-lg: 19px;
+  --fs-small: 15px;
+}
+
 @media (max-width: 1100px) {
   :root { --rail: 88px; --panel-w: 340px; }
 }
@@ -141,6 +161,7 @@
 @media (max-width: 760px) {
   :root {
     --gutter: 18px; --rail: 16px; --header-h: 64px; --bar: 84px; --feed-reserve: 230px;
-    --fs-hero: 28px; --fs-lead: 19px;
+    --header-pad: 18px; --header-row: 13px; --fs-wordmark: 13px;
+    --fs-hero: 32px; --fs-lead: 20px; --fs-title-ja: 21px;
   }
 }

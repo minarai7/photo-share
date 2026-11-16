@@ -19,6 +19,7 @@ import { previewTint } from "../utils/previewTint";
 import { Count } from "../components/Count";
 import { CloseButton, Header } from "../components/Header";
 import { VerticalTitle } from "../components/Reel";
+import { JaText } from "../components/JaText";
 import { SortablePhotos } from "../components/SortablePhotos";
 import { FormError, TextField } from "../components/TextField";
 import "./CreatePostPage.css";
@@ -193,7 +194,7 @@ export function CreatePostPage() {
 
             const post = await createPost(data);
             invalidate();
-            toast(t.toast.published, { description: post.caption || undefined });
+            toast(t.toast.published, { description: post.caption ? <JaText text={post.caption} /> : undefined });
             go(`/posts/${post.id}`, { replace: true, state: { post, returnTo: user ? `/users/${user.id}` : "/" } });
         } catch (err) {
             setError(toApiErrorMessage(err, { fallbackMessage: t.compose.failed }));
@@ -238,9 +239,9 @@ export function CreatePostPage() {
                         </button>
                     )}
                     <p className="credit-line">
-                        {user && <span className="author is-plain">{user.username}</span>}
-                        {place.trim() && <span>{place.trim()}</span>}
-                        {gearLine && <span className="gear">{gearLine}</span>}
+                        {user && <span className="author is-plain"><JaText text={user.username} /></span>}
+                        {place.trim() && <span><JaText text={place.trim()} /></span>}
+                        {gearLine && <span className="gear"><JaText text={gearLine} /></span>}
                     </p>
                     {photos.length > 0 && (
                         <div className="filmstrip">

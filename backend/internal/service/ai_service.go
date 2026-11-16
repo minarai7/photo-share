@@ -229,11 +229,29 @@ Rules:
 - Use web search to verify URLs before including them.`
 }
 
+// gearLinkLanguageRules tells the model which language to write in and which
+// pages to prefer. Japanese readers get Japanese text and Japanese pages.
+func gearLinkLanguageRules(language string) string {
+	if language == "ja" {
+		return `Language: Japanese (ja).
+- Write "summary" and every "reason" in natural Japanese (日本語). Keep product names and model numbers as the maker writes them.
+- Write each "title" as the page's own title, which for a Japanese page is in Japanese.
+- Prefer pages in Japanese for readers in Japan: first the maker's Japanese site (for example sony.jp, fujifilm.com/jp/ja, nikon-image.com, canon.jp, panasonic.jp, ricoh-imaging.co.jp, sigma-global.com/jp, tamron.com/jp, om-digitalsolutions.jp), then reliable Japanese spec or retail pages (for example kakaku.com, mapcamera.com, kitamura.jp, dc.watch.impress.co.jp).
+- Use an English page only when no Japanese page exists for this product.
+- Search in Japanese as well as by the product name.`
+	}
+	return `Language: English (en).
+- Write "summary" and every "reason" in English.
+- Prefer English pages: the maker's global or English site, then reliable English spec pages.`
+}
+
 func buildGearLinkUserPrompt(p dto.GearLinkRequest) string {
 	return fmt.Sprintf(`Find up to 3 reliable product/spec links for this photography gear.
 
 kind: %s
 name: %s
+
+%s
 
 Return ONLY valid JSON in this exact shape:
 
@@ -254,7 +272,7 @@ Return ONLY valid JSON in this exact shape:
 Do not write "Here is".
 Do not use markdown.
 Do not use bullet points.
-Do not wrap the JSON in code fences.`, p.Kind, p.Name, p.Kind, p.Name)
+Do not wrap the JSON in code fences.`, p.Kind, p.Name, gearLinkLanguageRules(p.Language), p.Kind, p.Name)
 }
 
 func gearLinkResponseFormat() map[string]any {

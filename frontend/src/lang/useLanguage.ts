@@ -12,7 +12,8 @@ export type LanguageContextValue = {
 
 export const LanguageContext = createContext<LanguageContextValue | null>(null);
 
-export const DEFAULT_LANGUAGE: LanguageCode = "en";
+/** Japanese first (the owner's choice, 2026-11-16): visitors and logged-out sessions start here. */
+export const DEFAULT_LANGUAGE: LanguageCode = "ja";
 
 export function useLanguage() {
     const context = useContext(LanguageContext);

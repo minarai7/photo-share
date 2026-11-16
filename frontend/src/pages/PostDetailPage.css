@@ -2,12 +2,13 @@
    The photo is as large as the screen allows minus --reserve (the header band
    and the caption bar), so no text lies on it; --reserve stays ≤ --feed-reserve. */
 .is-post { --reserve: calc(var(--header-h) + var(--bar)); }
-.page.is-post .header:not(.is-on-image) { height: var(--header-h); padding-block: 0; transition: background-color var(--t-tint), opacity var(--t-idle); }
+/* The header band is --header-h tall, but its row stays where every screen has it (Header.css). */
+.page.is-post .header:not(.is-on-image) { height: var(--header-h); padding-bottom: 0; transition: background-color var(--t-tint), opacity var(--t-idle); }
 .post-screen { height: 100svh; scroll-snap-align: start; }
 .post-stage { height: calc(100svh - var(--bar)); padding-top: var(--header-h); display: grid; grid-template-rows: minmax(0, 1fr); }
 .post-track { height: 100%; }
 .post-frame { flex: 0 0 100%; margin: 0; display: grid; place-items: center; min-height: 0; scroll-snap-align: center; }
-.post-frame img { width: auto; height: auto; max-width: 100vw; max-height: calc(100svh - var(--reserve)); }
+.post-frame img { width: auto; height: auto; max-width: 100vw; max-height: calc(100svh - var(--reserve)); background-color: var(--page); } /* rows still arriving show the wall, never white */
 .post-frame .frame-wait { width: 100%; height: calc(100svh - var(--reserve)); }
 .post-open { display: block; line-height: 0; cursor: zoom-in; } /* the photo is the way into lights out */
 /* Caption bar: title and author | Info, pager. */
@@ -18,7 +19,8 @@
 }
 .post-caption { display: grid; justify-items: start; gap: var(--s-10); min-width: 0; }
 .post-caption h1 { margin: 0; max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font: italic 400 var(--fs-lead)/1.15 var(--serif); }
-.post-caption h1.is-ja { font: 400 var(--fs-body)/1.4 var(--jp); letter-spacing: var(--track-ja); }
+/* A Japanese title: weight and size instead of the English italic, clearly above the author. */
+.post-caption h1.is-ja { font: 500 var(--fs-field)/1.4 var(--jp); letter-spacing: var(--track-ja); }
 .post-caption .author { font: 400 var(--fs-label-xs)/1 var(--display); letter-spacing: var(--track-label); text-transform: uppercase; }
 .post-tools { display: flex; align-items: center; gap: var(--s-28); flex: none; margin-left: auto; }
 /* Info sits left of the pager; its chevron points where it goes (down to the label, up to the photo). */

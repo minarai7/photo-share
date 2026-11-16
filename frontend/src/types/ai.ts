@@ -1,3 +1,5 @@
+import type { LanguageCode } from "./lang";
+
 export type GearKind = "camera" | "lens";
 
 export type GearLinkConfidence = "low" | "medium" | "high";
@@ -12,6 +14,8 @@ export type GearLinkSuggestion = {
 export type GearLinkRequest = {
     kind: GearKind;
     name: string;
+    /** Answer in this language and prefer pages in it (default en). */
+    language?: LanguageCode;
 }
 
 export type GearLinkResponse = {

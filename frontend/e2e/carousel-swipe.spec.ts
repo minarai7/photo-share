@@ -1,5 +1,5 @@
 import { expect, test } from '@playwright/test'
-import { en } from '../src/lang/en'
+import { ja } from '../src/lang/ja'
 import { API, makePost, makeUser } from './helpers'
 
 // A real touch swipe on a phone-sized screen moves the post view's photo
@@ -20,7 +20,7 @@ test('swiping the post view shows the next photo', async ({ page, request }) => 
 
   try {
     await page.goto(`/posts/${post.id}`)
-    await expect(page.getByRole('status', { name: en.post.photoPosition(1, 3) })).toBeVisible()
+    await expect(page.getByRole('status', { name: ja.post.photoPosition(1, 3) })).toBeVisible()
 
     // A finger dragged right to left across the photo, as raw touch events
     // through Chromium's input pipeline (not a JS scroll); scroll-snap settles
@@ -39,8 +39,8 @@ test('swiping the post view shows the next photo', async ({ page, request }) => 
     }
     await cdp.send('Input.dispatchTouchEvent', { type: 'touchEnd', touchPoints: [] })
 
-    await expect(page.getByRole('status', { name: en.post.photoPosition(2, 3) })).toBeVisible()
-    await expect(page.getByRole('img', { name: en.post.photoOf(caption, 2, 3) })).toHaveAttribute('src', new RegExp(`${post.images[1].image_path}$`))
+    await expect(page.getByRole('status', { name: ja.post.photoPosition(2, 3) })).toBeVisible()
+    await expect(page.getByRole('img', { name: ja.post.photoOf(caption, 2, 3) })).toHaveAttribute('src', new RegExp(`${post.images[1].image_path}$`))
     // The page itself did not scroll sideways.
     expect(await page.evaluate('window.scrollX')).toBe(0) // a string: e2e code has no DOM types
   } finally {

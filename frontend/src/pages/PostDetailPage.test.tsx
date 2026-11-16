@@ -125,12 +125,35 @@ describe("post view", () => {
         expect(screen.queryByRole("alert")).not.toBeInTheDocument();
     });
 
+    it("asks the gear lookup to answer in the reader's language", async () => {
+        seedSession(makeUser({ id: 9, username: "zed" }));
+        const api = mockApi({
+            "GET /posts/10": ok(series),
+            "POST /ai/gear-link": ok({
+                kind: "camera",
+                name: "FUJIFILM X-T5",
+                summary: "4020万画素のAPS-Cミラーレスカメラ。",
+                suggestions: [{ title: "X-T5 | 富士フイルム", url: "https://www.fujifilm.com/jp/ja/consumer/digitalcameras/x/fujifilm-x-t5", reason: "メーカー公式の製品ページ。", confidence: "high" }],
+            }),
+        });
+        const { user } = renderApp("/posts/10", { language: "ja" });
+        const label = await screen.findByRole("region", { name: ja.post.about });
+        await user.click(within(label).getByRole("button", { name: ja.gear.findLabel("FUJIFILM X-T5") }));
+
+        expect(api.calls("POST /ai/gear-link")[0].json()).toEqual({ kind: "camera", name: "FUJIFILM X-T5", language: "ja" });
+        expect(await screen.findByRole("link", { name: "X-T5 | 富士フイルム" })).toHaveAttribute("href", expect.stringContaining("/jp/ja/"));
+        expect(screen.getByText("メーカー公式の製品ページ。")).toBeInTheDocument();
+    });
+
     it("renders in Japanese", async () => {
         mockApi({ "GET /posts/10": ok({ ...series, caption: "海辺の生きもの" }) });
         renderApp("/posts/10", { language: "ja" });
         expect(await screen.findByRole("button", { name: ja.post.infoDown })).toHaveTextContent(ja.post.info);
         expect(screen.getByRole("button", { name: ja.header.closeToFeed })).toBeInTheDocument();
         expect(screen.getByText("海辺の生きもの", { selector: "h1" })).toHaveClass("is-ja");
+        // The wall label sets a Japanese title off from its year with a full-width space, not ", ".
+        // (Raw textContent: toHaveTextContent folds the full-width space into " ".)
+        expect(screen.getByRole("region", { name: ja.post.about }).querySelector(".wall-title")?.textContent).toBe("海辺の生きもの　2026");
     });
 });
 

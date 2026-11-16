@@ -1,17 +1,21 @@
-/* Header (DESIGN-SYSTEM.md §5.3, §6): fixed, transparent, the same on every screen. */
+/* Header (DESIGN-SYSTEM.md §5.3, §6): fixed, transparent, the same on every screen.
+   One geometry everywhere: the row starts --header-pad from the top and is
+   --header-row tall (the wordmark's line); every item centres in it. A
+   screen may make the header taller (the post view's band) only below the
+   row, so the wordmark never moves between screens. */
 .header {
   position: fixed; inset: 0 0 auto 0; z-index: var(--z-header);
-  display: flex; justify-content: space-between; align-items: center;
-  padding: var(--s-28) var(--gutter); pointer-events: none;
+  display: flex; justify-content: space-between; align-items: flex-start;
+  padding: var(--header-pad) var(--gutter); pointer-events: none;
   view-transition-name: header; /* the same on every screen, so it holds still through screen changes */
 }
-.header > * { pointer-events: auto; }
+.header > * { pointer-events: auto; min-height: var(--header-row); display: flex; align-items: center; }
 /* Over a hero: plain white with a soft halo, no shade on the photo. */
 .header.is-on-image { color: var(--on-dark); text-shadow: var(--halo); }
 .header.is-on-image .grid-icon { filter: var(--halo-mark); }
 /* Pages that scroll normally: the header takes the page colour so content passes under it cleanly. */
-.page.is-scroll .header:not(.is-on-image) { background-color: var(--page); transition: background-color var(--t-tint); padding-block: var(--s-22); }
-.wordmark { font: 400 var(--fs-mark)/1 var(--display); letter-spacing: var(--track-mark); text-transform: uppercase; transition: opacity var(--t-hover); }
+.page.is-scroll .header:not(.is-on-image) { background-color: var(--page); transition: background-color var(--t-tint); }
+.wordmark { font: 400 var(--fs-wordmark)/1 var(--display); letter-spacing: var(--track-mark); text-transform: uppercase; transition: opacity var(--t-hover); }
 .header-nav { display: flex; align-items: center; gap: var(--s-28); }
 .indexlink.is-on { font-weight: 500; }
 .grid-icon {
@@ -20,8 +24,10 @@
     linear-gradient(currentColor, currentColor) center / var(--line) 100% no-repeat,
     linear-gradient(currentColor, currentColor) center / 100% var(--line) no-repeat;
 }
-/* "− Close": a header link like "+ New", at the end of whatever row it is in. */
-.close { margin-left: auto; min-height: 32px; white-space: nowrap; }
+/* "− Close": a header link like "+ New", at the end of whatever row it is in.
+   Its 32px-tall hit area comes from ::before, so it never makes the row taller. */
+.close { position: relative; margin-left: auto; white-space: nowrap; }
+.close::before { content: ""; position: absolute; inset: calc(-1 * var(--s-10)) calc(-1 * var(--s-8)); }
 .header .close { margin: 0; }
 
 @media (hover: hover) and (pointer: fine) {
@@ -29,7 +35,6 @@
 }
 
 @media (max-width: 760px) {
-  .header { padding: var(--s-18) var(--gutter); }
   .header-nav { gap: var(--s-16); }
-  .wordmark { font-size: var(--fs-label-lg); letter-spacing: var(--track-label); }
+  .wordmark { letter-spacing: var(--track-label); }
 }

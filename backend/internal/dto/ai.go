@@ -3,6 +3,9 @@ package dto
 type GearLinkRequest struct {
 	Kind string `json:"kind"`
 	Name string `json:"name"`
+	// Language of the summary and reasons, and of the pages preferred:
+	// "en" (default) or "ja".
+	Language string `json:"language,omitempty"`
 }
 
 type GearLinkSuggestion struct {

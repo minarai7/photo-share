@@ -29,8 +29,12 @@ export type TranslationDictionary = {
     tagline: string;
     scroll: string;
     newPost: string;
-    yourProfile: string;
+    /** The landing hero's link to the member's own works (their profile reel). */
+    yourWorks: string;
     allWorks: string;
+    /** The person hero of a member with no works yet: theirs, and someone else's. */
+    firstWork: string;
+    noWorksBy: (username: string) => string;
     login: string;
     signup: string;
     logout: string;
@@ -227,6 +231,7 @@ export type TranslationDictionary = {
   apiErrors: {
     invalidJson: string;
     invalidKind: string;
+    invalidLanguage: string;
     emptyName: string;
     aiConfigMissing: string;
     aiRequestFailed: string;

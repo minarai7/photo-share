@@ -1,6 +1,8 @@
 /* Text field, form error and dialogs (DESIGN-SYSTEM.md §6). */
 .form-title { margin: 0; font: 400 var(--fs-mark-lg)/1 var(--display); letter-spacing: var(--track-mark); text-transform: uppercase; }
-:lang(ja) .form-title { font-family: var(--jp); letter-spacing: var(--track-ja); }
+/* Japanese has no capitals or italics to tell a title from its aside, so the
+   title takes weight and size instead (DESIGN-SYSTEM.md §3.3). */
+:lang(ja) .form-title { font: 500 var(--fs-title-ja)/1.3 var(--jp); letter-spacing: var(--track-ja); }
 .tf { display: grid; gap: var(--s-6); }
 .tf-label { font: 400 var(--fs-label-xs)/1 var(--display); letter-spacing: var(--track-label); text-transform: uppercase; }
 .tf-input {
@@ -33,7 +35,8 @@
 .dialog-title { margin: var(--s-10) 0 var(--s-14); font: italic 400 var(--fs-title)/1.15 var(--serif); }
 .dialog-desc { margin: 0; font-size: var(--fs-body); }
 :lang(ja) :is(.dialog-kicker, .dialog-title, .dialog-desc) { font-family: var(--jp); font-style: normal; letter-spacing: var(--track-ja); }
-:lang(ja) .dialog-title { font-size: var(--fs-field); }
+/* Japanese: the dialog's title is heavier and larger than its text (no italics to say so). */
+:lang(ja) .dialog-title { font: 500 var(--fs-title-ja)/1.4 var(--jp); }
 .dialog-form { display: grid; gap: var(--s-18); }
 .dialog-actions { margin-top: var(--s-28); display: flex; justify-content: flex-end; align-items: center; gap: var(--s-28); }
 .dialog-link {
@@ -60,12 +63,18 @@
 .gl-reason { grid-column: 1 / -1; margin: 0; font-style: italic; color: var(--muted); }
 .gl-note { margin: 0 0 var(--s-22); font: italic 400 var(--fs-hint)/1.5 var(--serif); color: var(--muted); }
 @media (hover: hover) and (pointer: fine) { .gl-link:hover { opacity: var(--hover-opacity); } }
+/* Japanese: no italics or wide tracking; the reasons and note are the quiet text under each link. */
+:lang(ja) :is(.gl-reason, .gl-note, .gl-confidence) { font-family: var(--jp); font-style: normal; letter-spacing: var(--track-ja); }
+:lang(ja) .gl-reason { font-size: var(--fs-hint); }
 
 /* Toasts (Sonner, unstyled): top centre, --sheet with a 1px ink border. */
 .toast { display: grid; gap: var(--s-2); width: 100%; background: var(--sheet); color: var(--ink); border: var(--line) solid var(--ink); padding: var(--s-12) var(--s-18); }
 .toast-title { font: 400 var(--fs-label)/1.4 var(--display); letter-spacing: var(--track-label); text-transform: uppercase; }
 .toast-desc { font: italic 400 var(--fs-hint)/1.4 var(--serif); color: var(--muted); }
 :lang(ja) :is(.toast-title, .toast-desc) { font-family: var(--jp); font-style: normal; letter-spacing: var(--track-ja); }
+/* Japanese: what happened (the title) outweighs what it happened to (the text). */
+:lang(ja) .toast-title { font-weight: 500; font-size: var(--fs-hint); }
+:lang(ja) .toast-desc { font-size: var(--fs-label); }
 
 @media (max-width: 760px) {
   .dialog { padding: var(--s-28) var(--s-22); }

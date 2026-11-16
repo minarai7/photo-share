@@ -57,6 +57,16 @@ func TestUserRepository(t *testing.T) {
 		}
 	})
 
+	t.Run("Create stores the signup language", func(t *testing.T) {
+		u, err := repo.Create(ctx, repository.CreateUserParams{Username: "jun", Email: "jun@example.com", PasswordHash: "h", PreferredLanguage: "ja"})
+		if err != nil || u.PreferredLanguage != "ja" {
+			t.Fatalf("Create(ja) = %+v, %v", u, err)
+		}
+		if _, err := repo.Create(ctx, repository.CreateUserParams{Username: "fr", Email: "fr@example.com", PasswordHash: "h", PreferredLanguage: "fr"}); err == nil {
+			t.Error("Create accepted preferred_language fr")
+		}
+	})
+
 	t.Run("unique constraints", func(t *testing.T) {
 		if _, err := repo.Create(ctx, repository.CreateUserParams{Username: "other", Email: "alice@example.com", PasswordHash: "h"}); err == nil {
 			t.Error("duplicate email accepted")

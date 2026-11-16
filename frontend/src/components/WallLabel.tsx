@@ -7,6 +7,7 @@ import type { Post } from "../types/post";
 import { formatDateDots, isJa, yearOf } from "../utils/motion";
 import { AuthorLink } from "./AuthorLink";
 import { GearLink } from "./GearLink";
+import { JaText } from "./JaText";
 import { ConfirmDeleteDialog, EditPostDialog } from "./PostDialogs";
 import "./WallLabel.css";
 
@@ -49,9 +50,10 @@ export function WallLabel({ post, titleStyle, dark = false, owner }: { post: Pos
         <div className={clsx("wall-label", dark && "is-dark")}>
             <AuthorLink userId={post.user_id} username={post.username} />
             <motion.p className={clsx("wall-title", isJa(caption) && "is-ja")} style={titleStyle}>
-                {caption}, <em>{yearOf(post.created_at)}</em>
+                {/* A Japanese title takes a full-width space before its year, not an English comma. */}
+                {caption}{isJa(caption) ? "　" : ", "}<em>{yearOf(post.created_at)}</em>
             </motion.p>
-            {post.location && <p className="wall-place">{post.location}</p>}
+            {post.location && <p className="wall-place"><JaText text={post.location} /></p>}
             {(post.camera_body || post.lens) && (
                 <ul className="wall-medium">
                     {post.camera_body && <li>{post.camera_body} <GearLink kind="camera" name={post.camera_body} className="find" /></li>}

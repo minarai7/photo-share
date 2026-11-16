@@ -1,14 +1,19 @@
 /* Index: contact sheet + sort/filter (DESIGN-SYSTEM.md §5.5, §6). */
 .index {
   position: fixed; inset: 0; z-index: var(--z-sheet); overflow-y: auto;
-  background: var(--sheet); color: var(--ink); padding: var(--s-28) var(--gutter) var(--s-150);
+  background: var(--sheet); color: var(--ink); padding: var(--header-pad) var(--gutter) var(--s-150);
   transition: opacity var(--t-overlay); outline: 0;
 }
 .index[data-starting-style], .index[data-ending-style] { opacity: 0; }
-.index-head { display: flex; align-items: baseline; gap: var(--s-18); margin-bottom: var(--s-48); }
-.index-title { margin: 0; font: 400 var(--fs-mark)/1 var(--display); letter-spacing: var(--track-mark); text-transform: uppercase; }
-.index-count { font: italic 400 var(--fs-body)/1 var(--serif); color: var(--muted); }
+/* The head is the header's row (Header.css): same distance from the top, same
+   height, so "Index" sits exactly where the wordmark was. */
+.index-head { display: flex; align-items: center; gap: var(--s-18); min-height: var(--header-row); margin-bottom: var(--s-48); }
+.index-title { margin: 0; font: 400 var(--fs-wordmark)/1 var(--display); letter-spacing: var(--track-mark); text-transform: uppercase; }
+.index-count { font: italic 400 var(--fs-body)/var(--header-row) var(--serif); color: var(--muted); }
 :lang(ja) :is(.index-title, .index-count) { font-family: var(--jp); font-style: normal; letter-spacing: var(--track-ja); }
+/* Japanese: the title is heavier than the count beside it (no capitals to say so). */
+:lang(ja) .index-title { font-weight: 500; }
+:lang(ja) .index-count { font-size: var(--fs-hint); }
 /* Rules on the left (sticky), works on the right. */
 .index-body { display: grid; grid-template-columns: 280px minmax(0, 1fr); gap: var(--s-64); align-items: start; }
 .index-rules { position: sticky; top: 0; }
@@ -24,7 +29,10 @@
 .index-empty, .index-wait, .fwait { margin: 0; font: italic 400 var(--fs-field)/1.4 var(--serif); color: var(--muted); }
 .fwait { font-size: var(--fs-option); }
 .index-empty .textlink { margin-left: var(--s-10); }
-:lang(ja) :is(.index-sub, .index-empty, .index-wait, .fwait, .flabel) { font-family: var(--jp); font-style: normal; letter-spacing: var(--track-ja); }
+:lang(ja) :is(.index-sub, .index-empty, .index-wait, .fwait, .flabel, .index-by, .names-label) { font-family: var(--jp); font-style: normal; letter-spacing: var(--track-ja); }
+/* Japanese: the section title outweighs its row labels (no capitals to say so). */
+:lang(ja) .index-sub { font-weight: 500; }
+:lang(ja) .names-list { font-family: var(--jp); font-style: normal; letter-spacing: var(--track-ja); }
 
 /* Filter panel: rows of label + options (Base UI ToggleGroup). Options are grey and darken. */
 .filters { display: grid; gap: var(--s-22); }

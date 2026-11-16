@@ -39,6 +39,9 @@ type SignupParams struct {
 	Username string
 	Email    string
 	Password string
+	// PreferredLanguage is the language the visitor signed up in ("en" or
+	// "ja"), so logging in doesn't switch it. Empty keeps the default.
+	PreferredLanguage string
 }
 
 type LoginParams struct {
@@ -76,6 +79,11 @@ func (s *AuthService) Signup(ctx context.Context, p SignupParams) (*model.Users,
 		return nil, ErrPasswordTooLong
 	}
 
+	language := strings.TrimSpace(p.PreferredLanguage)
+	if language != "" && language != "en" && language != "ja" {
+		return nil, ErrInvalidPreferredLanguage
+	}
+
 	existingByEmail, err := s.userRepo.GetByEmail(ctx, email)
 	if err != nil {
 		return nil, err
@@ -98,9 +106,10 @@ func (s *AuthService) Signup(ctx context.Context, p SignupParams) (*model.Users,
 	}
 
 	createdUser, err := s.userRepo.Create(ctx, repository.CreateUserParams{
-		Username:     username,
-		Email:        email,
-		PasswordHash: string(hashedPassword),
+		Username:          username,
+		Email:             email,
+		PasswordHash:      string(hashedPassword),
+		PreferredLanguage: language,
 	})
 	if err != nil {
 		return nil, err

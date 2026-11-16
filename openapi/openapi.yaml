@@ -519,6 +519,12 @@ paths:
                 value:
                   kind: lens
                   name: Tamron 28-75mm f/2.8
+              japanese:
+                summary: Answer in Japanese, preferring Japanese pages
+                value:
+                  kind: camera
+                  name: FUJIFILM X-T5
+                  language: ja
       responses:
         '200':
           description: Gear link suggestions found successfully
@@ -604,7 +610,14 @@ components:
           type: string
           format: password
           example: secret123
-    
+        preferred_language:
+          allOf:
+            - $ref: '#/components/schemas/LanguageCode'
+          description: >-
+            The language the visitor signed up in, stored as their preference
+            so logging in keeps it. Omitted = en. Anything else is 400
+            invalid_preferred_language.
+
     LoginRequest:
       type: object
       required:
@@ -917,7 +930,14 @@ components:
           minLength: 1
           maxLength: 120
           example: Sony A7 III
-    
+        language:
+          allOf:
+            - $ref: '#/components/schemas/LanguageCode'
+          description: >-
+            Language of the summary and reasons, and of the pages preferred
+            (ja prefers the maker's Japanese site and Japanese spec/retail
+            pages). Defaults to en. Anything else is 400 invalid_language.
+
     GearLinkSuggestion:
       type: object
       required:

@@ -11,8 +11,12 @@
 .form-sub { margin: calc(-1 * var(--s-8)) 0 var(--s-6); font: italic 400 var(--fs-field)/1.4 var(--serif); }
 .form-alt { margin: 0; font-size: var(--fs-body); }
 .form-alt .textlink { margin-left: var(--s-6); }
-:lang(ja) :is(.form-title, .form-sub, .form-alt) { font-family: var(--jp); font-style: normal; letter-spacing: var(--track-ja); }
-:lang(ja) .form-sub { font-size: var(--fs-body); }
+:lang(ja) :is(.form-sub, .form-alt) { font-family: var(--jp); font-style: normal; letter-spacing: var(--track-ja); }
+/* Japanese: the subtitle is the quiet aside under a heavy title: smaller,
+   muted, after the wall label's short ink rule. */
+:lang(ja) .form-sub { display: grid; justify-items: start; gap: var(--s-14); margin-top: 0; font-size: var(--fs-hint); color: var(--muted); }
+:lang(ja) .form-sub::before { content: ""; width: 32px; height: var(--line); background: var(--ink); }
+:lang(ja) .form-alt { font-size: var(--fs-hint); }
 
 @media (max-width: 760px) {
   .door { grid-template-columns: 1fr; gap: var(--s-18); align-items: start; padding: calc(var(--header-h) + var(--s-6)) var(--rail) var(--s-150); }

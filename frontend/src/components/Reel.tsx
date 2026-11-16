@@ -12,6 +12,7 @@ import { getImageUrl } from "../utils/imageUrl";
 import { SETTLE, isJa, scrollBehavior, workPhoto, yearOf } from "../utils/motion";
 import { AuthorLink } from "./AuthorLink";
 import { Count } from "./Count";
+import { JaText } from "./JaText";
 import { Pager } from "./Pager";
 import { imageTotal, useSeriesImages } from "./postImages";
 import { ReelContainerContext } from "./reelContext";
@@ -26,8 +27,8 @@ export function CreditLine({ post, children }: { post: Post; children?: ReactNod
     return (
         <p className="credit-line">
             <AuthorLink userId={post.user_id} username={post.username} />
-            {post.location && <span>{post.location}</span>}
-            {gear && <span className="gear">{gear}</span>}
+            {post.location && <span><JaText text={post.location} /></span>}
+            {gear && <span className="gear"><JaText text={gear} /></span>}
             {children}
         </p>
     );
@@ -157,8 +158,10 @@ export function Reel({ posts, intro, startPastIntro = false, header, empty, end,
     const { lastViewed, setInView } = useFeedState();
     const reelRef = useRef<HTMLDivElement | null>(null);
     const [reel, setReel] = useState<HTMLDivElement | null>(null);
-    const inView = useInViewKey(".slide[data-key], .hero[data-key]", reel, posts.length);
-    const position = posts.findIndex((p) => String(p.id) === inView);
+    const inView = useInViewKey(".slide[data-key], .hero[data-key], .end[data-key]", reel, posts.length);
+    // The end card counts as the last work (its colour, the counter at N / N),
+    // so a jump straight to the end never leaves the reel thinking the hero is on screen.
+    const position = inView === "end" ? posts.length - 1 : posts.findIndex((p) => String(p.id) === inView);
     const current = position >= 0 ? posts[position] : null;
     const onIntro = !!intro && (inView === null || inView === "intro");
 
@@ -221,10 +224,10 @@ export function Reel({ posts, intro, startPastIntro = false, header, empty, end,
                     <Slide key={p.id} post={p} index={i} near={Math.abs(i - Math.max(position, 0)) <= 1} container={reelRef} />
                 ))}
                 {hasMore ? (
-                    <section className="end">{more}</section>
+                    <section className="end" data-key="end">{more}</section>
                 ) : (
                     posts.length > 0 && (
-                        <section className="end">
+                        <section className="end" data-key="end">
                             {end}
                             <button type="button" className="textlink" onClick={() => reelRef.current?.scrollTo({ top: 0, behavior: scrollBehavior() })}>
                                 {t.reel.backToTop}

@@ -11,6 +11,7 @@ import (
 	"io"
 	"net/http"
 	"net/http/httptest"
+	"strings"
 	"testing"
 
 	"backend/internal/dto"
@@ -123,6 +124,39 @@ func TestFindGearLinks_Success(t *testing.T) {
 	}
 	if len(got.Suggestions) != 1 || got.Suggestions[0].URL != "https://example.com/lens" {
 		t.Errorf("unsafe suggestion not filtered: %+v", got.Suggestions)
+	}
+}
+
+// The reader's language reaches the prompt: Japanese text and Japanese pages
+// for "ja", English otherwise.
+func TestFindGearLinks_Language(t *testing.T) {
+	cases := []struct {
+		language string
+		want     []string
+		notWant  string
+	}{
+		{"ja", []string{"Language: Japanese", "natural Japanese", "kakaku.com", "sony.jp"}, "Language: English"},
+		{"en", []string{"Language: English"}, "Japanese"},
+		{"", []string{"Language: English"}, "Japanese"},
+	}
+	for _, tc := range cases {
+		t.Run("language="+tc.language, func(t *testing.T) {
+			srv := fakeOpenRouter(t, http.StatusOK, `{"summary":"x","suggestions":[]}`, func(_ *http.Request, body openRouterChatRequest) {
+				user := body.Messages[len(body.Messages)-1].Content
+				for _, w := range tc.want {
+					if !strings.Contains(user, w) {
+						t.Errorf("user prompt lacks %q:\n%s", w, user)
+					}
+				}
+				if strings.Contains(user, tc.notWant) {
+					t.Errorf("user prompt contains %q:\n%s", tc.notWant, user)
+				}
+			})
+			svc := NewAIService(AIConfig{APIKey: "k", BaseURL: srv.URL})
+			if _, err := svc.FindGearLinks(context.Background(), dto.GearLinkRequest{Kind: "camera", Name: "X-T5", Language: tc.language}); err != nil {
+				t.Fatal(err)
+			}
+		})
 	}
 }
 

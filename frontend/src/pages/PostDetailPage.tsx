@@ -17,6 +17,7 @@ import { getImageUrl } from "../utils/imageUrl";
 import { IDLE_FADE_MS, isJa, scrollBehavior, workPhoto } from "../utils/motion";
 import { AuthorLink } from "../components/AuthorLink";
 import { CloseButton, Header } from "../components/Header";
+import { JaText } from "../components/JaText";
 import { LightsOut } from "../components/LightsOut";
 import { Pager } from "../components/Pager";
 import { forgetImages, imageTotal, knownImages, rememberImages } from "../components/postImages";
@@ -83,13 +84,13 @@ export function PostDetailPage() {
             patchPost(updated);
             // Keep the history entry in step, so Back to this page previews the edited post.
             if (hasPreview) navigate(location, { replace: true, state: { ...routeState, post: updated } });
-            toast(t.toast.updated, { description: updated.caption || undefined });
+            toast(t.toast.updated, { description: updated.caption ? <JaText text={updated.caption} /> : undefined });
         },
         onDeleted: () => {
             const caption = post?.caption;
             forgetImages(id);
             invalidate();
-            toast(t.toast.deleted, { description: caption || undefined });
+            toast(t.toast.deleted, { description: caption ? <JaText text={caption} /> : undefined });
             go(returnTo ?? (user ? `/users/${user.id}` : "/"), { replace: true });
         },
     };

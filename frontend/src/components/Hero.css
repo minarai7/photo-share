@@ -26,7 +26,7 @@
 }
 @keyframes draw-once { from { transform: scaleY(0); } }
 
-/* EN / JA: the language not in use is grey, and darkens on hover like every grey control. */
+/* JA / EN: the language not in use is grey, and darkens on hover like every grey control. */
 .lang { display: inline-flex; align-items: center; gap: var(--s-8); }
 .lang-item { font: 400 var(--fs-label-sm)/1 var(--display); letter-spacing: var(--track-meta); opacity: 0.45; transition: opacity var(--t-color); }
 .lang-item[data-pressed] { opacity: 1; }

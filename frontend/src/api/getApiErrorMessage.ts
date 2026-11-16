@@ -14,6 +14,9 @@ export function getApiErrorMessage(
     case "empty_name":
       return t.apiErrors.emptyName;
 
+    case "invalid_language":
+      return t.apiErrors.invalidLanguage;
+
     case "ai_config_missing":
       return t.apiErrors.aiConfigMissing;
 

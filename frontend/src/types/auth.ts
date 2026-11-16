@@ -38,6 +38,8 @@ export type SignupRequest = {
     username: string;
     email: string;
     password: string;
+    /** The language the visitor signed up in, kept as their preference. */
+    preferred_language?: LanguageCode;
 };
 
 export type LoginRequest = {

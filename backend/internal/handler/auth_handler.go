@@ -48,13 +48,23 @@ func (h *AuthHandler) Signup(w http.ResponseWriter, r *http.Request) {
 	}
 
 	user, err := h.authService.Signup(r.Context(), service.SignupParams{
-		Username: req.Username,
-		Email:    req.Email,
-		Password: req.Password,
+		Username:          req.Username,
+		Email:             req.Email,
+		Password:          req.Password,
+		PreferredLanguage: req.PreferredLanguage,
 	})
 
 	if err != nil {
 		switch {
+		case errors.Is(err, service.ErrInvalidPreferredLanguage):
+			httpx.WriteJSON(w, http.StatusBadRequest, httpx.ErrorResponse{
+				Error: httpx.ErrorDetail{
+					Code:    "invalid_preferred_language",
+					Message: err.Error(),
+				},
+			})
+			return
+
 		case errors.Is(err, service.ErrInvalidSignupInput),
 			errors.Is(err, service.ErrPasswordTooLong):
 			httpx.WriteJSON(w, http.StatusBadRequest, httpx.ErrorResponse{

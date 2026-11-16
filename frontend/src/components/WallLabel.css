@@ -4,7 +4,8 @@
 .wall-label .author { font: 400 var(--fs-label)/1.4 var(--display); letter-spacing: var(--track-label); text-transform: uppercase; }
 .wall-title { margin: var(--s-6) 0 0; font: italic 400 var(--fs-title)/1.25 var(--serif); overflow-wrap: anywhere; }
 .wall-title em { font-style: normal; }
-.wall-title.is-ja { font: 400 var(--fs-option)/1.6 var(--jp); letter-spacing: var(--track-ja); }
+/* A Japanese title: weight and size instead of italics, clearly above the place line. */
+.wall-title.is-ja { font: 500 var(--fs-title-ja)/1.5 var(--jp); letter-spacing: var(--track-ja); }
 .wall-place { margin: 0; font: 400 var(--fs-body)/1.4 var(--serif); }
 .wall-medium { margin: var(--s-10) 0 0; padding: 0; list-style: none; display: grid; gap: var(--s-4); font: 400 var(--fs-body)/1.4 var(--serif); color: var(--muted); }
 .wall-meta { margin: var(--s-10) 0 0; font: 400 var(--fs-label-xs)/1.6 var(--display); letter-spacing: var(--track-label); text-transform: uppercase; color: var(--muted); }

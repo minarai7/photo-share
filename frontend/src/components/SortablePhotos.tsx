@@ -3,6 +3,7 @@ import { DndContext, KeyboardSensor, PointerSensor, closestCenter, useSensor, us
 import { SortableContext, horizontalListSortingStrategy, sortableKeyboardCoordinates, useSortable } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
 import { useLanguage } from "../lang/useLanguage";
+import { alongTheRow } from "./alongTheRow";
 
 export type SortablePhoto = { key: string; name: string; previewUrl: string };
 
@@ -57,7 +58,7 @@ export function SortablePhotos({
         if (over && active.id !== over.id) onReorder(String(active.id), String(over.id));
     }
     return (
-        <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={onDragEnd}>
+        <DndContext sensors={sensors} collisionDetection={closestCenter} modifiers={[alongTheRow]} onDragEnd={onDragEnd}>
             <SortableContext items={photos.map((p) => p.key)} strategy={horizontalListSortingStrategy}>
                 <ol className="sortable">
                     {photos.map((p, i) => (

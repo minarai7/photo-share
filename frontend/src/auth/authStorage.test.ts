@@ -1,5 +1,5 @@
 import { describe, expect, it, vi } from "vitest";
-import { AUTH_CHANGED_EVENT, clearAuth, getStoredUser, getToken, isTokenExpired, saveAuth } from "./authStorage";
+import { AUTH_CHANGED_EVENT, clearAuth, getStoredUser, getToken, isTokenExpired, rememberLanguage, saveAuth, storedLanguage } from "./authStorage";
 import { makeToken, makeUser } from "../test/fixtures";
 
 describe("isTokenExpired", () => {
@@ -42,5 +42,25 @@ describe("session storage", () => {
   it("ignores a corrupted stored user instead of crashing", () => {
     localStorage.setItem("auth_user", "{not json");
     expect(getStoredUser()).toBeNull();
+  });
+});
+
+describe("the member's language across reloads", () => {
+  it("storedLanguage is the signed-in member's saved language, else undefined", () => {
+    expect(storedLanguage()).toBeUndefined();
+    saveAuth(makeToken(), makeUser({ preferred_language: "en" }));
+    expect(storedLanguage()).toBe("en");
+    saveAuth(makeToken({ expiresInSec: -1 }), makeUser({ preferred_language: "en" }));
+    expect(storedLanguage()).toBeUndefined();
+  });
+
+  it("rememberLanguage updates the stored member, and nothing for a visitor", () => {
+    rememberLanguage("ja");
+    expect(getStoredUser()).toBeNull();
+    const token = makeToken();
+    saveAuth(token, makeUser({ preferred_language: "en" }));
+    rememberLanguage("ja");
+    expect(getStoredUser()?.preferred_language).toBe("ja");
+    expect(getToken()).toBe(token);
   });
 });

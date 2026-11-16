@@ -1,4 +1,4 @@
-import { useEffect, useRef } from "react";
+import { useEffect, useState } from "react";
 import clsx from "clsx";
 import { Dialog } from "@base-ui/react/dialog";
 import { Tooltip } from "@base-ui/react/tooltip";
@@ -13,6 +13,8 @@ import { getImageUrl } from "../utils/imageUrl";
 import { isJa, pad2 } from "../utils/motion";
 import { CloseButton } from "./Header";
 import { imageTotal } from "./postImages";
+import { JaText } from "./JaText";
+import { interpolate } from "../utils/interpolate";
 import "./IndexSheet.css";
 
 type Counts = { total: number; count: number; narrowed: boolean } | null;
@@ -48,12 +50,13 @@ export function IndexLink({ counts, onOpen }: { counts: Counts; onOpen: () => vo
  */
 function ByNames({ names }: { names: string[] }) {
     const { t } = useLanguage();
-    if (names.length === 1) return <>{t.filterLine.byOne(names[0])}</>;
-    if (names.length === 2) return <>{t.filterLine.byTwo(names[0], names[1])}</>;
+    const name = (i: number) => <JaText text={names[i]} />;
+    if (names.length === 1) return interpolate(t.filterLine.byOne, name(0));
+    if (names.length === 2) return interpolate(t.filterLine.byTwo, name(0), name(1));
     const rest = names.length - 2;
     return (
         <>
-            {t.filterLine.byManyStart(names[0], names[1])}{" "}
+            {interpolate(t.filterLine.byManyStart, name(0), name(1))}{" "}
             <Tooltip.Root>
                 <Tooltip.Trigger className="names-more" delay={200} aria-label={t.filterLine.othersLabel(rest, names.slice(2).join(", "))}>
                     {t.filterLine.others(rest)}
@@ -63,7 +66,7 @@ function ByNames({ names }: { names: string[] }) {
                         <Tooltip.Popup className="names">
                             <span className="names-label">{t.filterLine.by}</span>
                             <ul className="names-list">
-                                {names.map((n) => <li key={n}>{n}</li>)}
+                                {names.map((n) => <li key={n}><JaText text={n} /></li>)}
                             </ul>
                         </Tooltip.Popup>
                     </Tooltip.Positioner>
@@ -117,7 +120,7 @@ function FilterPanel({ filter, setFilter, authors }: { filter: FeedFilter; setFi
                         value={filter.authors.map(String)}
                         onValueChange={(v) => setFilter({ ...filter, authors: v.map(Number) })}
                     >
-                        {authors.map((a) => <Toggle key={a.id} value={String(a.id)} className="fopt">{a.username}</Toggle>)}
+                        {authors.map((a) => <Toggle key={a.id} value={String(a.id)} className="fopt"><JaText text={a.username} /></Toggle>)}
                     </ToggleGroup>
                 ) : (
                     <p className="fwait">{t.index.loadingPeople}</p>
@@ -148,10 +151,12 @@ function FilterPanel({ filter, setFilter, authors }: { filter: FeedFilter; setFi
 /**
  * The Index: a full-screen sheet with the contact sheet and sort/filter
  * beside it. The grid pages in like the reel; picking a work closes the
- * sheet and lands the reel on it.
+ * sheet and lands the reel on it. While new rules' first page loads, the
+ * previous contact sheet and count stay (inert) until the new ones arrive,
+ * so the sheet never says "nothing matches" in between.
  */
 export function IndexSheet({
-    open, onOpenChange, posts, counts, filter, setFilter, authors, hasMore, onNearEnd, onPick,
+    open, onOpenChange, posts, counts, filter, setFilter, authors, hasMore, loading, failure, onNearEnd, onPick,
 }: {
     open: boolean;
     onOpenChange: (open: boolean) => void;
@@ -161,22 +166,36 @@ export function IndexSheet({
     setFilter: (f: FeedFilter) => void;
     authors: Author[] | null;
     hasMore: boolean;
+    /** The first page for the current rules is loading. */
+    loading: boolean;
+    /** Loading works failed: what to say, and how to try again. */
+    failure: { message: string; retry: () => void } | null;
     onNearEnd: () => void;
     onPick: (id: number) => void;
 }) {
     const { t } = useLanguage();
-    const sentinel = useRef<HTMLLIElement>(null);
+    // A callback ref: the sheet's content mounts after it opens, so the
+    // observer starts when the sentinel exists, not when the effect first ran.
+    const [sentinel, setSentinel] = useState<HTMLLIElement | null>(null);
 
-    // Page in as the end of the contact sheet nears.
+    // Page in as the end of the contact sheet nears (measured in the sheet's own scroller).
     useEffect(() => {
-        const el = sentinel.current;
-        if (!open || !hasMore || !el) return;
-        const io = new IntersectionObserver((entries) => entries.some((e) => e.isIntersecting) && onNearEnd(), { rootMargin: "400px" });
-        io.observe(el);
+        if (!open || !hasMore || !sentinel) return;
+        const root = sentinel.closest<HTMLElement>(".index");
+        const io = new IntersectionObserver((entries) => entries.some((e) => e.isIntersecting) && onNearEnd(), { root, rootMargin: "400px" });
+        io.observe(sentinel);
         return () => io.disconnect();
-    }, [open, hasMore, onNearEnd, posts.length]);
+    }, [open, hasMore, onNearEnd, sentinel, posts.length]);
 
-    const countText = counts && (counts.narrowed ? t.index.someWorks(counts.count, counts.total) : t.index.works(counts.total));
+    // Keep what was on screen while the new rules load.
+    const [kept, setKept] = useState(posts);
+    if (!loading && kept !== posts) setKept(posts);
+    const shown = loading ? kept : posts;
+
+    const fresh = counts && (counts.narrowed ? t.index.someWorks(counts.count, counts.total) : t.index.works(counts.total));
+    const [keptCount, setKeptCount] = useState(fresh);
+    if (fresh != null && fresh !== keptCount) setKeptCount(fresh);
+    const countText = fresh ?? keptCount;
     return (
         <Dialog.Root open={open} onOpenChange={onOpenChange}>
             <Dialog.Portal>
@@ -191,15 +210,22 @@ export function IndexSheet({
                             <h2 className="index-sub" id="ix-rules">{t.index.rules}</h2>
                             <FilterPanel filter={filter} setFilter={setFilter} authors={authors} />
                         </section>
-                        <section aria-label={t.index.worksLabel}>
-                            {posts.length === 0 && !hasMore ? (
+                        <section aria-label={t.index.worksLabel} aria-busy={loading || undefined}>
+                            {shown.length === 0 && failure ? (
+                                <p className="index-empty" role="alert">
+                                    {failure.message}{" "}
+                                    <button type="button" className="textlink" onClick={failure.retry}>{t.reel.retry}</button>
+                                </p>
+                            ) : shown.length === 0 && loading ? (
+                                <p className="index-wait" role="status">{t.reel.loading}</p>
+                            ) : shown.length === 0 && !hasMore ? (
                                 <p className="index-empty">
                                     {t.index.nothing}{" "}
                                     <button type="button" className="textlink" onClick={() => setFilter(clearedFilter(filter))}>{t.index.clearAll}</button>
                                 </p>
                             ) : (
-                                <ol className="index-grid">
-                                    {posts.map((p, i) => {
+                                <ol className="index-grid" inert={loading}>
+                                    {shown.map((p, i) => {
                                         const n = imageTotal(p);
                                         return (
                                             <li key={p.id}>
@@ -207,12 +233,19 @@ export function IndexSheet({
                                                     <img src={getImageUrl(p.thumbnail_path ?? p.image_path)} alt="" loading="lazy" decoding="async" />
                                                     <span className="index-no">{pad2(i + 1)}</span>
                                                     <span className={clsx("index-cap", isJa(p.caption) && "is-ja")}>{p.caption || t.reel.untitled}</span>
-                                                    <span className="index-by">{p.username}{n > 1 && ` · ${t.index.photoCount(n)}`}</span>
+                                                    <span className="index-by"><JaText text={p.username} />{n > 1 && ` · ${t.index.photoCount(n)}`}</span>
                                                 </button>
                                             </li>
                                         );
                                     })}
-                                    {hasMore && <li ref={sentinel} className="index-wait">{t.reel.loading}</li>}
+                                    {!loading && failure ? (
+                                        <li className="index-wait" role="alert">
+                                            {failure.message}{" "}
+                                            <button type="button" className="textlink" onClick={failure.retry}>{t.reel.retry}</button>
+                                        </li>
+                                    ) : (
+                                        !loading && hasMore && <li ref={setSentinel} className="index-wait">{t.reel.loading}</li>
+                                    )}
                                 </ol>
                             )}
                         </section>

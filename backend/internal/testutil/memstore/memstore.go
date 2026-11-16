@@ -115,13 +115,19 @@ func (u *UserStore) Create(_ context.Context, p repository.CreateUserParams) (*m
 			return nil, fmt.Errorf("memstore: unique violation (SQLSTATE 23505)")
 		}
 	}
+	if p.PreferredLanguage != "" && p.PreferredLanguage != "en" && p.PreferredLanguage != "ja" {
+		return nil, fmt.Errorf("memstore: check constraint users_preferred_language_check (SQLSTATE 23514)")
+	}
 	m := model.Users{
 		ID:                s.nextUserID,
 		Username:          p.Username,
 		Email:             p.Email,
 		PasswordHash:      p.PasswordHash,
 		CreatedAt:         s.Now(),
-		PreferredLanguage: "en",
+		PreferredLanguage: "en", // the column default
+	}
+	if p.PreferredLanguage != "" {
+		m.PreferredLanguage = p.PreferredLanguage
 	}
 	s.nextUserID++
 	s.users[m.ID] = m

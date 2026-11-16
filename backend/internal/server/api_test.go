@@ -45,6 +45,32 @@ func TestSignupAndLogin(t *testing.T) {
 	expectStatus(t, rec, http.StatusNoContent)
 }
 
+// A visitor who signs up in Japanese stays in Japanese: the signup language is stored.
+func TestSignupStoresLanguage(t *testing.T) {
+	app := newTestApp(t)
+
+	rec := app.do(req{method: http.MethodPost, path: "/auth/signup", body: map[string]string{
+		"username": "jun", "email": "jun@example.com", "password": "password123", "preferred_language": "ja",
+	}})
+	expectStatus(t, rec, http.StatusCreated)
+	if got := assertAuthResponseShape(t, rec).User["preferred_language"]; got != "ja" {
+		t.Errorf("signup preferred_language = %v, want ja", got)
+	}
+
+	// Without one, the default stays.
+	rec = app.do(req{method: http.MethodPost, path: "/auth/signup", body: map[string]string{
+		"username": "ann", "email": "ann@example.com", "password": "password123",
+	}})
+	expectStatus(t, rec, http.StatusCreated)
+	if got := assertAuthResponseShape(t, rec).User["preferred_language"]; got != "en" {
+		t.Errorf("default preferred_language = %v, want en", got)
+	}
+
+	expectError(t, app.do(req{method: http.MethodPost, path: "/auth/signup", body: map[string]string{
+		"username": "fr", "email": "fr@example.com", "password": "password123", "preferred_language": "fr",
+	}}), http.StatusBadRequest, "invalid_preferred_language")
+}
+
 type authResponse struct {
 	Token string         `json:"token"`
 	User  map[string]any `json:"user"`
@@ -1076,6 +1102,7 @@ func TestGearLink(t *testing.T) {
 		expectError(t, post(`{not json`), http.StatusBadRequest, "invalid_json")
 		expectError(t, post(map[string]string{"kind": "tripod", "name": "X"}), http.StatusBadRequest, "invalid_kind")
 		expectError(t, post(map[string]string{"kind": "camera", "name": "   "}), http.StatusBadRequest, "empty_name")
+		expectError(t, post(map[string]string{"kind": "camera", "name": "X", "language": "fr"}), http.StatusBadRequest, "invalid_language")
 	})
 
 	t.Run("not configured", func(t *testing.T) {

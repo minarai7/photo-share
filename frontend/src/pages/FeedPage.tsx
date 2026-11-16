@@ -1,5 +1,5 @@
 ﻿import { useCallback, useMemo, useState } from "react";
-import { useLocation, useParams, useSearchParams } from "react-router";
+import { useLocation, useNavigate, useParams, useSearchParams } from "react-router";
 import { toast } from "sonner";
 import { ApiError } from "../api/apiError";
 import { useAuth } from "../auth/useAuth";
@@ -14,18 +14,34 @@ import { useGo } from "../navigation/viewTransition";
 import { Header } from "../components/Header";
 import { DriftHero, ScrollCue } from "../components/Hero";
 import { FilterLine, IndexLink, IndexSheet } from "../components/IndexSheet";
+import { JaText } from "../components/JaText";
 import { LangToggle } from "../components/LangToggle";
+import { interpolate } from "../utils/interpolate";
 import { Reel } from "../components/Reel";
 import { isJa } from "../utils/motion";
 import { NotFoundPage } from "./NotFoundPage";
+
+/**
+ * How a screen applies new rules. `instant` (rules changed inside the Index)
+ * skips the view transition: the sheet stays on screen, and a transition
+ * would lift the header and the shown photo above it while it crossfades.
+ */
+type SetFilter = (f: FeedFilter, options?: { instant?: boolean }) => void;
 
 /** The feed (/): every work, with the rules from the URL. */
 export function FeedPage() {
     const [search] = useSearchParams();
     const go = useGo();
+    const navigate = useNavigate();
     const query = search.toString();
     const filter = useMemo(() => parseFilter(new URLSearchParams(query)), [query]);
-    const setFilter = useCallback((f: FeedFilter) => go(`/${filterSearch(f)}`, { replace: true }), [go]);
+    const setFilter = useCallback<SetFilter>(
+        (f, options) => {
+            if (options?.instant) void navigate(`/${filterSearch(f)}`, { replace: true });
+            else go(`/${filterSearch(f)}`, { replace: true });
+        },
+        [go, navigate],
+    );
     return <ReelScreen filter={filter} setFilter={setFilter} />;
 }
 
@@ -38,23 +54,25 @@ export function ProfilePage() {
     const { userId } = useParams<{ userId: string }>();
     const [search] = useSearchParams();
     const go = useGo();
+    const navigate = useNavigate();
     const id = Number(userId);
     const valid = Number.isInteger(id) && id > 0;
     const query = search.toString();
     const filter = useMemo(() => ({ ...parseFilter(new URLSearchParams(query)), authors: [id] }), [query, id]);
-    const setFilter = useCallback(
-        (f: FeedFilter) => {
+    const setFilter = useCallback<SetFilter>(
+        (f, options) => {
             const stillThisPerson = f.authors.length === 1 && f.authors[0] === id;
-            if (stillThisPerson) go(`/users/${id}${filterSearch(f, { withAuthors: false })}`, { replace: true });
-            else go(`/${filterSearch(f)}`);
+            if (!stillThisPerson) go(`/${filterSearch(f)}`); // another screen: a screen change
+            else if (options?.instant) void navigate(`/users/${id}${filterSearch(f, { withAuthors: false })}`, { replace: true });
+            else go(`/users/${id}${filterSearch(f, { withAuthors: false })}`, { replace: true });
         },
-        [go, id],
+        [go, navigate, id],
     );
     if (!valid) return <NotFoundPage person />;
     return <ReelScreen key={id} filter={filter} setFilter={setFilter} />;
 }
 
-function ReelScreen({ filter, setFilter }: { filter: FeedFilter; setFilter: (f: FeedFilter) => void }) {
+function ReelScreen({ filter, setFilter }: { filter: FeedFilter; setFilter: SetFilter }) {
     const { t } = useLanguage();
     const toApiErrorMessage = useApiErrorMessage();
     const { user, isAuthenticated, logout } = useAuth();
@@ -82,10 +100,22 @@ function ReelScreen({ filter, setFilter }: { filter: FeedFilter; setFilter: (f: 
     }
 
     const own = person != null && user?.id === person.id;
+    // The filter line names people from the full list, which loads only with
+    // the Index; on a profile the person's own name is known already (never "#9").
+    const namedAuthors =
+        person && !authors?.some((a) => a.id === person.id)
+            ? [...(authors ?? []), { id: person.id, username: person.username, post_count: person.post_count }]
+            : authors;
+    // Nothing loaded to show (and nothing loading): the hero gets the default photograph.
+    const nothingToShow = !isLoading && error == null && posts.length === 0;
+    // A person with no works at all: their hero says so, with no scroll cue
+    // and no empty card under it (there is nothing to scroll to).
+    const noWorks = person != null && person.post_count === 0;
     const intro = personId != null ? (
-        <DriftHero imagePath={posts[0]?.image_path}>
+        <DriftHero imagePath={posts[0]?.image_path} placeholder={noWorks || nothingToShow}>
             <h1 className={isJa(person?.username ?? "") ? "hero-mark is-ja" : "hero-mark"}>{person?.username ?? "ﾂ"}</h1>
-            {person && <p className="hero-stats">{t.hero.stats(person.post_count, person.photo_count)}</p>}
+            {person && !noWorks && <p className="hero-stats">{t.hero.stats(person.post_count, person.photo_count)}</p>}
+            {noWorks && <p className="hero-sub">{own ? t.hero.firstWork : interpolate(t.hero.noWorksBy, <JaText text={person.username} />)}</p>}
             {own && (
                 <div className="hero-actions">
                     <TransitionLink to="/posts/new" state={{ returnTo: location.pathname + location.search }} className="btn is-light">{t.hero.newPost}</TransitionLink>
@@ -94,17 +124,17 @@ function ReelScreen({ filter, setFilter }: { filter: FeedFilter; setFilter: (f: 
                     <LangToggle light />
                 </div>
             )}
-            <ScrollCue />
+            {!noWorks && <ScrollCue />}
         </DriftHero>
     ) : (
-        <DriftHero imagePath={newest?.image_path}>
+        <DriftHero imagePath={newest?.image_path} placeholder={isDefault && nothingToShow}>
             <p className="hero-mark">{t.app.title}</p>
             <p className="hero-sub">{t.hero.tagline}</p>
             <div className="hero-actions">
                 {isAuthenticated && user ? (
                     <>
                         <TransitionLink to="/posts/new" state={{ returnTo: location.pathname + location.search }} className="btn is-light">{t.hero.newPost}</TransitionLink>
-                        <TransitionLink to={`/users/${user.id}`} className="textlink is-light">{t.hero.yourProfile}</TransitionLink>
+                        <TransitionLink to={`/users/${user.id}`} className="textlink is-light">{t.hero.yourWorks}</TransitionLink>
                         <button type="button" className="quietlink is-light" onClick={signOut}>{t.hero.logout}</button>
                     </>
                 ) : (
@@ -148,7 +178,7 @@ function ReelScreen({ filter, setFilter }: { filter: FeedFilter; setFilter: (f: 
                     <>
                         <Header onImage={onIntro} lead={<IndexLink counts={counts} onOpen={() => setIndexOpen(true)} />} />
                         {/* Never over the hero's photo: the hero already says who, or nothing is narrowed. */}
-                        {narrowed && !onIntro && <FilterLine filter={filter} authors={authors} onClear={clearFilters} />}
+                        {narrowed && !onIntro && <FilterLine filter={filter} authors={namedAuthors} onClear={clearFilters} />}
                     </>
                 )}
                 intro={intro}
@@ -157,15 +187,16 @@ function ReelScreen({ filter, setFilter }: { filter: FeedFilter; setFilter: (f: 
                 end={
                     person ? (
                         <>
-                            <p className="end-title">{t.reel.endBy(person.username)}</p>
+                            <p className="end-title">{interpolate(t.reel.endBy, <JaText text={person.username} />)}</p>
                             <button type="button" className="textlink" onClick={clearFilters}>{t.reel.allWorks}</button>
                         </>
                     ) : (
                         <p className="end-title">{t.reel.endHere}</p>
                     )
                 }
-                empty={
-                    <section className="end is-empty">
+                empty={noWorks ? null : (
+                    // data-key: in view, the page leaves the hero's --night for the default tint.
+                    <section className="end is-empty" data-key="empty">
                         {filter.photos !== "any" || filter.authors.length > 1 ? (
                             <>
                                 <p className="end-title">{t.reel.noMatch}</p>
@@ -180,7 +211,7 @@ function ReelScreen({ filter, setFilter }: { filter: FeedFilter; setFilter: (f: 
                             </>
                         )}
                     </section>
-                }
+                )}
             />
             <IndexSheet
                 open={indexOpen}
@@ -188,11 +219,20 @@ function ReelScreen({ filter, setFilter }: { filter: FeedFilter; setFilter: (f: 
                 posts={posts}
                 counts={counts}
                 filter={filter}
-                setFilter={setFilter}
+                setFilter={(f) => setFilter(f, { instant: true })}
                 authors={authors}
                 hasMore={hasMore}
+                loading={isLoading}
+                failure={
+                    failed == null
+                        ? null
+                        : {
+                              message: toApiErrorMessage(failed, { fallbackMessage: t.reel.loadFailed, shouldLog: false }),
+                              retry: error != null ? retry : () => void loadMore(),
+                          }
+                }
                 onNearEnd={() => {
-                    if (!isLoadingMore) void loadMore();
+                    if (!isLoadingMore && loadMoreError == null) void loadMore();
                 }}
                 onPick={(id) => {
                     setIndexOpen(false);

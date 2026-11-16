@@ -51,28 +51,32 @@ Write copy in sentence case in `en.ts`/`ja.ts`. Uppercase comes from CSS (`text-
 
 | Token | Size | Face | Used for |
 |---|---|---|---|
-| `--fs-micro` | 8.5px | display | COVER badge; the filter line on phones |
-| `--fs-label-xs` | 9.5px | display | fact and filter labels, quiet links, Find, meta lines, kickers, tile authors |
-| `--fs-label-sm` | 10px | display | credit line, index numbers, EN / JA, the scroll cue |
-| `--fs-label` | 10.5px | display | header links, text links, buttons, hero stats, toast titles |
-| `--fs-label-lg` | 12px | display | counter totals; wordmark and vertical title on phones |
-| `--fs-mark` | 15px | display | wordmark, vertical title (with its italic year), sheet titles, drop-zone title |
-| `--fs-mark-lg` | 17px | display | form titles ("Log in", "New post") |
+| `--fs-micro` | 9.5px | display | COVER badge; the filter line on phones |
+| `--fs-label-xs` | 10.5px | display | fact and filter labels, quiet links, Find, meta lines, kickers, tile authors |
+| `--fs-label-sm` | 11px | display | credit line, index numbers, JA / EN, the scroll cue |
+| `--fs-label` | 11.5px | display | header links, text links, buttons, hero stats, toast titles |
+| `--fs-label-lg` | 13px | display | counter totals; the vertical title on phones |
+| `--fs-wordmark` | 16px (13 on phones) | display | the wordmark and the Index title; the same in both languages |
+| `--fs-mark` | 16px | display | vertical title (with its italic year), sheet titles, drop-zone title |
+| `--fs-mark-lg` | 19px | display | form titles ("Log in", "New post") |
 | `--fs-count` / `--fs-count-lg` | 20 / 30px | display | pager number / position-counter number |
-| `--fs-hero` | 44px (28 on phones) | display | hero name: "Photo Share", a username |
-| `--fs-small` | 13px | serif / jp | Japanese tile captions |
-| `--fs-hint` | 15px | serif italic | hints, field errors, toast text, dialog notes |
-| `--fs-body` | 17px | serif | running text, wall-label lines, tile captions, the base size |
-| `--fs-option` | 18px | serif italic | filter options, gear links; Japanese wall title |
-| `--fs-field` | 20px | serif | input text, form sub-titles, the empty Index sentence |
-| `--fs-lead` | 23px (19 on phones) | serif italic | hero line, caption-bar title |
-| `--fs-title` | 28px | serif italic | wall-label title, dialog titles, end card |
+| `--fs-hero` | 48px (32 on phones) | display | hero name: "Photo Share", a username |
+| `--fs-small` | 14px | serif / jp | Japanese tile captions |
+| `--fs-hint` | 16px | serif italic | hints, field errors, toast text, dialog notes |
+| `--fs-body` | 18px | serif | running text, wall-label lines, tile captions, the base size |
+| `--fs-option` | 19px | serif italic | filter options, gear links; Japanese wall title |
+| `--fs-field` | 21px | serif | input text, form sub-titles, the empty Index sentence |
+| `--fs-lead` | 25px (20 on phones) | serif italic | hero line, caption-bar title |
+| `--fs-title` | 30px | serif italic | wall-label title, dialog titles, end card |
+| `--fs-title-ja` | 24px (21 on phones) | jp 500 | a Japanese form title (ログイン, 新しい投稿) |
+
+In Japanese (`:root:lang(ja)` in `tokens.css`) the small steps are larger, because kanji need more pixels than capitals: `--fs-micro` 11, `--fs-label-xs` 12.5, `--fs-label-sm` 13, `--fs-label` 13.5, `--fs-label-lg` 14.5, `--fs-mark` 17, `--fs-small` 15. The wordmark and the numbers keep their sizes.
 
 | Tracking | Value | Used for |
 |---|---|---|
 | `--track-tight` | 0.04em | italic years inside tracked titles |
 | `--track-ja` | 0.08em | Japanese text |
-| `--track-meta` | 0.18em | small data: credit line, numbers, EN / JA, filter line |
+| `--track-meta` | 0.18em | small data: credit line, numbers, JA / EN, filter line |
 | `--track-label` | 0.2em | the default: links, labels, dialog buttons, vertical title |
 | `--track-wide` | 0.24em | solid buttons, section titles, kickers, the scroll cue |
 | `--track-mark` | 0.28em | wordmark, sheet and form titles |
@@ -84,7 +88,10 @@ Titles always pair with their **year**: in serif italic after a roman title ("Ga
 
 - Detect Japanese titles (`/[぀-ヿ㐀-鿿]/`) and add `is-ja`. Switch to `--jp`, set `text-transform: none`, and use `--track-ja` (`--track-ja-vertical` only for short vertical titles). Never apply italics.
 - Vertical Japanese titles are **not** rotated 180°. They read top to bottom (`.vtitle.is-ja`).
-- In production, set `<html lang>` from `LanguageProvider` so `:lang(ja)` rules work.
+- In production, set `<html lang>` from `LanguageProvider` so `:lang(ja)` rules work. Japanese is the default language (`index.html` ships `lang="ja"`).
+- Japanese has no capitals or italics to tell a heading from its aside, so it uses **weight, size and colour** instead. A form title is `--jp` 500 at `--fs-title-ja`; its subtitle is `--fs-hint` in `--muted`, after a 32px ink rule (the wall label's mark), and the alternate line ("アカウントをお持ちでないですか？") is `--fs-hint` too. The same rule everywhere a heading sits over other text: dialog titles (edit, delete, gear lookup) are 500 at `--fs-title-ja`; a Japanese work title is 500 at `--fs-title-ja` on the wall label and 500 at `--fs-field` in the caption bar, set off from its year by a full-width space (海辺の朝　2026), not ", "; a toast's title is 500 at `--fs-hint` over its text at `--fs-label`; the drop zone's 写真を選ぶ is 500 at `--fs-field` over the limits at `--fs-hint`; the Index's section title (並べ替え・絞り込み) is 500 over its row labels and its title 500 over its count (`--fs-hint`). Every italic or tracked-caps style that can hold Japanese UI text has a `:lang(ja)` override (gear reasons, note and 高/中/低, "写真2枚" on tiles, the 撮影者 tooltip). Never fake the English look (italic or tracked Japanese).
+- Japanese uses larger steps of the type scale (§3.2).
+- **Japanese that people typed, inside Latin type** (a username, a place, gear, a caption in a toast or dialog title), in either UI language, goes through `JaText` (`components/JaText.tsx`): when the string is Japanese it gets `.ja-text` (`--jp`, upright, `--track-ja`, no uppercase) and `lang="ja"`, whatever caps or italic surround it. Sentences that name someone ("That's everything by あんじゅ.") are built with `interpolate(t.reel.endBy, <JaText text={name} />)` (`utils/interpolate.ts`) so the translation stays a plain string function. Titles that fill their own element use `is-ja` instead (vertical title, caption bar, wall label, Index caption).
 
 ## 4. Colour
 
@@ -123,6 +130,8 @@ Titles always pair with their **year**: in serif italic after a roman title ("Ga
 | `--gutter` | 44px (18 on phones) | inset for everything fixed: header, rails, floating controls |
 | `--rail` | 128px (88 ≤1100px, 16 on phones) | side room around a slide for the vertical title and counter |
 | `--header-h` | 90px (64 on phones) | the fixed header's height; content starts below it |
+| `--header-pad` | 28px (18 on phones) | the header row's distance from the top, on every screen and in the Index |
+| `--header-row` | 16px (13 on phones) | the header row's height (the wordmark's line); links and Close centre in it |
 | `--bar` | 88px (84 on phones) | the post view's caption bar |
 | `--feed-reserve` | 200px (230 on phones) | height kept for text around a feed photo; the post view never reserves more |
 | `--photo-max` | 1180px | widest a feed photo gets |
@@ -136,7 +145,7 @@ Every gap, padding and margin is a step: `--s-2`, `--s-4`, `--s-6`, `--s-8`, `--
 
 ### 5.3 Frame
 
-- **Header** (`.header`): fixed, transparent, `--s-28` padding (`--s-18` on phones). The wordmark is on the left. On the right are two things only: one action, `+ New` for a member or `Log in` for a visitor (absent on the log-in and sign-up pages), then the lead link, which on the feed is the Index link ("All 10 works"). Your profile, Log out, Sign up and `EN / JA` live in the heroes, which the wordmark and one scroll up always reach. **On the post and new-post pages the nav is replaced by Close.** On pages that scroll normally the header takes the page colour. Nothing else goes near the wordmark.
+- **Header** (`.header`): fixed, transparent. **One geometry on every screen:** the row starts `--header-pad` from the top and is `--header-row` tall, and every item centres in it, so the wordmark never moves between screens. A screen may make the header taller (the post view's band is `--header-h`) only below the row; controls never make the row taller (Close's hit area is a `::before`). The Index sheet's head uses the same pad and row, so "Index" lands where the wordmark was. The wordmark is on the left. On the right are two things only: one action, `+ New` for a member or `Log in` for a visitor (absent on the log-in and sign-up pages), then the lead link, which on the feed is the Index link ("All 10 works"). Your works, Log out, Sign up and `JA / EN` live in the heroes, which the wordmark and one scroll up always reach. **On the post and new-post pages the nav is replaced by Close.** On pages that scroll normally the header takes the page colour. Nothing else goes near the wordmark.
 - **Left rail:** the vertical title of the work in view. **Right rail:** the position counter `03 / 10` (rotated −90°).
 
 ### 5.4 Slide
@@ -176,19 +185,19 @@ Name parts by role (`Header`, `CloseButton`, `Pager`). Class names are prefix-fr
 | **Quiet link** | `.quietlink` | Lower in the hierarchy than a text link or an author link: `--muted` at `--fs-label-xs` with a `--hair` underline. For actions beside information, never the point of the screen: the filter line's Clear, the Index's Clear all, Log out, Manage, Edit, Delete. `.is-light` on the hero |
 | **Button** | `.btn` | Solid `--ink` with `--on-dark` text, display caps, square. `.is-light` (white, on the hero), `.is-block` (full width in forms). One per view, for the main action (Log in, Publish, New post). While its action runs: `--disabled-opacity`, a `progress` cursor, and the label says what's happening ("Publishing…") |
 | **Index link** | `IndexLink` in `IndexSheet.tsx` (`.hlink.indexlink`) | The single way into the Index. It names the set on screen: "All 10 works", or "4 of 10 works" (weight 500) while a filter narrows it. Sort only reorders, so it never makes "10 of 10". Grid icon before it |
-| **Drift hero** | `DriftHero` | A full-bleed photo on `--night`, drifting −10% → 2% with scroll, large display text and actions bottom left, `--hero-shade` and `--halo`. Two uses: the **landing hero** at the top of the feed (a visitor starts on it; a member lands on the first work with it one scroll up) and the **person hero**. Actions follow one pattern: the main action as a light button, the way to the other set of works as a text link, quiet links, then `EN / JA`. Landing hero: visitor *Log in* · Sign up; member *New post* · Your profile · Log out |
-| **Person hero** | `DriftHero` in `FeedPage.tsx` | The drift hero on the person's first work: name and "N works · N photographs" (no bio yet, §14). Yours: *New post* · All works · Log out · EN / JA |
+| **Drift hero** | `DriftHero` | A full-bleed photo on `--night`, drifting −10% → 2% with scroll, large display text and actions bottom left, `--hero-shade` and `--halo`. Two uses: the **landing hero** at the top of the feed (a visitor starts on it; a member lands on the first work with it one scroll up) and the **person hero**. Actions follow one pattern: the main action as a light button, the way to the other set of works as a text link, quiet links, then `JA / EN`. Landing hero: visitor *Log in* · Sign up; member *New post* · Your works · Log out. With no work to show (a person with no works, an empty site) it takes the **default photograph** (`assets/empty-hero.jpg`, a blank card by a mug and a candle on a dark wall, which keeps the white header readable) instead of the bare `--night` ground |
+| **Person hero** | `DriftHero` in `FeedPage.tsx` | The drift hero on the person's first work: name and "N works · N photographs" (no bio yet, §14). Yours: *New post* · All works · Log out · JA / EN. **No works yet:** the default photograph, a sentence in place of the counts ("Post your first photograph." for yours, "aoi hasn't posted yet." for someone else's), no scroll cue and nothing below it to scroll to |
 | **Scroll cue** | `ScrollCue` (`.scroll-cue.is-drawn`) | "Scroll" over a 56px hairline under a hero. The line draws itself down and fades every `--t-cue`, the one looping animation. With reduced motion it draws once and stays |
 | **Reel** | `Reel` | A vertical scroll-snap container (`.reel.is-stop`) of an optional hero, slides and an end card ("That's everything here." / "That's everything by aoi.tanaka." + All works, then Back to the top). It remembers the last opened work. Keys: ↓/↑, PgDn/PgUp, J/K, Space |
 | **Slide** | `Slide` in `Reel.tsx` (`.slide`) | One work on a reel. The photo is a link that opens the post, carrying the photo index (2 of 3 opens on 2/3). It **settles** as the reel scrolls (`SETTLE`: arriving and leaving at 98.5% scale and 55% opacity, flat and full when centred); nothing moves sideways; off with reduced motion |
 | **Slide staging** (layout) | `.slide`, `.door`, `.compose-stage` | The shared staging of a work: `--s-96 --rail --s-36` padding, the vertical title in the left rail, the photo contained, a credit line beneath. Every screen that shows a work builds on it |
 | **Vertical title** | `.vtitle` | Title + italic year at `--fs-mark`, `vertical-rl` rotated 180° (not for Japanese), max 72svh, horizontal on phones |
 | **Credit line** | `.credit-line` | Author · place · gear, in that order, `--muted` display caps at `--fs-label-sm` |
-| **Author link** | `AuthorLink` (`.author`) | Display caps with an underline, in ink; goes to the person's profile |
+| **Author link** | `AuthorLink` (`.author`) | Display caps with an underline, in ink; goes to the person's profile. A Japanese name is set in `--jp`, upright and lightly tracked (`JaText`, §3.3) |
 | **Pager** | `Pager` (`.pager`) | Hairline chevrons (`currentColor`, hit area widened by `::before`) around a `Count`. Only for a series of 2+. At the ends: `--disabled-opacity-mark`. Hover fades like an ink link |
 | **Count** | `Count` | NumberFlow rolling digits, tabular. Rotate the whole element (never `writing-mode`) when it is vertical |
 | **Position counter** | `.progress` | `03 / 10` on the right rail, hidden on phones |
-| **Index sheet** | `IndexSheet` (`.index`) | A full-screen `--sheet` dialog: "Index", live count, Close. Sort · Filter column on the left (sticky), the contact sheet on the right; stacked on phones. Picking a work closes it and lands the reel there |
+| **Index sheet** | `IndexSheet` (`.index`) | A full-screen `--sheet` dialog: "Index", live count, Close. Sort · Filter column on the left (sticky), the contact sheet on the right; stacked on phones. Picking a work closes it and lands the reel there. Changing the rules inside it is not a screen change (no view transition, which would lift the header and the shown photo above the sheet). While the new rules load, the previous contact sheet and count stay (inert, `aria-busy`); "No works match" only once the load has finished empty. It pages in as its end nears; a failed page says so with Try again |
 | **Filter panel** | `FilterPanel` in `IndexSheet.tsx` | Rows of label + options (Base UI `ToggleGroup`/`Toggle`). Options are serif italic, `--muted`, darkening on hover, ink with an underline when pressed. Rules: Sort (one), By (any number of people), Only: Single photo / Series of 2+ (one or neither). "Clear all" (quiet link) only while a filter (not a sort) is on; it keeps the sort |
 | **Filter line** | `FilterLine` (`.filterline`) | While a filter is on, a `--muted` line under the wordmark saying which ("by lena.ph · single photos only"), then Clear (quiet link; keeps the sort). Never the sort. More than two people read "by a, b and 3 others"; "3 others" (dotted rule) opens a Base UI Tooltip (`ByNames`) on the `--sheet` surface with a 1px ink edge listing everyone under "By". Hidden while a hero is on screen. Not a link: the Index link is the one way in |
 | **Caption bar** | `.post-bar` in `PostDetailPage` | The post's band under the photo (`--bar`): title (serif italic `--fs-lead`, one line) over the author on the left; Info and the Pager on the right. It and the header fade (`--t-idle`) after `--idle-fade` without input while the visitor is at the top. Its caption fades out as the wall label's title scrolls in, so the title is never on screen twice |
@@ -197,11 +206,11 @@ Name parts by role (`Header`, `CloseButton`, `Pager`). Class names are prefix-fr
 | **Gear link** | `GearLink` (`.find`) | "Find" after a camera or lens (a grey link); opens the AI gear-link dialog |
 | **Owner actions** | `OwnerActions` (`.owner-line`) | Only for the owner, at the foot of the wall label: one quiet "Manage" that opens to Edit · Delete in place. Delete always confirms in a dialog |
 | **Lights out** | `LightsOut` (`.lights`) | A click on the post's photo (`zoom-in` cursor), or F. Inside the window (no browser full screen, no "Press Esc" notice): the page goes `--black` and the photo moves out to fill the window. Nothing else is on screen; the cursor hides after `--idle-cursor`. One snapped scroll down: the same wall label, white on black. A click on the photo (`zoom-out`) or Esc turns the lights back on, on the photo it ended on. ←/→ or a swipe pages a series. A `role="dialog"` at `--z-lights`, under the dialog layer, so Find / Edit / Delete open above it |
-| **Language toggle** | `LangToggle` (`.lang`) | `EN / JA` in the heroes; the language not in use at 0.45 opacity, darkening on hover |
+| **Language toggle** | `LangToggle` (`.lang`) | `JA / EN` in the heroes (Japanese first, the default); the language not in use at 0.45 opacity, darkening on hover. A member's choice is saved and survives a reload |
 | **Text field** | `TextField` (`.tf`) | Display-caps label, serif input with only a bottom rule (`--rule`) that turns ink with an inset line on focus. Hint and error below in serif italic. Errors in `--danger` with `aria-invalid` |
 | **Form error** | `.form-error` | Serif italic `--danger` with a 1px left rule, `role="alert"` |
 | **Side panel** | `.compose-panel` | The surface for fields beside a work: the page colour lifted toward white, a hairline left edge, `--panel-w` wide. Full width under the work on phones |
-| **Sortable photos** | `SortablePhotos` (dnd-kit, `.sortable`) | 88px thumbnails on `--wash`, reordered by drag or keyboard. The first is marked COVER (ink band, `--fs-micro`). Remove × (a light square that inverts on hover), + add tile (dashed `--faint`, ink border and `--wash` on hover) |
+| **Sortable photos** | `SortablePhotos` (dnd-kit, `.sortable`) | 88px thumbnails on `--wash`, reordered by drag or keyboard. One row: a dragged photo moves sideways only (`alongTheRow`). The first is marked COVER (ink band, `--fs-micro`). Remove × (a light square that inverts on hover), + add tile (dashed `--faint`, ink border and `--wash` on hover) |
 | **Drop zone** | `.compose-empty` | Fills the preview's photo area with a 1px `--rule` border: "Choose photos" in display caps and the limits in serif italic (JPEG, PNG or WebP · up to 32 MB each · up to 10 photos). Lightens on hover |
 | **Dialogs** | `ConfirmDeleteDialog`, `EditPostDialog` (`PostDialogs.tsx`), `GearLink` (`.dialog`) | Base UI Dialog / AlertDialog on `--sheet` over `--scrim`, no border, square, `--t-dialog` + `--ease-out`. Title in serif italic `--fs-title`. Cancel as a text link; the confirm button solid ink, `--danger` for Delete |
 | **Toasts** | Sonner `Toaster` in `Layout` (unstyled, `.toast`) | Top centre, `--sheet` with a 1px ink border. Title in display caps, text in serif italic. Past-tense confirmations ("Post published", "Signed out") |
@@ -210,7 +219,7 @@ Name parts by role (`Header`, `CloseButton`, `Pager`). Class names are prefix-fr
 
 | State | Treatment |
 |---|---|
-| Hover (fine pointers only, `@media (hover: hover) and (pointer: fine)`) | **Ink links and marks** (wordmark, header links, text links, author, pager chevrons, dialog links) fade to `--hover-opacity` over `--t-hover`. **Solid buttons** ease to `--hover-opacity-solid`. **Grey links and controls** (Find, quiet links, "3 others", filter options, EN / JA) darken to their surface's strong colour (`--link-strong`: ink on paper, white on dark) and their line to currentColor, over `--t-color`. A grey control never fades further. Photos in grids go to 0.7 |
+| Hover (fine pointers only, `@media (hover: hover) and (pointer: fine)`) | **Ink links and marks** (wordmark, header links, text links, author, pager chevrons, dialog links) fade to `--hover-opacity` over `--t-hover`. **Solid buttons** ease to `--hover-opacity-solid`. **Grey links and controls** (Find, quiet links, "3 others", filter options, JA / EN) darken to their surface's strong colour (`--link-strong`: ink on paper, white on dark) and their line to currentColor, over `--t-color`. A grey control never fades further. Photos in grids go to 0.7 |
 | Focus | `:focus-visible { outline: var(--line) solid currentColor; outline-offset: 5px }`. Never remove it (lights out's photo track is the one exception: the view is the focus) |
 | Active / selected | Ink + underline (filter options), `aria-current` / `aria-pressed` |
 | Disabled | `--disabled-opacity` and a `progress` cursor while an action runs, with changed wording; `--disabled-opacity-mark` and a default cursor for marks that can't act |
@@ -223,6 +232,8 @@ Name parts by role (`Header`, `CloseButton`, `Pager`). Class names are prefix-fr
 ### 7.1 Scrolling
 
 - The feed, a profile, the post view (photo → label) and lights out (photo → label) are all **reels**: `scroll-snap-type: y mandatory` with `scroll-snap-stop: always` (`.is-stop`), one screen per gesture.
+- Reels don't bounce (`overscroll-behavior: none`; `contain` still bounced and showed `--night` above the hero), and the page itself never bounces vertically.
+- Reels and photo tracks carry the page colour as an opaque background (and photos while they load), so a photo still arriving shows the wall behind it, never white.
 - **Tempo:** one gesture moves one work vertically and one photo horizontally. Horizontal and vertical must feel the same.
 - **Hand-off, not takeover:** a trackpad gesture that starts sideways stays latched to the photo track. `useWheelToPage` steps the reel once only when a mostly-vertical gesture *begins while that track is (or within 600ms was) moving sideways*, and swallows the rest of that gesture wherever the pointer goes, using one record per reel shared by all its tracks. Every other gesture is native snapping. It never touches horizontal input or touch.
   - *Regression to avoid:* per-track gesture state let one swipe step twice when the reel moved the next work's track under the pointer, skipping works.
@@ -263,7 +274,7 @@ Name parts by role (`Header`, `CloseButton`, `Pager`). Class names are prefix-fr
 |---|---|
 | **Feed** (`pages/FeedPage.tsx`) | A reel: the landing hero ("Photo Share / One photograph at a time."), slides, the end card. A visitor starts on the hero; a member on the first work. When the rules come down to one person, the reel becomes their profile (person hero on top, "That's everything by …" at the end). The Index link is the single way into the Index (contact sheet + sort/filter); the filter line names active filters |
 | **Post** (`pages/PostDetailPage.tsx`) | Two snapped screens. First: the photo as large as the screen allows between the header band (Close replaces the nav) and the caption bar (title + author \| Info, ‹ 1/n ›), opening on the photo index it was opened with. Second: the wall label alone on the page colour; nothing below it. One swipe, Info or I moves between them; Esc comes back up; Esc at the top, or Close, leaves. A click on the photo (or F) turns the lights out. ←/→ page the series. No text on the photo |
-| **Profile** (`ProfilePage` in `pages/FeedPage.tsx`) | The feed filtered to that person (the author comes from the route, `/users/:id`): person hero, their works, "That's everything by aoi.tanaka." + All works, with the Index link and filter line carried on from the feed. Sort and Only carry over between feed and profile; choosing other people, Clear or All works leaves for the feed. Author links and "Your profile" lead here |
+| **Profile** (`ProfilePage` in `pages/FeedPage.tsx`) | The feed filtered to that person (the author comes from the route, `/users/:id`): person hero, their works, "That's everything by aoi.tanaka." + All works, with the Index link and filter line carried on from the feed. Sort and Only carry over between feed and profile; choosing other people, Clear or All works leaves for the feed. Author links and "Your works" lead here. A person with no works: the person hero alone, with the default photograph and a sentence (§6), nothing to scroll to |
 | **Log in / Sign up** (`pages/AuthPage.tsx`) | A slide with the form in its right-hand room (`.door`: work `1fr`, form `--form-w`). The staged work is the post you came from (on its shown photo), else the work on screen in the feed, else a default. Form: display-caps title, italic subtitle ("Welcome back."), fields, a block button, the alternate link ("No account yet? *Sign up*"). On phones: title, photo (max 34svh), then the form |
 | **New post** (`pages/CreatePostPage.tsx`) | Close replaces the nav (back to where you came from, else the feed; Esc too). A live preview of the slide it will become (`.compose-stage`): "Preview" kicker, the typed title up the margin ("Untitled" until typed), the cover on its colour (the drop zone before photos), and the credit line from your name, place and camera/lens (typed, else read from the photo). Below: the sortable filmstrip (first = cover). The side panel holds Title, Place, Camera, Lens (placeholders show EXIF values) and Publish ("Uploading 2 / 3") |
 | **404 / errors** | `--paper` page with the standard header, one italic sentence and a text link back to the feed |
@@ -373,4 +384,5 @@ None are open. When the owner asks for variations, list them here until they pic
 | 2026-11 | Close reads "− Close", a header link like "+ New" that fades on hover (the diagonal line and its variations retired). The header over a hero is plain white with a halo, no shade on the photo (the veil, difference blend and other variations retired) | Round 15: "close can be like '- close' just like new photo is '+ new' … text brightens just like + new"; "use Halo only" |
 | 2026-11-15 | Production rebuilt to the Combined prototype; the harness, its retired variants and the fonts only it used were removed. Small choices made while building: a slide's photo is a real link (middle-click works); a series on a reel loads its other photos when its slide is near; a one-person view with Only set says "No works match these rules." when empty; New post previews the page colour in the browser before upload (the server computes the stored one) | The rebuild (current-task.md) |
 | 2026-11-15 | Production rebuild decisions: the landing hero is the **newest post's cover** (no curation). The person hero ships **without a bio** (name + "N works · N photographs") until a bio edit screen is designed. New post reads camera and lens **in the browser** (a small in-house EXIF reader, no new dependency), so the placeholders show them before Publish; the server's EXIF fill-in stays as the fallback. **`email` leaves the public user response**: only the signed-in user's own login/signup response carries it | Owner, before the rebuild (current-task.md §0) |
+| 2026-11-16 | Feedback round (current-task.md): "Your profile" → **Your works**. **Japanese first**: JA / EN and Japanese by default (sign-up keeps the visitor's language; a member reloads in theirs). **Larger type**, Japanese larger still (§3.2). Japanese headings by weight/size/colour, the subtitle after a 32px rule, applied to every heading-over-text pair (forms, dialogs, toasts, wall label, caption bar, drop zone, Index) (§3.3). Japanese names, places and captions inside Latin type go through `JaText` (no tracked caps or fake italics on あんじゅ). The end card counts as the last work, so the page never stays `--night` there; a profile's filter line names the person, never "#9". **One header geometry** (`--header-pad`, `--header-row`) so the wordmark and "Index" sit at the same height on every screen. A person with no works gets the **default photograph** and a sentence instead of a black hero and a scroll cue to nowhere. Index rule changes skip the view transition and keep the old sheet until the new one loads. Reels don't bounce; scrollers carry the page colour (no white while a photo loads). The photo filmstrip drags sideways only | Owner feedback, upcoming-task.md |
 | 2026-11 | Production prep: tokens are the only source of values (complete scales for type, tracking, spacing, layout, motion and layers; the prototype's private copies removed). One black (`--ink`; `--black` only for lights out), one halo. Stylesheet regrouped by component with dead rules removed; components renamed for production (`PostView`, `LightsOut`, `.post-*`, `.lights*`). Hover feedback added to the pager, EN / JA and the photo-reorder controls, and every hover limited to fine pointers. Values snapped to the scales by 1–2px; no layout changed | Audit after round 15: "take all actions necessary to improve design system … in preparation of production code updates" |

@@ -27,6 +27,8 @@ type CreateUserParams struct {
 	Username     string
 	Email        string
 	PasswordHash string
+	// PreferredLanguage is "en" or "ja"; empty leaves the column's default.
+	PreferredLanguage string
 }
 
 func (r *UserRepository) GetByID(ctx context.Context, id int64) (*model.Users, error) {
@@ -84,12 +86,15 @@ func (r *UserRepository) GetByUsername(ctx context.Context, username string) (*m
 }
 
 func (r *UserRepository) Create(ctx context.Context, p CreateUserParams) (*model.Users, error) {
+	columns := postgres.ColumnList{table.Users.Username, table.Users.Email, table.Users.PasswordHash}
+	values := []any{p.Username, p.Email, p.PasswordHash}
+	if p.PreferredLanguage != "" {
+		columns = append(columns, table.Users.PreferredLanguage)
+		values = append(values, p.PreferredLanguage)
+	}
 	stmt := table.Users.
-		INSERT(
-			table.Users.Username,
-			table.Users.Email,
-			table.Users.PasswordHash).
-		MODEL(p).
+		INSERT(columns).
+		VALUES(values[0], values[1:]...).
 		RETURNING(table.Users.AllColumns)
 
 	var user model.Users

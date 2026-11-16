@@ -7,6 +7,7 @@ import { useApiErrorMessage } from "../hooks/useApiErrorMessage";
 import { useLanguage } from "../lang/useLanguage";
 import { useGo } from "../navigation/viewTransition";
 import type { GearKind, GearLinkResponse } from "../types/ai";
+import { JaText } from "./JaText";
 import "./forms.css";
 
 /**
@@ -14,7 +15,7 @@ import "./forms.css";
  * and shows them in a dialog. A visitor is sent to log in first.
  */
 export function GearLink({ kind, name, className }: { kind: GearKind; name: string; className?: string }) {
-    const { t } = useLanguage();
+    const { t, language } = useLanguage();
     const toApiErrorMessage = useApiErrorMessage();
     const { isAuthenticated } = useAuth();
     const location = useLocation();
@@ -33,7 +34,7 @@ export function GearLink({ kind, name, className }: { kind: GearKind; name: stri
         setError(null);
         setResult(null);
         try {
-            setResult(await findGearLinks({ kind, name: name.trim() }));
+            setResult(await findGearLinks({ kind, name: name.trim(), language }));
         } catch (err) {
             setError(toApiErrorMessage(err, { fallbackMessage: t.gear.findFailed }));
         } finally {
@@ -55,7 +56,7 @@ export function GearLink({ kind, name, className }: { kind: GearKind; name: stri
                     <Dialog.Backdrop className="dialog-backdrop" />
                     <Dialog.Popup className="dialog">
                         <p className="dialog-kicker">{t.gear.kicker}</p>
-                        <Dialog.Title className="dialog-title">{result?.name ?? name}</Dialog.Title>
+                        <Dialog.Title className="dialog-title"><JaText text={result?.name ?? name} /></Dialog.Title>
                         {error && <p className="form-error" role="alert">{error}</p>}
                         {result && (
                             <>

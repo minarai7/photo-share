@@ -2,7 +2,7 @@ import { act, screen, waitFor, within } from "@testing-library/react";
 import { describe, expect, it } from "vitest";
 import { en, ja } from "../lang";
 import { feedRoutes } from "../test/feedApi";
-import { makeAuthor, makePost, makePublicUser, makeUser, seedSession } from "../test/fixtures";
+import { makeAuthor, makeListPost, makePost, makePublicUser, makeUser, seedSession } from "../test/fixtures";
 import { apiError, deferred, mockApi, ok } from "../test/mockApi";
 import { showInView } from "../test/intersection";
 import { renderApp } from "../test/renderApp";
@@ -89,6 +89,62 @@ describe("feed", () => {
         expect(within(sheet).getByRole("button", { name: en.index.clearAll })).toBeInTheDocument();
     });
 
+    it("keeps the contact sheet while new rules load: never 'nothing matches' in between", async () => {
+        const most = deferred();
+        mockApi({
+            ...feedRoutes(posts, [alice, bob, carol]),
+            "GET /posts": (call) => (call.query.get("sort") === "most" ? most.handler() : feedRoutes(posts)["GET /posts"](call)),
+        });
+        const { user } = renderApp("/");
+        await user.click(await screen.findByRole("button", { name: en.header.indexLabel(en.header.allWorks(4)) }));
+        const sheet = await screen.findByRole("dialog", { name: en.index.title });
+        await within(sheet).findByText("Snowfield");
+
+        await user.click(within(sheet).getByRole("button", { name: en.index.most }));
+        // Still loading: the previous works stay, the sheet stays open, nothing says "no match".
+        expect(within(sheet).getByText("Snowfield")).toBeInTheDocument();
+        expect(within(sheet).queryByText(en.index.nothing)).not.toBeInTheDocument();
+        expect(within(sheet).getByRole("region", { name: en.index.worksLabel })).toHaveAttribute("aria-busy", "true");
+
+        await act(async () => most.resolve(ok([makeListPost(posts[0])])));
+        await waitFor(() => expect(within(sheet).queryByText("Snowfield")).not.toBeInTheDocument());
+        expect(within(sheet).getByText("Harbour at dusk")).toBeInTheDocument();
+    });
+
+    it("pages the contact sheet in: work 21 loads when the end of the sheet comes into view", async () => {
+        const many = Array.from({ length: 21 }, (_, i) => makePost({ id: 100 - i, caption: `Work ${i + 1}` }));
+        mockApi({
+            ...feedRoutes(many),
+            "GET /posts": (call) => ok(call.query.get("before_id") ? many.slice(20) : many.slice(0, 20)),
+        });
+        const { user } = renderApp("/");
+        await user.click(await screen.findByRole("button", { name: en.header.indexLabel(en.header.allWorks(21)) }));
+        const sheet = await screen.findByRole("dialog", { name: en.index.title });
+        const sentinel = await within(sheet).findByText(en.reel.loading);
+        showInView(sentinel);
+        expect(await within(sheet).findByText("Work 21")).toBeInTheDocument();
+        expect(within(sheet).queryByText(en.reel.loading)).not.toBeInTheDocument();
+    });
+
+    it("says in the Index when the next works failed to load, with a retry", async () => {
+        const many = Array.from({ length: 21 }, (_, i) => makePost({ id: 100 - i, caption: `Work ${i + 1}` }));
+        let fail = true;
+        mockApi({
+            ...feedRoutes(many),
+            "GET /posts": (call) =>
+                call.query.get("before_id") ? (fail ? apiError(500, "list_posts_failed") : ok(many.slice(20))) : ok(many.slice(0, 20)),
+        });
+        const { user } = renderApp("/");
+        await user.click(await screen.findByRole("button", { name: en.header.indexLabel(en.header.allWorks(21)) }));
+        const sheet = await screen.findByRole("dialog", { name: en.index.title });
+        showInView(await within(sheet).findByText(en.reel.loading));
+
+        expect(await within(sheet).findByText(en.apiErrors.listPostsFailed)).toBeInTheDocument();
+        fail = false;
+        await user.click(within(sheet).getByRole("button", { name: en.reel.retry }));
+        expect(await within(sheet).findByText("Work 21")).toBeInTheDocument();
+    });
+
     it("shows people in the Index and picking one person turns the reel into their profile", async () => {
         mockApi({ ...feedRoutes(posts, [alice, bob, carol]), "GET /users/5": ok(makePublicUser({ id: 5, username: "carol", post_count: 1, photo_count: 2 })) });
         const { user } = renderApp("/");
@@ -169,7 +225,9 @@ describe("feed", () => {
         await user.click(screen.getByRole("button", { name: en.hero.logout }));
         expect(await screen.findByText(en.toast.signedOut)).toBeInTheDocument();
         expect(localStorage.getItem("auth_token")).toBeNull();
-        expect(screen.getAllByRole("link", { name: en.header.login }).length).toBeGreaterThan(0);
+        // Logged out, the site is back in its default language, Japanese.
+        expect(screen.getAllByRole("link", { name: ja.header.login }).length).toBeGreaterThan(0);
+        expect(document.documentElement.lang).toBe("ja");
     });
 
     it("renders in Japanese", async () => {
@@ -216,6 +274,49 @@ describe("profile", () => {
         renderApp("/users/2");
         const hero = (await screen.findByRole("heading", { level: 1, name: "bob" })).closest("section")!;
         expect(within(hero).queryByRole("button", { name: en.hero.logout })).not.toBeInTheDocument();
+    });
+
+    it("tells a member with no works to post their first, instead of a scroll cue that leads nowhere", async () => {
+        seedSession(makeUser({ id: 7, username: "newbie" }));
+        mockApi({ ...feedRoutes(posts), "GET /users/7": ok(makePublicUser({ id: 7, username: "newbie", post_count: 0, photo_count: 0 })) });
+        renderApp("/users/7");
+
+        const hero = (await screen.findByRole("heading", { level: 1, name: "newbie" })).closest("section")!;
+        expect(await within(hero).findByText(en.hero.firstWork)).toBeInTheDocument();
+        expect(within(hero).getByRole("link", { name: en.hero.newPost })).toHaveAttribute("href", "/posts/new");
+        expect(within(hero).queryByText(en.hero.scroll)).not.toBeInTheDocument();
+        // The default photograph stands in for a work.
+        expect(hero.querySelector("img.hero-img")).toHaveAttribute("src", expect.stringContaining("empty-hero"));
+        // Nothing below the hero to scroll to.
+        expect(screen.queryByText(en.reel.noWorksYet)).not.toBeInTheDocument();
+    });
+
+    it("says someone else hasn't posted yet", async () => {
+        mockApi({ ...feedRoutes(posts), "GET /users/8": ok(makePublicUser({ id: 8, username: "quiet", post_count: 0, photo_count: 0 })) });
+        renderApp("/users/8");
+        const hero = (await screen.findByRole("heading", { level: 1, name: "quiet" })).closest("section")!;
+        expect(await within(hero).findByText(en.hero.noWorksBy("quiet"))).toBeInTheDocument();
+        expect(within(hero).queryByRole("link", { name: en.hero.newPost })).not.toBeInTheDocument();
+        expect(within(hero).queryByText(en.hero.scroll)).not.toBeInTheDocument();
+    });
+
+    it("names the person in the filter line of their profile, without loading everyone", async () => {
+        const api = mockApi({ ...feedRoutes(posts), "GET /users/1": ok(makePublicUser({ id: 1, username: "alice", post_count: 2 })) });
+        renderApp("/users/1");
+        showInView(await screen.findByRole("region", { name: "Morning light" }));
+        const line = await screen.findByText((_, el) => el?.classList.contains("filterline") ?? false);
+        await waitFor(() => expect(line).toHaveTextContent(en.filterLine.byOne("alice")));
+        expect(line).not.toHaveTextContent("#1");
+        expect(api.calls("GET /users")).toHaveLength(0);
+    });
+
+    it("sets a Japanese name and place upright in Japanese type inside the English credit line", async () => {
+        const jp = makePost({ id: 77, user_id: 9, username: "あんじゅ", caption: "朝霧の川", location: "京都・嵐山" });
+        mockApi(feedRoutes([jp]));
+        renderApp("/");
+        const slide = await screen.findByRole("region", { name: "朝霧の川" });
+        expect(within(slide).getByText("あんじゅ")).toHaveAttribute("lang", "ja");
+        expect(within(slide).getByText("京都・嵐山")).toHaveClass("ja-text");
     });
 
     it("says there is no one here for an unknown person", async () => {

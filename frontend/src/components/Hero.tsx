@@ -1,5 +1,9 @@
 import { useContext, useRef, type ReactNode } from "react";
 import { motion, useReducedMotion, useScroll, useTransform } from "motion/react";
+// The default photograph, for a hero with no work to show: a blank card by a
+// mug and a candle (chosen by the owner), 2400px wide, sRGB, no EXIF. Its dark
+// wall keeps the white header readable.
+import emptyHero from "../assets/empty-hero.jpg";
 import { useLanguage } from "../lang/useLanguage";
 import { getImageUrl } from "../utils/imageUrl";
 import { ReelContainerContext } from "./reelContext";
@@ -7,20 +11,23 @@ import "./Hero.css";
 
 /**
  * The drift hero: a full-bleed photograph drifting sideways with scroll, its
- * text bottom left over the corner shade, letters with a halo. Without a
- * photo (no works yet) it is the plain --night ground.
+ * text bottom left over the corner shade, letters with a halo. While its
+ * photo is unknown it is the plain --night ground; `placeholder` (there is no
+ * work to show: a person with no works, an empty site) puts the default
+ * photograph there instead.
  */
-export function DriftHero({ imagePath, children }: { imagePath?: string | null; children?: ReactNode }) {
+export function DriftHero({ imagePath, placeholder = false, children }: { imagePath?: string | null; placeholder?: boolean; children?: ReactNode }) {
     const container = useContext(ReelContainerContext);
     const ref = useRef<HTMLElement>(null);
     const reduce = useReducedMotion();
     const { scrollYProgress } = useScroll({ container, target: ref, offset: ["start start", "end start"] });
     const x = useTransform(scrollYProgress, [0, 1], ["-10%", "2%"]);
+    const src = imagePath ? getImageUrl(imagePath) : placeholder ? emptyHero : null;
     return (
         <section ref={ref} className="hero" data-key="intro">
             <div className="hero-media">
-                {imagePath && (
-                    <motion.img src={getImageUrl(imagePath)} alt="" className="hero-img" style={reduce ? undefined : { x }} fetchPriority="high" />
+                {src && (
+                    <motion.img src={src} alt="" className="hero-img" style={reduce ? undefined : { x }} fetchPriority="high" />
                 )}
             </div>
             <div className="hero-body">{children}</div>

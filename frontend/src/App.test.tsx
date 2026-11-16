@@ -1,6 +1,10 @@
-import { screen, waitFor, within } from "@testing-library/react";
+import { render, screen, waitFor, within } from "@testing-library/react";
+import { MemoryRouter } from "react-router";
 import { describe, expect, it } from "vitest";
+import App from "./App";
+import { AuthProvider } from "./auth/AuthContext";
 import { en, ja } from "./lang";
+import { LanguageProvider } from "./lang/LanguageContext";
 import { feedRoutes } from "./test/feedApi";
 import { makePost, makeToken, makeUser, seedSession } from "./test/fixtures";
 import { apiError, mockApi, noContent } from "./test/mockApi";
@@ -66,6 +70,23 @@ describe("header", () => {
 });
 
 describe("language toggle (in the hero)", () => {
+  it("starts in Japanese, with JA listed before EN", async () => {
+    mockApi(feedRoutes([]));
+    render(
+      <LanguageProvider>
+        <MemoryRouter>
+          <AuthProvider>
+            <App />
+          </AuthProvider>
+        </MemoryRouter>
+      </LanguageProvider>,
+    );
+    expect(await screen.findByText(ja.hero.tagline)).toBeInTheDocument();
+    expect(document.documentElement.lang).toBe("ja");
+    const toggle = screen.getByRole("group", { name: ja.settings.language });
+    expect(within(toggle).getAllByRole("button").map((b) => b.textContent)).toEqual(["JA", "EN"]);
+  });
+
   it("persists the choice for logged-in users and sets <html lang>", async () => {
     seedSession();
     const api = mockApi({ ...feedRoutes([]), "PUT /users/me/settings/language": noContent() });

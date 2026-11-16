@@ -13,6 +13,8 @@ import type { Post } from "../types/post";
 import { getImageUrl } from "../utils/imageUrl";
 import { workPhoto, yearOf } from "../utils/motion";
 import { Header } from "../components/Header";
+import { JaText } from "../components/JaText";
+import { interpolate } from "../utils/interpolate";
 import { knownImages } from "../components/postImages";
 import { CreditLine, VerticalTitle, type PostRouteState } from "../components/Reel";
 import { FormError, TextField } from "../components/TextField";
@@ -44,7 +46,7 @@ const EMAIL = /^\S+@\S+\.\S+$/;
  * redirect); a new account is signed in at once.
  */
 export function AuthPage({ mode }: { mode: AuthMode }) {
-    const { t } = useLanguage();
+    const { t, language } = useLanguage();
     const toApiErrorMessage = useApiErrorMessage();
     const { login } = useAuth();
     const location = useLocation();
@@ -77,9 +79,9 @@ export function AuthPage({ mode }: { mode: AuthMode }) {
         try {
             const response = isLogin
                 ? await loginUser({ email: email.trim(), password })
-                : await signup({ username: username.trim(), email: email.trim(), password });
+                : await signup({ username: username.trim(), email: email.trim(), password, preferred_language: language });
             toast(isLogin ? t.toast.welcomeBack : t.toast.welcome, {
-                description: isLogin ? t.toast.signedInAs(response.user.username) : t.toast.signedUpAs(response.user.username),
+                description: interpolate(isLogin ? t.toast.signedInAs : t.toast.signedUpAs, <JaText text={response.user.username} />),
             });
             // Signing in and leaving are one update, so PublicOnlyRoute's own
             // redirect never races this one.

@@ -6,6 +6,8 @@ type SignupRequest struct {
 	Username string `json:"username"`
 	Email    string `json:"email"`
 	Password string `json:"password"`
+	// Optional: the language the visitor signed up in ("en" | "ja").
+	PreferredLanguage string `json:"preferred_language"`
 }
 
 type LoginRequest struct {

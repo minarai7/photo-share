@@ -59,12 +59,27 @@ func (h *AIHandler) GearLink(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	req.Language = strings.TrimSpace(req.Language)
+	if req.Language == "" {
+		req.Language = "en"
+	}
+	if req.Language != "en" && req.Language != "ja" {
+		httpx.WriteJSON(w, http.StatusBadRequest, httpx.ErrorResponse{
+			Error: httpx.ErrorDetail{
+				Code:    "invalid_language",
+				Message: "Language must be either en or ja",
+			},
+		})
+		return
+	}
+
 	ctx, cancel := context.WithTimeout(r.Context(), 35*time.Second)
 	defer cancel()
 
 	result, err := h.aiService.FindGearLinks(ctx, dto.GearLinkRequest{
-		Kind: req.Kind,
-		Name: req.Name,
+		Kind:     req.Kind,
+		Name:     req.Name,
+		Language: req.Language,
 	})
 
 	if err != nil {
